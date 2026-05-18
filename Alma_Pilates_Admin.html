@@ -288,7 +288,7 @@ tbody tr.selected{background:#EDE4D8}
 <div style="flex:1;padding:24px;overflow-y:auto;min-width:0">
   <div class="page-header">
     <div>
-      <div class="page-title">Расписание</div>
+      <div class="page-title" id="sched-page-title">Расписание</div>
       <div class="page-sub" id="sched-page-sub">Alma Pilates · 4 чел./занятие</div>
     </div>
     <div style="display:flex;gap:8px">
@@ -1030,6 +1030,7 @@ function isSlotCancelled(di, time, date){
 }
 
 function renderSchedule(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const t=AL();
   const dates=getWeekDates();
   const d0=dates[0], d5=dates[5];
@@ -2234,29 +2235,60 @@ function renderMonthView(){
              2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
              4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
   grid.style.display='block';
+
+  // collect monthly stats
+  let mTotSlots=0, mTotBooked=0;
+  cells.forEach(date=>{
+    if(date.getMonth()!==curM||date.getFullYear()!==curY) return;
+    const dow=(date.getDay()+6)%7; if(dow===6) return;
+    (SCH[dow]||[]).forEach(t=>{ mTotSlots++; mTotBooked+=(slotBookingsMap[dow+'_'+t]||[]).length; });
+  });
+  const smW=document.getElementById('sm-week');
+  if(smW) smW.textContent=L('Μαθήματα μήνα','Classes/month',L('','','Занятий/мес.'));
+  const sTot=document.getElementById('s-tot'); if(sTot) sTot.textContent=mTotSlots;
+  const sCap=document.getElementById('s-cap'); if(sCap) sCap.textContent=mTotSlots*CAP;
+  const sBk=document.getElementById('s-bk'); if(sBk) sBk.textContent=mTotBooked;
+  const sFill=document.getElementById('s-fill'); if(sFill) sFill.textContent=mTotSlots>0?Math.round(mTotBooked/(mTotSlots*CAP)*100)+'%':'0%';
+
   let h=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px">
     ${DAYS7.map((d,i)=>`<div style="text-align:center;font-size:10px;font-weight:600;padding:4px 0;color:${i>=5?'var(--red)':'var(--text2)'};">${d}</div>`).join('')}
   </div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">`;
+
   cells.forEach(date=>{
     const isToday=date.toDateString()===today.toDateString();
     const isCur=date.getMonth()===curM&&date.getFullYear()===curY;
     const dow=(date.getDay()+6)%7; const isSun=dow===6;
     const slots=isSun||!isCur?[]:(SCH[dow]||[]);
-    const bks=slots.map(t=>(slotBookingsMap[dow+'_'+t]||[]).length);
-    const full=bks.filter(b=>b>=CAP).length;
-    const canc=!isSun&&isCur&&slots.some(t=>isSlotCancelled(dow,t,date));
+    const dateStr=date.toISOString().split('T')[0];
+
+    let slotsHtml='';
+    if(slots.length){
+      slotsHtml=slots.map(t=>{
+        const key=dow+'_'+t;
+        const bk=(slotBookingsMap[key]||[]).length;
+        const cancelled=isSlotCancelled(dow,t,date);
+        const full=!cancelled&&bk>=CAP;
+        let bg,color,extra='';
+        if(cancelled){ bg='var(--bg3)'; color='var(--text3)'; extra='text-decoration:line-through;opacity:.65'; }
+        else if(full){ bg='var(--red-bg)'; color='var(--red)'; }
+        else if(bk>0){ bg='var(--green-bg)'; color='var(--green)'; }
+        else{ bg='transparent'; color='var(--text3)'; }
+        return `<div onclick="event.stopPropagation();openSlotDetail(${dow},'${t}','${dateStr}')"
+          style="font-size:8.5px;padding:1px 4px;border-radius:3px;background:${bg};color:${color};${extra}cursor:pointer;display:flex;justify-content:space-between;gap:3px;line-height:1.6;border:0.5px solid ${cancelled?'var(--border)':full?'#E8A0A0':bk>0?'#8BAF96':'var(--border)'}">
+          <span style="font-weight:500">${t}</span><span style="opacity:.85">${cancelled?'✕':bk+'/'+CAP}</span>
+        </div>`;
+      }).join('');
+    }
+
     h+=`<div onclick="${isCur&&!isSun?'openDayView(new Date('+date.getTime()+'))':''}"
-      style="border:${isToday?'2px solid var(--accent)':'0.5px solid var(--border)'};border-radius:8px;
-             padding:4px 5px;min-height:56px;background:${isToday?'var(--accent)10':isCur?'var(--card)':'transparent'};
-             opacity:${isCur?1:.25};cursor:${isCur&&!isSun?'pointer':'default'}">
-      <div style="font-size:11px;font-weight:${isToday?700:400};color:${isToday?'var(--accent)':'var(--text)'}">${date.getDate()}</div>
-      ${isCur&&slots.length?`<div style="margin-top:2px">${canc
-        ?`<div style="font-size:8px;color:var(--red);background:var(--red-bg);border-radius:3px;padding:1px 3px;text-align:center">✕</div>`
-        :`<div style="font-size:9px;color:${full?'var(--red)':'var(--text3)'}">${slots.length}${L('μ','cl','зан')}</div>
-         <div style="display:flex;gap:1px;margin-top:2px">${bks.map(b=>`<div style="flex:1;height:3px;border-radius:1px;background:${b>=CAP?'var(--red)':b>0?'var(--accent)':'var(--border)'}"></div>`).join('')}</div>`
-      }</div>`:''}
+      style="border:${isToday?'1.5px solid var(--accent)':'0.5px solid var(--border)'};border-radius:8px;
+             padding:5px 5px 4px;min-height:88px;background:${isToday?'#FBF7F2':isCur?'var(--card)':'transparent'};
+             opacity:${isCur?1:.3};cursor:${isCur&&!isSun?'pointer':'default'}">
+      <div style="font-size:11px;font-weight:${isToday?700:500};color:${isToday?'var(--accent)':'var(--text)'};margin-bottom:3px;line-height:1">${date.getDate()}</div>
+      <div style="display:flex;flex-direction:column;gap:1.5px">${slotsHtml}</div>
     </div>`;
   });
+
   h+='</div>'; grid.innerHTML=h;
 }
 function openDayView(date){
