@@ -916,6 +916,7 @@ function closeClientDetail(){
 
 let clientCalOffset={};
 let clientDateBookings={};
+let pendingSelections={};
 
 function renderClientCard(c){
   const panel=document.getElementById('client-detail'); if(!panel) return;
@@ -951,9 +952,9 @@ function renderClientCard(c){
   <div>
     <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:10px">${typeLabel} <span style="font-weight:400;color:var(--text2)">${price}</span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
-      <div class="sub-box"><div class="sub-box-val">${attendedMonth}</div><div class="sub-box-lbl">этот месяц</div></div>
-      <div class="sub-box" style="background:var(--green-bg)"><div class="sub-box-val" style="color:var(--green)">${upcoming}</div><div class="sub-box-lbl" style="color:var(--green)">предстоит</div></div>
-      <div class="sub-box"><div class="sub-box-val">${available}</div><div class="sub-box-lbl">доступно</div></div>
+      <div class="sub-box"><div class="sub-box-val" id="sub-attended-${c.id}">${attendedMonth}</div><div class="sub-box-lbl">этот месяц</div></div>
+      <div class="sub-box" style="background:var(--green-bg)"><div class="sub-box-val" style="color:var(--green)" id="sub-upcoming-${c.id}">${upcoming}</div><div class="sub-box-lbl" style="color:var(--green)">предстоит</div></div>
+      <div class="sub-box"><div class="sub-box-val" id="sub-available-${c.id}">${available}</div><div class="sub-box-lbl">доступно</div></div>
     </div>
     <div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px"><span>Использовано: ${used} / ${c.total}</span><span>${c.left} осталось</span></div>
@@ -999,17 +1000,9 @@ function renderClientCard(c){
     </div>
   </div>
 
-  <div style="border-top:0.5px solid var(--border);padding-top:12px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">Записать на занятия</div>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button class="btn sm" onclick="shiftClientCal(-1,${c.id})" style="padding:2px 7px">‹</button>
-        <span style="font-size:11px;color:var(--text2);min-width:80px;text-align:center" id="ccal-label-${c.id}"></span>
-        <button class="btn sm" onclick="shiftClientCal(1,${c.id})" style="padding:2px 7px">›</button>
-      </div>
-    </div>
-    <div id="ccal-${c.id}"></div>
-    <button class="btn danger" onclick="cancelAllFutureBookings(${c.id})" style="width:100%;justify-content:center;margin-top:8px;font-size:11px">Отменить все будущие записи</button>
+  <div style="border-top:0.5px solid var(--border);padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <button class="btn" onclick="openClientCalModal(${c.id})" style="justify-content:center">📅 Записать на занятия</button>
+    <button class="btn danger" onclick="cancelAllFutureBookings(${c.id})" style="justify-content:center">Отменить все будущие</button>
   </div>
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px">
@@ -1063,9 +1056,181 @@ function toggleManualSettings(clientId){
   if(arrow) arrow.textContent=showing?'▸':'▾';
 }
 
+let currentCalClientId=null;
+
+function openClientCalModal(clientId){
+  currentCalClientId=clientId;
+  let modal=document.getElementById('client-cal-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='client-cal-modal';
+    modal.className='modal-overlay';
+    modal.style.cssText='display:none;z-index:1000';
+    modal.onclick=function(e){if(e.target===modal)closeClientCalModal();};
+    document.body.appendChild(modal);
+  }
+  modal.style.display='flex';
+  renderClientCalendarModal(clientId);
+}
+
+function closeClientCalModal(){
+  const modal=document.getElementById('client-cal-modal');
+  if(modal) modal.style.display='none';
+  currentCalClientId=null;
+}
+
 function shiftClientCal(d,clientId){
   clientCalOffset[clientId]=(clientCalOffset[clientId]||0)+d;
-  renderClientCalendar(clientId);
+  renderClientCalendarModal(clientId);
+}
+
+function updateConfirmBar(clientId){
+  const pending=Object.keys(pendingSelections).filter(k=>k.startsWith(clientId+'_')&&pendingSelections[k]);
+  const bar=document.getElementById('ccal-confirm-bar');
+  const lbl=document.getElementById('ccal-confirm-lbl');
+  if(!bar) return;
+  if(pending.length===0){bar.style.display='none';}
+  else{bar.style.display='block';if(lbl)lbl.textContent=`Выбрано: ${pending.length} зан.`;}
+  refreshClientStats(clientId);
+}
+
+function refreshClientStats(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const pendCount=Object.keys(pendingSelections).filter(k=>k.startsWith(clientId+'_')&&pendingSelections[k]).length;
+  const upcoming=(c.upcoming||0)+pendCount;
+  const available=Math.max(0,c.left-upcoming);
+  const elU=document.getElementById('sub-upcoming-'+clientId);
+  const elA=document.getElementById('sub-available-'+clientId);
+  if(elU) elU.textContent=upcoming;
+  if(elA) elA.textContent=available;
+}
+
+function renderClientCalendarModal(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const modal=document.getElementById('client-cal-modal'); if(!modal) return;
+  const offset=clientCalOffset[clientId]||0;
+  const ref=new Date(2026,4+offset,1);
+  const curM=ref.getMonth(), curY=ref.getFullYear();
+  const mn=ref.toLocaleString('ru-RU',{month:'long',year:'numeric'});
+  const monthLabel=mn.charAt(0).toUpperCase()+mn.slice(1);
+  const pending=Object.keys(pendingSelections).filter(k=>k.startsWith(clientId+'_')&&pendingSelections[k]);
+
+  const SCH={0:['16:30','17:30','18:30','19:30'],1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+             2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
+             4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
+  const DAYS7=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const today=new Date(2026,4,18);
+  const first=new Date(curY,curM,1);
+  const startDow=(first.getDay()+6)%7;
+  const cells=[];
+  for(let i=startDow;i>0;i--){const d=new Date(first);d.setDate(d.getDate()-i);cells.push(d);}
+  const last=new Date(curY,curM+1,0);
+  for(let d=new Date(first);d<=last;){cells.push(new Date(d));d.setDate(d.getDate()+1);}
+  const rem=(7-cells.length%7)%7;
+  for(let i=1;i<=rem;i++){const d=new Date(last);d.setDate(d.getDate()+i);cells.push(d);}
+
+  let grid=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:6px">
+    ${DAYS7.map((d,i)=>`<div style="text-align:center;font-size:11px;font-weight:600;padding:6px 0;color:${i>=5?'var(--red)':'var(--text2)'}">${d}</div>`).join('')}
+  </div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">`;
+
+  cells.forEach(date=>{
+    const isToday=date.toDateString()===today.toDateString();
+    const isCur=date.getMonth()===curM;
+    const isPast=date<today&&!isToday;
+    const dow=(date.getDay()+6)%7;
+    const isSun=dow===6;
+    const slots=isSun||!isCur||isPast?[]:(SCH[dow]||[]);
+    const dateStr=date.toISOString().split('T')[0];
+    let slotsHtml='';
+    slots.forEach(t=>{
+      const key=dow+'_'+t;
+      const bk=(slotBookingsMap[key]||[]).length;
+      const bookKey=clientId+'_'+dateStr+'_'+t;
+      const pendKey=clientId+'_'+dateStr+'_'+dow+'_'+t;
+      const isBooked=clientDateBookings[bookKey]===true||(clientDateBookings[bookKey]!==false&&(slotBookingsMap[key]||[]).includes(c.name));
+      const isPending=!isBooked&&pendingSelections[pendKey]===true;
+      const full=!isBooked&&!isPending&&bk>=CAP;
+      let bg,color,border,extra='';
+      if(isBooked){bg='var(--accent)';color='var(--bg)';border='var(--accent)';}
+      else if(isPending){bg='var(--warn-bg)';color='var(--warn)';border='#D4B870';extra='border-style:dashed;';}
+      else if(full){bg='var(--red-bg)';color='var(--red)';border='#E8A0A0';}
+      else{bg='var(--bg2)';color='var(--text2)';border='var(--border)';}
+      slotsHtml+=`<div onclick="${!full&&!isBooked?`toggleClientBooking(${clientId},'${dateStr}',${dow},'${t}')`:''}"
+        style="font-size:10px;padding:3px 5px;border-radius:4px;background:${bg};color:${color};cursor:${full||isBooked?'default':'pointer'};display:flex;justify-content:space-between;line-height:1.6;border:0.5px solid ${border};${extra}margin-bottom:1px">
+        <span style="font-weight:500">${t}</span><span style="opacity:.8">${isBooked?'✓':isPending?'●':bk+'/'+CAP}</span>
+      </div>`;
+    });
+    const minH=slots.length?slots.length*22+18:32;
+    grid+=`<div style="border:${isToday?'2px solid var(--accent)':'0.5px solid var(--border)'};border-radius:8px;padding:6px;min-height:${minH}px;background:${isToday?'#FBF7F2':isCur?'var(--card)':'transparent'};opacity:${isCur?1:.3}">
+      <div style="font-size:12px;font-weight:${isToday?700:500};color:${isToday?'var(--accent)':isPast?'var(--text3)':'var(--text)'};margin-bottom:3px">${date.getDate()}</div>
+      ${slotsHtml}
+    </div>`;
+  });
+  grid+='</div>';
+
+  modal.innerHTML=`<div style="background:var(--card);border-radius:16px;width:900px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.18)">
+    <div style="padding:16px 20px;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <div>
+        <div style="font-size:14px;font-weight:500;color:var(--text)">Записать на занятия — ${c.name}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Кликните на слоты → выберите нужные → Подтвердить</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn sm" onclick="shiftClientCal(-1,${clientId})" style="padding:4px 10px">‹</button>
+        <span style="font-size:13px;font-weight:500;color:var(--text);min-width:120px;text-align:center">${monthLabel}</span>
+        <button class="btn sm" onclick="shiftClientCal(1,${clientId})" style="padding:4px 10px">›</button>
+        <button onclick="closeClientCalModal()" style="border:none;background:none;cursor:pointer;color:var(--text3);font-size:20px;padding:2px 6px;line-height:1;margin-left:4px">✕</button>
+      </div>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:16px">${grid}</div>
+    <div style="padding:12px 20px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent);display:inline-block"></span><span style="font-size:11px;color:var(--text2)">Записан</span></div>
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:var(--warn-bg);border:1.5px dashed #D4B870;display:inline-block"></span><span style="font-size:11px;color:var(--text2)">Выбран</span></div>
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:var(--red-bg);display:inline-block"></span><span style="font-size:11px;color:var(--text2)">Заполнено</span></div>
+        <div style="flex:1"></div>
+        ${pending.length?`<span style="font-size:12px;color:var(--warn);font-weight:500" id="ccal-confirm-lbl">Выбрано: ${pending.length} зан.</span>`:'<span style="font-size:11px;color:var(--text3)" id="ccal-confirm-lbl">Выберите занятия в календаре</span>'}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn primary" onclick="confirmClientBookings(${clientId})" style="flex:1;justify-content:center" ${!pending.length?'disabled style="flex:1;justify-content:center;opacity:.4;cursor:default"':''}>Подтвердить запись</button>
+        <button class="btn" onclick="clearPendingSelections(${clientId})" style="justify-content:center">Сбросить выбор</button>
+        <button onclick="closeClientCalModal()" class="btn" style="justify-content:center">Закрыть</button>
+      </div>
+      <div id="ccal-confirm-bar" style="display:${pending.length?'block':'none'}"></div>
+    </div>
+  </div>`;
+}
+
+function confirmClientBookings(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const pending=Object.keys(pendingSelections).filter(k=>k.startsWith(clientId+'_')&&pendingSelections[k]);
+  let added=0;
+  pending.forEach(key=>{
+    // key: clientId_dateStr_dow_time  e.g. "1_2026-05-19_1_07:00"
+    const rest=key.slice((clientId+'_').length);
+    const dateStr=rest.substring(0,10);
+    const remainder=rest.slice(11);
+    const dowEnd=remainder.indexOf('_');
+    const dow=parseInt(remainder.slice(0,dowEnd));
+    const time=remainder.slice(dowEnd+1);
+    const slotKey=dow+'_'+time;
+    if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
+    if(!slotBookingsMap[slotKey].includes(c.name)) slotBookingsMap[slotKey].push(c.name);
+    clientDateBookings[clientId+'_'+dateStr+'_'+time]=true;
+    delete pendingSelections[key];
+    c.history.unshift({d:dateStr,t:'Записан '+time});
+    added++;
+  });
+  c.upcoming=(c.upcoming||0)+added;
+  toast(`✓ Подтверждено ${added} зан.`);
+  refreshClientStats(clientId);
+  renderClientCalendarModal(clientId);
+  renderClients();
+}
+
+function clearPendingSelections(clientId){
+  Object.keys(pendingSelections).forEach(k=>{ if(k.startsWith(clientId+'_')) delete pendingSelections[k]; });
+  refreshClientStats(clientId);
+  renderClientCalendarModal(clientId);
 }
 
 function renderClientCalendar(clientId){
@@ -1111,15 +1276,18 @@ function renderClientCalendar(clientId){
       const key=dow+'_'+t;
       const bk=(slotBookingsMap[key]||[]).length;
       const bookKey=clientId+'_'+dateStr+'_'+t;
+      const pendKey=clientId+'_'+dateStr+'_'+dow+'_'+t;
       const isBooked=clientDateBookings[bookKey]===true||(clientDateBookings[bookKey]!==false&&(slotBookingsMap[key]||[]).includes(c.name));
-      const full=!isBooked&&bk>=CAP;
-      let bg,color,border;
+      const isPending=!isBooked&&pendingSelections[pendKey]===true;
+      const full=!isBooked&&!isPending&&bk>=CAP;
+      let bg,color,border,extra='';
       if(isBooked){bg='var(--accent)';color='var(--bg)';border='var(--accent)';}
+      else if(isPending){bg='var(--warn-bg)';color='var(--warn)';border='#D4B870';extra='border-style:dashed;';}
       else if(full){bg='var(--red-bg)';color='var(--red)';border='#E8A0A0';}
       else{bg='transparent';color='var(--text3)';border='var(--border)';}
-      slotsHtml+=`<div onclick="${!full?`toggleClientBooking(${clientId},'${dateStr}',${dow},'${t}')`:''}"
-        style="font-size:7.5px;padding:1px 2px;border-radius:2px;background:${bg};color:${color};cursor:${full?'default':'pointer'};display:flex;justify-content:space-between;gap:1px;line-height:1.6;border:0.5px solid ${border}">
-        <span>${t}</span><span>${isBooked?'✓':bk+'/'+CAP}</span>
+      slotsHtml+=`<div onclick="${!full&&!isBooked?`toggleClientBooking(${clientId},'${dateStr}',${dow},'${t}')`:''}"
+        style="font-size:7.5px;padding:1px 2px;border-radius:2px;background:${bg};color:${color};cursor:${full||isBooked?'default':'pointer'};display:flex;justify-content:space-between;gap:1px;line-height:1.6;border:0.5px solid ${border};${extra}">
+        <span>${t}</span><span>${isBooked?'✓':isPending?'○':bk+'/'+CAP}</span>
       </div>`;
     });
     const minH=slots.length>0?Math.max(40,slots.length*14+8):26;
@@ -1133,28 +1301,10 @@ function renderClientCalendar(clientId){
 }
 
 function toggleClientBooking(clientId,dateStr,dow,time){
-  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
-  const bookKey=clientId+'_'+dateStr+'_'+time;
-  const slotKey=dow+'_'+time;
-  if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
-  const names=slotBookingsMap[slotKey];
-  const isBooked=clientDateBookings[bookKey]===true||(clientDateBookings[bookKey]!==false&&names.includes(c.name));
-  if(isBooked){
-    clientDateBookings[bookKey]=false;
-    const idx=names.indexOf(c.name); if(idx>-1) names.splice(idx,1);
-    c.upcoming=Math.max(0,(c.upcoming||0)-1);
-    c.history.unshift({d:dateStr,t:'Отменена запись '+time});
-    toast('Запись отменена');
-  } else {
-    if(names.length>=CAP){toast('Занятие заполнено');return;}
-    clientDateBookings[bookKey]=true;
-    names.push(c.name);
-    c.upcoming=(c.upcoming||0)+1;
-    c.history.unshift({d:dateStr,t:'Записан '+time});
-    toast('✓ Записан на '+time);
-  }
-  renderClientCalendar(clientId);
-  renderClients();
+  const pendKey=clientId+'_'+dateStr+'_'+dow+'_'+time;
+  pendingSelections[pendKey]=!pendingSelections[pendKey];
+  updateConfirmBar(clientId);
+  renderClientCalendarModal(clientId);
 }
 
 function cancelAllFutureBookings(clientId){
