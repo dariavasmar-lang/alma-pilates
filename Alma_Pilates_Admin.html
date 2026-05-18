@@ -281,15 +281,9 @@ tbody tr.selected{background:#EDE4D8}
       <div class="page-sub" id="sched-page-sub">Alma Pilates · 4 чел./занятие</div>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn" onclick="openAddSlotModal()" id="btn-add-slot">+ Add / Cancel slot</button>
     </div>
   </div>
 
-  <!-- Cyprus holidays quick bar -->
-  <div style="background:var(--bg2);border-radius:10px;padding:8px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0">Праздники:</span>
-    <div style="display:flex;gap:5px;flex-wrap:wrap" id="holiday-chips"></div>
-  </div>
 
   <div class="week-nav">
     <button class="week-btn" onclick="shiftWeek(-1)">‹</button>
@@ -315,12 +309,12 @@ tbody tr.selected{background:#EDE4D8}
 
   <!-- Cancellations list (inline) -->
   <div style="margin-top:16px" id="cancel-section">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-size:13px;font-weight:500;color:var(--text)" id="cancel-list-title">Отмены и праздники</div>
-      <span style="font-size:11px;color:var(--text3)" id="cancel-count-lbl"></span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:600;color:var(--text)" id="cancel-list-title">Отмены и праздники</div>
+      <button class="btn" style="font-size:11px;padding:4px 10px" onclick="openHolidayModal()">🎉 Праздники Кипра</button>
     </div>
     <div id="cancel-inline-list">
-      <div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center" id="cancel-empty-inline">Нет запланированных отмен</div>
+      <div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center" id="cancel-empty-inline">Нет запланированных отмен</div>
     </div>
   </div>
 </div>
@@ -688,6 +682,8 @@ const SLOT_BOOKINGS = {
 
 // Extra slots added manually by admin (di_time -> {added:true,label:'...'})
 let extraSlots = {};
+// One-time extra classes per date: {'2026-05-19': [{time:'10:00', reason:'...'}]}
+let dateExtraSlots = {};
 // Manually cancelled slots (key -> true)
 let manualCancelled = {};
 
@@ -1389,8 +1385,10 @@ function getWeekDates(){
 }
 function shiftWeek(d){ weekOffset+=d; renderSchedule(); }
 
+function localDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
 function isSlotCancelled(di, time, date){
-  const ds=date.toISOString().split('T')[0];
+  const ds=localDateStr(date);
   return cancellations.some(c=>{
     if(c.type==='slot') return c.date===ds&&c.slot===time;
     return ds>=c.date&&ds<=(c.endDate||c.date);
@@ -1457,13 +1455,24 @@ function renderSchedule(){
   };
   const isMorning=t=>t<'12:00';
 
+  // Pre-compute all slots per day (regular + extra) to find dynamic max
+  const allDayData=dates.slice(0,6).map((date,di)=>{
+    const dateStr=localDateStr(date);
+    const regular=SCH_FLAT[di]||[];
+    const extra=(dateExtraSlots[dateStr]||[]).map(s=>({t:s.time,extra:true,reason:s.reason}));
+    const merged=[...regular,...extra].sort((a,b)=>a.t.localeCompare(b.t));
+    return {
+      date, dateStr,
+      mSlots: merged.filter(s=>isMorning(s.t)),
+      eSlots: merged.filter(s=>!isMorning(s.t))
+    };
+  });
+  const dynMaxM=Math.max(MAX_M,...allDayData.map(d=>d.mSlots.length));
+  const dynMaxE=Math.max(MAX_E,...allDayData.map(d=>d.eSlots.length));
+
   for(let di=0;di<6;di++){
-    const date=dates[di];
+    const {date,dateStr,mSlots,eSlots}=allDayData[di];
     const isToday=date.toDateString()===today.toDateString();
-    const dateStr=date.toISOString().split('T')[0];
-    const daySlots=SCH_FLAT[di]||[];
-    const mSlots=daySlots.filter(s=>isMorning(s.t));
-    const eSlots=daySlots.filter(s=>!isMorning(s.t));
 
     html+=`<div class="day-col">`;
     html+=`<div class="day-head${isToday?' today':''}"><span class="dn">${date.getDate()}</span>${DAYS_LOC[di]}</div>`;
@@ -1476,29 +1485,24 @@ function renderSchedule(){
       const full=bk>=CAP&&!cancelled;
       totalSlots++; totalBooked+=bk;
 
-      let cls, txt, style='';
-      if(cancelled){
-        cls='cancelled-slot'; txt='✕';
-      } else if(full){
-        // ONLY full slots get color - red background
-        cls='slot-full-mark'; txt=bk+'/'+CAP;
-        style='color:var(--red);font-weight:500';
-      } else {
-        // Available - neutral, no color
-        cls='slot-avail'; txt=bk+'/'+CAP;
-      }
+      let cls, txt, spotStyle='';
+      if(cancelled){ cls='cancelled-slot'; txt='✕'; }
+      else if(full){ cls='slot-full-mark'; txt=bk+'/'+CAP; spotStyle='color:var(--red);font-weight:500'; }
+      else { cls='slot-avail'; txt=bk+'/'+CAP; }
 
-      return `<div class="slot ${cls}" onclick="openSlotDetail(${di},'${s.t}','${dateStr}')" style="cursor:pointer">
-        <span class="slot-time">${s.t}</span>
-        <span class="slot-spots" style="${style}">${txt}</span>
+      const extraStyle=s.extra?'border-color:var(--green);background:var(--green-bg);':'';
+      const timeStyle=s.extra?'color:var(--green)':'';
+      return `<div class="slot ${cls}" onclick="openSlotDetail(${di},'${s.t}','${dateStr}')" style="cursor:pointer;${extraStyle}">
+        <span class="slot-time" style="${timeStyle}">${s.t}</span>
+        <span class="slot-spots" style="${spotStyle}">${txt}</span>
       </div>`;
     };
 
-    for(let mi=0;mi<MAX_M;mi++){
+    for(let mi=0;mi<dynMaxM;mi++){
       html += mi<mSlots.length ? renderSlot(mSlots[mi]) : `<div class="ph"></div>`;
     }
     html+=`<div style="height:4px"></div>`;
-    for(let ei=0;ei<MAX_E;ei++){
+    for(let ei=0;ei<dynMaxE;ei++){
       html += ei<eSlots.length ? renderSlot(eSlots[ei]) : `<div class="ph"></div>`;
     }
     html+=`</div>`;
@@ -1671,27 +1675,60 @@ const CY_HOLIDAYS=[
 ];
 
 function renderHolidayChips(){
-  const el=document.getElementById('holiday-chips');
-  if(!el) return;
-  el.innerHTML=CY_HOLIDAYS.map(h=>{
-    const active=cancellations.some(c=>c.date===h.date);
-    return `<button onclick="toggleHoliday('${h.date}','${h.name}')"
-      style="font-size:10px;padding:3px 8px;border-radius:20px;border:0.5px solid ${active?'var(--green)':'var(--border)'};background:${active?'var(--green-bg)':'transparent'};color:${active?'var(--green)':'var(--text2)'};cursor:pointer">
-      ${h.date.slice(5).replace('-','/')} ${h.name.split(' / ')[0]}${active?' ✓':''}
-    </button>`;
-  }).join('');
+  // chips bar removed — holidays now managed via openHolidayModal()
 }
 
 function toggleHoliday(date,name){
   const idx=cancellations.findIndex(c=>c.date===date&&c.type==='holiday');
   if(idx>=0){
     cancellations.splice(idx,1);
-    toast(adminLang==='ru'?'Праздник удалён':adminLang==='en'?'Holiday removed':'Αφαιρέθηκε');
   } else {
     cancellations.push({type:'holiday',date,endDate:date,name,slot:'',reason:''});
-    toast('🎉 '+(adminLang==='ru'?'Праздник добавлен!':adminLang==='en'?'Holiday added!':'Αργία προστέθηκε!'));
   }
   renderSchedule();
+}
+
+function toggleHolidayInModal(date,name){
+  const idx=cancellations.findIndex(c=>c.date===date&&c.type==='holiday');
+  if(idx>=0){ cancellations.splice(idx,1); }
+  else { cancellations.push({type:'holiday',date,endDate:date,name,slot:'',reason:''}); }
+  renderHolidayModalContent();
+  renderCancelInline();
+}
+
+function openHolidayModal(){
+  let m=document.getElementById('holiday-modal');
+  if(!m){m=document.createElement('div');m.className='modal-overlay';m.id='holiday-modal';document.body.appendChild(m);}
+  renderHolidayModalContent();
+  m.classList.add('open');
+}
+
+function renderHolidayModalContent(){
+  const m=document.getElementById('holiday-modal'); if(!m) return;
+  const MO=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  const rows=CY_HOLIDAYS.map(h=>{
+    const active=cancellations.some(c=>c.date===h.date&&c.type==='holiday');
+    const [y,mo,d]=h.date.split('-');
+    const dateLabel=`${parseInt(d)} ${MO[parseInt(mo)-1]} ${y}`;
+    const ruName=h.name.split(' / ')[2]||h.name.split(' / ')[1]||h.name.split(' / ')[0];
+    return `<label onclick="toggleHolidayInModal('${h.date}','${h.name.replace(/'/g,"\\'")}')"
+      style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:0.5px solid ${active?'var(--green)':'var(--border)'};border-radius:10px;cursor:pointer;background:${active?'var(--green-bg)':'var(--bg2)'};user-select:none">
+      <span style="width:16px;height:16px;border-radius:4px;border:1.5px solid ${active?'var(--green)':'var(--border)'};background:${active?'var(--green)':'transparent'};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:#fff">${active?'✓':''}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500;color:var(--text)">${ruName}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:1px">${dateLabel}</div>
+      </div>
+      ${active?`<span style="font-size:10px;color:var(--green);font-weight:500">закрыто</span>`:''}
+    </label>`;
+  }).join('');
+  m.innerHTML=`<div class="modal" style="max-width:480px">
+    <div class="modal-title">🎉 Праздники Кипра</div>
+    <div class="modal-sub" style="margin-bottom:14px">Отмеченные дни закрывают студию полностью</div>
+    <div style="display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto;margin-bottom:16px">${rows}</div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn primary" onclick="closeModal('holiday-modal');renderSchedule()">Готово</button>
+    </div>
+  </div>`;
 }
 
 // ── INLINE CANCEL LIST ────────────────────────────────────────
@@ -2246,7 +2283,7 @@ function openBookModal(di, time){
 // ─── CANCELLATIONS ────────────────────────────────────────────
 
 function isSlotCancelled(di, time, date){
-  const ds = date.toISOString().split('T')[0];
+  const ds = localDateStr(date);
   return cancellations.some(c=>{
     if((c.type==='all'||c.type==='holiday'||c.type==='vacation')&&ds>=c.date&&ds<=(c.endDate||c.date)) return true;
     if(c.type==='slot'&&c.date===ds&&c.slot===time) return true;
@@ -2627,43 +2664,193 @@ function renderMonthView(){
     const isCur=date.getMonth()===curM&&date.getFullYear()===curY;
     const dow=(date.getDay()+6)%7; const isSun=dow===6;
     const slots=isSun||!isCur?[]:(SCH[dow]||[]);
-    const dateStr=date.toISOString().split('T')[0];
+    const dateStr=localDateStr(date);
+    const dayAbbr=isCur&&!isSun?DAYS7[dow]:'';
 
-    let slotsHtml='';
-    if(slots.length){
-      slotsHtml=slots.map(t=>{
-        const key=dow+'_'+t;
-        const bk=(slotBookingsMap[key]||[]).length;
+    const dayOff=isCur&&cancellations.some(c=>{
+      if(c.type==='slot') return false;
+      return dateStr>=c.date&&dateStr<=(c.endDate||c.date);
+    });
+
+    let middleHtml='';
+    if(slots.length&&!dayOff){
+      let totalBooked=0, totalCap=0;
+      slots.forEach(t=>{
         const cancelled=isSlotCancelled(dow,t,date);
-        const full=!cancelled&&bk>=CAP;
-        let bg,color,extra='';
-        if(cancelled){ bg='var(--bg3)'; color='var(--text3)'; extra='text-decoration:line-through;opacity:.65'; }
-        else if(full){ bg='var(--red-bg)'; color='var(--red)'; }
-        else if(bk>0){ bg='var(--green-bg)'; color='var(--green)'; }
-        else{ bg='transparent'; color='var(--text3)'; }
-        return `<div onclick="event.stopPropagation();openSlotDetail(${dow},'${t}','${dateStr}')"
-          style="font-size:8.5px;padding:1px 4px;border-radius:3px;background:${bg};color:${color};${extra}cursor:pointer;display:flex;justify-content:space-between;gap:3px;line-height:1.6;border:0.5px solid ${cancelled?'var(--border)':full?'#E8A0A0':bk>0?'#8BAF96':'var(--border)'}">
-          <span style="font-weight:500">${t}</span><span style="opacity:.85">${cancelled?'✕':bk+'/'+CAP}</span>
-        </div>`;
-      }).join('');
+        if(!cancelled){ totalBooked+=(slotBookingsMap[dow+'_'+t]||[]).length; totalCap+=CAP; }
+      });
+      const pct=totalCap>0?Math.round(totalBooked/totalCap*100):0;
+      const barColor=pct>=100?'var(--red)':pct>=60?'var(--accent)':pct>0?'var(--green)':'var(--bg3)';
+      const lbl=totalBooked>0?`${totalBooked} зап.`:`${slots.length} зан.`;
+      middleHtml=`
+        <div style="height:3px;border-radius:2px;background:var(--bg3);margin-top:7px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px"></div>
+        </div>
+        <div style="font-size:10px;color:${totalBooked>0?'var(--text2)':'var(--text3)'};margin-top:4px;font-weight:${totalBooked>0?500:400}">${lbl}</div>`;
+    } else if(dayOff&&isCur&&!isSun){
+      const hol=cancellations.find(c=>c.type!=='slot'&&dateStr>=c.date&&dateStr<=(c.endDate||c.date));
+      const icon=hol?.type==='holiday'?'🎉':hol?.type==='vacation'?'🏖️':'✕';
+      middleHtml=`<div style="font-size:13px;margin-top:5px">${icon}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px">выходной</div>`;
     }
 
-    h+=`<div onclick="${isCur&&!isSun?'openDayView(new Date('+date.getTime()+'))':''}"
+    const cellBg=dayOff&&isCur?'#F5EEF8':isToday?'#FBF7F2':isCur?'var(--card)':'transparent';
+    h+=`<div onclick="${isCur&&!isSun?'openDayModal(new Date('+date.getTime()+'))':''}"
       style="border:${isToday?'1.5px solid var(--accent)':'0.5px solid var(--border)'};border-radius:8px;
-             padding:5px 5px 4px;min-height:88px;background:${isToday?'#FBF7F2':isCur?'var(--card)':'transparent'};
+             padding:8px 8px 7px;min-height:80px;background:${cellBg};
              opacity:${isCur?1:.3};cursor:${isCur&&!isSun?'pointer':'default'}">
-      <div style="font-size:11px;font-weight:${isToday?700:500};color:${isToday?'var(--accent)':'var(--text)'};margin-bottom:3px;line-height:1">${date.getDate()}</div>
-      <div style="display:flex;flex-direction:column;gap:1.5px">${slotsHtml}</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font-size:${isToday?17:14}px;font-weight:${isToday?700:600};color:${isToday?'var(--accent)':dayOff&&isCur?'var(--text3)':'var(--text)'};line-height:1">${date.getDate()}</div>
+        <div style="font-size:9px;color:var(--text3);font-weight:500">${dayAbbr}</div>
+      </div>
+      ${middleHtml}
     </div>`;
   });
 
   h+='</div>'; grid.innerHTML=h;
 }
-function openDayView(date){
-  viewMode='week';
-  const base=new Date(2026,4,4);
-  weekOffset=Math.floor((date-base)/(7*864e5));
+function openDayView(date){ openDayModal(date); }
+
+function openDayModal(date){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const DAYNAMES=adminLang==='ru'?['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье']:
+                 adminLang==='en'?['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']:
+                 ['Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο','Κυριακή'];
+  const MO=adminLang==='ru'?['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря']:
+           ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const SCH={0:['16:30','17:30','18:30','19:30'],1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+             2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
+             4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
+  const dow=(date.getDay()+6)%7;
+  const dateStr=localDateStr(date);
+  const slots=dow===6?[]:(SCH[dow]||[]);
+  const dayOff=cancellations.some(c=>c.type!=='slot'&&dateStr>=c.date&&dateStr<=(c.endDate||c.date));
+  const dayName=DAYNAMES[dow]||'';
+  const dateLabel=`${date.getDate()} ${MO[date.getMonth()]} ${date.getFullYear()}`;
+
+  // Merge regular + extra slots, sort by time
+  const allSlots=[
+    ...slots.map(t=>({time:t,extra:false})),
+    ...(dateExtraSlots[dateStr]||[]).map(s=>({time:s.time,extra:true,reason:s.reason}))
+  ].sort((a,b)=>a.time.localeCompare(b.time));
+
+  let slotsHtml='';
+  if(allSlots.length){
+    slotsHtml=allSlots.map(s=>{
+      if(s.extra){
+        const booked=slotBookingsMap[dow+'_'+s.time]||[];
+        const attendeesHtml=booked.length>0
+          ?booked.map(n=>`<span style="font-size:11px;padding:2px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;color:var(--text)">👤 ${n}</span>`).join('')
+          :`<span style="font-size:11px;color:var(--text3)">${L('Κανείς','Nobody','Никто не записался')}</span>`;
+        return `<div style="border:0.5px solid var(--green);border-radius:10px;padding:10px 12px;background:var(--green-bg)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+            <div style="font-size:14px;font-weight:600;color:var(--text);min-width:42px">${s.time}</div>
+            <span style="font-size:10px;padding:2px 8px;border-radius:20px;background:var(--green);color:#fff;font-weight:500">${L('Επιπλέον','Extra','Доп.')}</span>
+            ${s.reason?`<span style="font-size:11px;color:var(--text2)">${s.reason}</span>`:''}
+            <button onclick="removeExtraClassOnDay('${dateStr}','${s.time}')" style="margin-left:auto;font-size:10px;padding:2px 8px;border:0.5px solid var(--red);border-radius:7px;background:transparent;color:var(--red);cursor:pointer">${L('Αφαίρεση','Remove','Удалить')}</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">${attendeesHtml}</div>
+        </div>`;
+      }
+      const t=s.time;
+      const key=dow+'_'+t;
+      const booked=slotBookingsMap[key]||[];
+      const cancelled=isSlotCancelled(dow,t,date);
+      const full=!cancelled&&booked.length>=CAP;
+      const statusText=cancelled?L('Ακυρώθηκε','Cancelled','Отменено'):full?L('Πλήρες','Full','Мест нет'):`${CAP-booked.length} ${L('θέσεις','spots','мест')}`;
+      const statusColor=cancelled?'var(--text3)':full?'var(--red)':'var(--green)';
+      const statusBg=cancelled?'var(--bg3)':full?'var(--red-bg)':'var(--green-bg)';
+      const attendeesHtml=booked.length>0
+        ?booked.map(n=>`<span style="font-size:11px;padding:2px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;color:var(--text)">👤 ${n}</span>`).join('')
+        :`<span style="font-size:11px;color:var(--text3)">${L('Κανείς','Nobody','Никто не записался')}</span>`;
+      const toggleBtn=cancelled
+        ?`<button onclick="restoreSlotOnDate(${dow},'${t}','${dateStr}')" style="font-size:10px;padding:2px 8px;border:0.5px solid var(--green);border-radius:7px;background:transparent;color:var(--green);cursor:pointer">${L('Επαναφορά','Restore','Восстановить')}</button>`
+        :`<button onclick="cancelSlotOnDate(${dow},'${t}','${dateStr}')" style="font-size:10px;padding:2px 8px;border:0.5px solid var(--border);border-radius:7px;background:transparent;color:var(--text3);cursor:pointer">${L('Ακύρωση','Cancel','Отменить')}</button>`;
+      return `<div style="border:0.5px solid ${cancelled?'var(--border)':full?'#E8A0A0':'var(--border)'};border-radius:10px;padding:10px 12px;background:${cancelled?'var(--bg2)':full?'var(--red-bg)':'var(--card)'}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+          <div style="font-size:14px;font-weight:600;color:var(--text);min-width:42px">${t}</div>
+          <span style="font-size:10px;padding:2px 8px;border-radius:20px;background:${statusBg};color:${statusColor};font-weight:500">${statusText}</span>
+          <div style="margin-left:auto">${toggleBtn}</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">${attendeesHtml}</div>
+      </div>`;
+    }).join('');
+  } else {
+    slotsHtml=`<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px 0">${L('Κανένα μάθημα','No classes','Занятий нет')}</div>`;
+  }
+
+  const cancelDayBtn=!dayOff&&slots.length?`<button onclick="cancelWholeDay('${dateStr}')" style="width:100%;padding:8px;border:0.5px solid var(--red);border-radius:8px;background:transparent;color:var(--red);cursor:pointer;font-size:12px;font-weight:500;margin-bottom:14px">✕ ${L('Ακύρωση ημέρας','Cancel all classes','Отменить все занятия дня')}</button>`:'';
+  const dayOffBanner=dayOff?`<div style="padding:10px 12px;background:#F5EEF8;border:0.5px solid #D4B0F0;border-radius:10px;font-size:12px;color:#8B5CF6;margin-bottom:14px">🚫 ${L('Ημέρα ακυρώθηκε','Day cancelled','День отменён')} — <button onclick="restoreWholeDay('${dateStr}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;text-decoration:underline">${L('Ακύρωση','Undo','Восстановить')}</button></div>`:'';
+
+  const addClassSection=`<div style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)">
+    <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">${L('Προσθήκη μαθήματος','Add extra class','Добавить занятие')}</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="time" id="dm-new-time" value="10:00"
+        style="flex:1;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
+      <input type="text" id="dm-new-reason" placeholder="${L('Σημείωση...','Note (optional)','Комментарий...')}"
+        style="flex:2;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
+      <button onclick="addExtraClassOnDay('${dateStr}')" class="btn primary" style="font-size:12px;padding:6px 14px;white-space:nowrap">+ ${L('Προσθήκη','Add','Добавить')}</button>
+    </div>
+  </div>`;
+
+  let m=document.getElementById('day-modal');
+  if(!m){m=document.createElement('div');m.className='modal-overlay';m.id='day-modal';document.body.appendChild(m);}
+  m.innerHTML=`<div class="modal" style="max-width:520px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div>
+        <div style="font-family:var(--serif);font-size:18px;color:var(--text);line-height:1.2">${dayName}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:3px">${dateLabel}</div>
+      </div>
+      <button onclick="closeModal('day-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;line-height:1;padding:0">✕</button>
+    </div>
+    ${dayOffBanner}${cancelDayBtn}
+    <div style="display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto">${slotsHtml}</div>
+    ${addClassSection}
+  </div>`;
+  m.classList.add('open');
+}
+
+function addExtraClassOnDay(dateStr){
+  const timeEl=document.getElementById('dm-new-time');
+  const reasonEl=document.getElementById('dm-new-reason');
+  const time=timeEl?.value; if(!time) return;
+  const reason=reasonEl?.value||'';
+  if(!dateExtraSlots[dateStr]) dateExtraSlots[dateStr]=[];
+  if(dateExtraSlots[dateStr].some(s=>s.time===time)){
+    toast(adminLang==='ru'?'Занятие на это время уже добавлено':'Slot already exists'); return;
+  }
+  dateExtraSlots[dateStr].push({time,reason});
+  toast('✅ '+(adminLang==='ru'?`Занятие ${time} добавлено`:`Class ${time} added`));
   renderSchedule();
+  openDayModal(new Date(dateStr+'T12:00:00'));
+}
+function removeExtraClassOnDay(dateStr, time){
+  if(dateExtraSlots[dateStr]) dateExtraSlots[dateStr]=dateExtraSlots[dateStr].filter(s=>s.time!==time);
+  toast(adminLang==='ru'?'Занятие удалено':'Class removed');
+  renderSchedule();
+  openDayModal(new Date(dateStr+'T12:00:00'));
+}
+
+function cancelSlotOnDate(dow,time,dateStr){
+  cancellations.push({type:'slot',date:dateStr,endDate:dateStr,slot:time,reason:'',name:time});
+  toast(adminLang==='ru'?'Занятие отменено':'Class cancelled');
+  renderSchedule(); openDayModal(new Date(dateStr+'T12:00:00'));
+}
+function restoreSlotOnDate(dow,time,dateStr){
+  cancellations=cancellations.filter(c=>!(c.type==='slot'&&c.date===dateStr&&c.slot===time));
+  toast(adminLang==='ru'?'Занятие восстановлено':'Class restored');
+  renderSchedule(); openDayModal(new Date(dateStr+'T12:00:00'));
+}
+function cancelWholeDay(dateStr){
+  if(!confirm(adminLang==='ru'?`Отменить все занятия ${dateStr}?`:`Cancel all classes on ${dateStr}?`)) return;
+  cancellations.push({type:'all',date:dateStr,endDate:dateStr,slot:'',reason:'',name:adminLang==='ru'?'Весь день':'All day'});
+  toast(adminLang==='ru'?'Все занятия дня отменены':'All classes cancelled');
+  closeModal('day-modal'); renderSchedule();
+}
+function restoreWholeDay(dateStr){
+  cancellations=cancellations.filter(c=>!(c.type==='all'&&c.date===dateStr));
+  toast(adminLang==='ru'?'День восстановлен':'Day restored');
+  closeModal('day-modal'); renderSchedule();
 }
 
 // ── ADD CLIENT TO SCHEDULE ────────────────────────────────────
@@ -2986,49 +3173,6 @@ if(typeof supabase!=='undefined') setTimeout(dbLoad,300);
 
 
 <!-- ADD SLOT MODAL -->
-<div class="modal-overlay" id="add-slot-modal">
-  <div class="modal">
-    <div class="modal-title" id="asm-title">Добавить / Отменить занятие</div>
-    <div class="modal-sub">Ручное управление расписанием</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div class="ff"><label>День</label>
-        <select id="asm-day">
-          <option value="0">Понедельник</option><option value="1">Вторник</option>
-          <option value="2">Среда</option><option value="3">Четверг</option>
-          <option value="4">Пятница</option><option value="5">Суббота</option>
-        </select>
-      </div>
-      <div class="ff"><label>Тип</label>
-        <select id="asm-action">
-          <option value="add">Добавить доп. занятие</option>
-          <option value="cancel">Отменить занятие</option>
-          <option value="holiday">Праздник / Выходной</option>
-        </select>
-      </div>
-    </div>
-    <div class="ff" style="margin-bottom:10px"><label>Время</label>
-      <select id="asm-time">
-        <option>07:00–08:00</option><option>08:00–09:00</option><option>09:15–10:15</option>
-        <option>09:30–10:30</option><option>10:30–11:30</option>
-        <option>16:30–17:30</option><option>17:30–18:30</option><option>18:30–19:30</option><option>19:30–20:30</option>
-        <option>Другое время...</option>
-      </select>
-    </div>
-    <div class="ff" style="margin-bottom:10px"><label>Причина / Комментарий</label>
-      <input type="text" id="asm-reason" placeholder="Необязательно — праздник, доп. занятие...">
-    </div>
-    <div id="asm-holiday-row" style="display:none;background:var(--wbg);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--warn);margin-bottom:10px">
-      ⚠ При отмене из-за праздника — неиспользованные занятия будут <strong>перенесены</strong> на следующий период автоматически
-    </div>
-    <div style="background:var(--green-bg);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2)" id="asm-info">
-      ✅ Занятие НЕ списывается с абонемента клиента. Записанные клиенты получат уведомление.
-    </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal('add-slot-modal')">Отмена</button>
-      <button class="btn primary" onclick="saveSlotAction()">Save</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
