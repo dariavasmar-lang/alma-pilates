@@ -93,12 +93,14 @@ tbody tr.selected{background:#EDE4D8}
 .badge.card{background:#EEEDFE;color:#3C3489}
 
 /* DETAIL PANEL */
-.detail-panel{width:280px;border-left:0.5px solid var(--border);background:var(--card);padding:18px;display:none;flex-direction:column;gap:12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.detail-panel{width:520px;border-left:0.5px solid var(--border);background:var(--card);padding:20px;display:none;flex-direction:column;gap:14px;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0}
 .detail-panel.open{display:flex}
-.detail-avatar{width:44px;height:44px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;border:0.5px solid var(--border)}
-.detail-stat{background:var(--bg);border-radius:10px;padding:9px 11px}
-.detail-stat-label{font-size:10px;color:var(--text3);margin-bottom:3px}
-.detail-stat-val{font-family:var(--serif);font-size:20px;color:var(--text)}
+.sub-box{flex:1;background:var(--bg2);border-radius:10px;padding:9px 10px;text-align:center}
+.sub-box-val{font-family:var(--serif);font-size:22px;color:var(--text)}
+.sub-box-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-top:3px}
+.ctab-row{display:flex;border-bottom:0.5px solid var(--border);margin-bottom:10px;gap:0}
+.ctab{font-size:11px;padding:7px 12px;cursor:pointer;color:var(--text2);border:none;border-bottom:2px solid transparent;background:none;transition:all .15s}
+.ctab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
 
 /* SCHEDULE */
 .week-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
@@ -264,20 +266,7 @@ tbody tr.selected{background:#EDE4D8}
       </table>
     </div>
   </div>
-  <div class="detail-panel" id="client-detail">
-    <div style="display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:0.5px solid var(--border)">
-      <div class="detail-avatar" id="dp-avatar"></div>
-      <div><div style="font-family:var(--serif);font-size:15px;color:var(--text)" id="dp-name"></div><div style="font-size:11px;color:var(--text3);margin-top:2px" id="dp-meta"></div></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div class="detail-stat"><div class="detail-stat-label" id="dp-start-label"></div><div style="font-size:13px;font-weight:500;color:var(--text);margin-top:2px" id="dp-start"></div><div style="font-size:10px;color:var(--text3)" id="dp-paid"></div></div>
-      <div class="detail-stat"><div class="detail-stat-label" id="dp-next-label"></div><div style="font-size:13px;font-weight:500;color:var(--text);margin-top:2px" id="dp-next-pay"></div></div>
-    </div>
-    <div style="font-size:11px;font-weight:500;color:var(--text2);margin-bottom:6px" id="dp-hist-label"></div>
-    <div id="dp-history" style="display:flex;flex-direction:column;gap:4px"></div>
-    <div id="dp-burn-warn" style="display:none;background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:10px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-top:8px"></div>
-    <div style="display:flex;flex-direction:column;gap:7px;margin-top:auto;padding-top:12px;border-top:0.5px solid var(--border)" id="dp-actions"></div>
-  </div>
+  <div class="detail-panel" id="client-detail"></div>
 </div>
 
 <!-- SCHEDULE -->
@@ -591,21 +580,21 @@ tbody tr.selected{background:#EDE4D8}
 <script>
 // ── DATA ──────────────────────────────────────────────────────
 const CLIENTS = [
-  {id:1,name:'Мария Константину',initials:'МК',phone:'+357 99 111222',lang:'EL',type:'8',left:2,total:8,start:'3 мая',paid:'15 апр',nextPayment:'3 июн',expiresDate:'2026-06-03',status:'warn',
+  {id:1,name:'Мария Константину',initials:'МК',phone:'+35799111222',lang:'EL',type:'8',left:2,total:8,start:'3 мая',paid:'15 апр',nextPayment:'3 июн',expiresDate:'2026-06-03',status:'warn',startIso:'2026-05-03',attendedMonth:3,upcoming:1,
    history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Attended'},{d:'29 апр',t:'Attended'},{d:'24 апр',t:'Payment €120'}]},
-  {id:2,name:'Анна Николаиду',initials:'АН',phone:'+357 96 333444',lang:'EL',type:'12',left:1,total:12,start:'15 апр',paid:'1 апр',nextPayment:'15 мая',expiresDate:'2026-05-15',status:'danger',
+  {id:2,name:'Анна Николаиду',initials:'АН',phone:'+35796333444',lang:'EL',type:'12',left:1,total:12,start:'15 апр',paid:'1 апр',nextPayment:'15 мая',expiresDate:'2026-05-15',status:'danger',startIso:'2026-04-15',attendedMonth:11,upcoming:0,
    history:[{d:'2 мая',t:'Attended'},{d:'30 апр',t:'Attended'},{d:'1 апр',t:'Payment €160'}]},
-  {id:3,name:'Елена Папаиоанну',initials:'ЕП',phone:'+357 97 555666',lang:'EL',type:'8',left:2,total:8,start:'1 мая',paid:'1 мая',nextPayment:'1 июн',expiresDate:'2026-06-01',status:'warn',
-   history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Payment €120 · Attended'}]},
-  {id:4,name:'София Васильеу',initials:'СВ',phone:'+357 95 777888',lang:'EL',type:'12',left:8,total:12,start:'28 апр',paid:'28 апр',nextPayment:'28 мая',expiresDate:'2026-05-28',status:'ok',
+  {id:3,name:'Елена Папаиоанну',initials:'ЕП',phone:'+35797555666',lang:'EL',type:'8',left:2,total:8,start:'1 мая',paid:'1 мая',nextPayment:'1 июн',expiresDate:'2026-06-01',status:'warn',startIso:'2026-05-01',attendedMonth:2,upcoming:1,
+   history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Payment €120'},{d:'1 мая',t:'Attended'}]},
+  {id:4,name:'София Васильеу',initials:'СВ',phone:'+35795777888',lang:'EL',type:'12',left:8,total:12,start:'28 апр',paid:'28 апр',nextPayment:'28 мая',expiresDate:'2026-05-28',status:'ok',startIso:'2026-04-28',attendedMonth:2,upcoming:2,
    history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Attended'},{d:'28 апр',t:'Payment €160'}]},
-  {id:5,name:'Ирина Смирнова',initials:'ИС',phone:'+357 96 100200',lang:'RU',type:'8',left:7,total:8,start:'2 мая',paid:'2 мая',nextPayment:'2 июн',expiresDate:'2026-06-02',status:'ok',
-   history:[{d:'2 мая',t:'Payment €120 · Attended'}]},
-  {id:6,name:'Наталья Кузнецова',initials:'НК',phone:'+357 99 300400',lang:'RU',type:'12',left:11,total:12,start:'30 апр',paid:'30 апр',nextPayment:'30 мая',expiresDate:'2026-05-30',status:'ok',
+  {id:5,name:'Ирина Смирнова',initials:'ИС',phone:'+35796100200',lang:'RU',type:'8',left:7,total:8,start:'2 мая',paid:'2 мая',nextPayment:'2 июн',expiresDate:'2026-06-02',status:'ok',startIso:'2026-05-02',attendedMonth:1,upcoming:2,
+   history:[{d:'2 мая',t:'Payment €120'},{d:'2 мая',t:'Attended'}]},
+  {id:6,name:'Наталья Кузнецова',initials:'НК',phone:'+35799300400',lang:'RU',type:'12',left:11,total:12,start:'30 апр',paid:'30 апр',nextPayment:'30 мая',expiresDate:'2026-05-30',status:'ok',startIso:'2026-04-30',attendedMonth:2,upcoming:3,
    history:[{d:'3 мая',t:'Attended'},{d:'30 апр',t:'Payment €160'}]},
-  {id:7,name:'Ольга Петрова',initials:'ОП',phone:'+357 96 700800',lang:'RU',type:'12',left:5,total:12,start:'20 апр',paid:'20 апр',nextPayment:'20 мая',expiresDate:'2026-05-20',status:'ok',
+  {id:7,name:'Ольга Петрова',initials:'ОП',phone:'+35796700800',lang:'RU',type:'12',left:5,total:12,start:'20 апр',paid:'20 апр',nextPayment:'20 мая',expiresDate:'2026-05-20',status:'ok',startIso:'2026-04-20',attendedMonth:3,upcoming:2,
    history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Attended'},{d:'20 апр',t:'Payment €160'}]},
-  {id:8,name:'Кристина Георгиу',initials:'КГ',phone:'+357 97 500600',lang:'EL',type:'8',left:0,total:8,start:'1 мар',paid:'1 мар',nextPayment:'—',expiresDate:null,status:'inactive',
+  {id:8,name:'Кристина Георгиу',initials:'КГ',phone:'+35797500600',lang:'EL',type:'8',left:0,total:8,start:'1 мар',paid:'1 мар',nextPayment:'—',expiresDate:null,status:'inactive',startIso:'2026-03-01',attendedMonth:0,upcoming:0,
    history:[{d:'28 мар',t:'Attended'},{d:'1 мар',t:'Payment €120'}]},
 ];
 
@@ -912,82 +901,311 @@ function setClientFilter(f,btn){
 }
 
 function selectClient(id){
-  const c=CLIENTS.find(x=>x.id===id);
-  if(!c) return;
-  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const c=CLIENTS.find(x=>x.id===id); if(!c) return;
   document.querySelectorAll('#clients-table tr').forEach(r=>r.classList.remove('selected'));
   document.getElementById('row-'+id)?.classList.add('selected');
   const panel=document.getElementById('client-detail');
   if(panel) panel.classList.add('open');
+  renderClientCard(c);
+}
 
-  // Avatar + name
-  const av=document.getElementById('dp-avatar'); if(av) av.textContent=c.initials;
-  const dn=document.getElementById('dp-name'); if(dn) dn.textContent=c.name;
-  const dm=document.getElementById('dp-meta'); if(dm) dm.textContent=`${c.phone||'—'} · ${c.lang}`;
+function closeClientDetail(){
+  document.getElementById('client-detail')?.classList.remove('open');
+  document.querySelectorAll('#clients-table tr').forEach(r=>r.classList.remove('selected'));
+}
 
-  // Start date (editable)
-  const dpSLbl=document.getElementById('dp-start-label');
-  if(dpSLbl) dpSLbl.textContent=L('Έναρξη','Start date','Начало абонемента');
-  const dpS=document.getElementById('dp-start');
-  if(dpS){
-    const iso=c.start&&c.start!=='—'?'2026-'+c.start.split('/')[1].padStart(2,'0')+'-'+c.start.split('/')[0].padStart(2,'0'):'';
-    dpS.innerHTML=`<input type="date" value="${iso}" onchange="updateClientStart(${c.id},this.value)"
-      style="font-size:12px;border:0.5px solid var(--border);border-radius:6px;padding:3px 6px;background:var(--bg2);color:var(--text);width:130px">`;
-  }
-  const dpPd=document.getElementById('dp-paid');
-  if(dpPd) dpPd.textContent=L('paid','paid','оплачен')+': '+fmtDate(c.paid);
+let clientCalOffset={};
+let clientDateBookings={};
 
-  // Next payment (auto, read-only)
-  const dpNL=document.getElementById('dp-next-label');
-  if(dpNL) dpNL.textContent=L('Επόμενη πληρωμή','Next payment','След. оплата');
-  const dpNP=document.getElementById('dp-next-pay');
-  if(dpNP) dpNP.innerHTML=`<span style="font-size:13px;font-weight:500;color:var(--text)">${fmtDate(c.nextPayment)}</span><span style="font-size:10px;color:var(--text3);display:block">auto (start +30 days)</span>`;
+function renderClientCard(c){
+  const panel=document.getElementById('client-detail'); if(!panel) return;
+  const upcoming=c.upcoming||0;
+  const attendedMonth=c.attendedMonth||0;
+  const used=c.total-c.left;
+  const available=Math.max(0,c.left-upcoming);
+  const pct=Math.round((used/c.total)*100);
+  const typeLabel={8:'8 занятий',12:'12 занятий',single:'Разовое'}[c.type]||c.type;
+  const price={8:'€120',12:'€160',single:'€25'}[c.type]||'';
+  const langFlag={RU:'🇷🇺',EL:'🇬🇷',EN:'🇬🇧'}[c.lang]||'';
+  const isExpiringSoon=c.expiresDate&&new Date(c.expiresDate)<=new Date('2026-05-28');
+  const daysLeft=c.expiresDate?Math.ceil((new Date(c.expiresDate)-new Date(2026,4,18))/(864e5)):null;
+  const statusLabel={ok:'Активен',warn:'Скоро истекает',danger:'Истекает',inactive:'Неактивен'}[c.status]||'';
+  const visits=(c.history||[]).filter(h=>h.t.toLowerCase().includes('attend')||h.t.includes('Записан'));
+  const payments=(c.history||[]).filter(h=>h.t.toLowerCase().includes('payment')||h.t.includes('Оплата'));
+  const cancels=(c.history||[]).filter(h=>h.t.toLowerCase().includes('cancel')||h.t.includes('Отмен'));
 
-  // History label
-  const dpHL=document.getElementById('dp-hist-label');
-  if(dpHL) dpHL.textContent=L('Ιστορικό','Visit history','История посещений');
-
-  // History list
-  const dpH=document.getElementById('dp-history');
-  if(dpH) dpH.innerHTML=(c.history||[]).map(h=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:12px">
-      <span style="display:flex;align-items:center;gap:6px">
-        <span style="width:5px;height:5px;border-radius:50%;background:${h.t.includes('Payment')||h.t.includes('Оплата')?'var(--green)':'#378ADD'};display:inline-block"></span>
-        ${fmtDate(h.d)}
-      </span>
-      <span style="color:var(--text2)">${h.t}</span>
-    </div>`).join('');
-
-  // Burn warning
-  const bw=document.getElementById('dp-burn-warn');
-  if(bw){
-    if(c.status!=='inactive'&&c.expiresDate){
-      const dl=Math.ceil((new Date(c.expiresDate)-new Date())/(864e5));
-      if(dl<=14&&c.left>0){
-        bw.style.display='block';
-        bw.textContent=L(
-          `⚠ Λήξη σε ${dl} μέρες. Απομένουν ${c.left} μαθ.`,
-          `⚠ Expires in ${dl} days. ${c.left} classes will expire unused.`,
-          `⚠ Истекает через ${dl} дн. Осталось ${c.left} зан.`
-        );
-      } else bw.style.display='none';
-    } else bw.style.display='none';
-  }
-
-  // Action buttons
-  const da=document.getElementById('dp-actions');
-  if(da) da.innerHTML=`
-    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${L('Διαχείριση','Manage','Управление')}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
-      <button class="btn sm" onclick="adjustBalance(${c.id},1)" style="justify-content:center">+ ${L('Μάθ.','Class','Занятие')}</button>
-      <button class="btn sm danger" onclick="adjustBalance(${c.id},-1)" style="justify-content:center">− ${L('Μάθ.','Class','Занятие')}</button>
+  panel.innerHTML=`
+  <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:14px;border-bottom:0.5px solid var(--border)">
+    <div style="width:50px;height:50px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:500;border:0.5px solid var(--border);flex-shrink:0">${c.initials}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-family:var(--serif);font-size:16px;color:var(--text)">${c.name}</div>
+      <div style="display:flex;align-items:center;gap:7px;margin-top:5px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text2)">${c.phone||'—'}</span>
+        <span style="font-size:10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--text2)">${langFlag} ${c.lang}</span>
+        <span class="badge ${BADGE_CLS[c.status]}">${statusLabel}</span>
+      </div>
     </div>
-    <button class="btn" style="width:100%;justify-content:center;margin-bottom:5px" onclick="openAddToScheduleModal(${c.id})">📅 ${L('Πρόγραμμα','Add to schedule','В расписание')}</button>
-    <button class="btn" style="width:100%;justify-content:center;margin-bottom:8px" onclick="openManageBookingsModal(${c.id})">📋 ${L('Κρατήσεις','Bookings','Записи')}</button>
-    <div style="border-top:0.5px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:6px">
-      <button class="btn" style="width:100%;justify-content:center" onclick="toast('${L('Εστάλη!','Reminder sent!','Напоминание отправлено!')}')">${L('Υπενθύμιση','Send reminder','Напоминание')}</button>
-      <button class="btn dark" style="width:100%;justify-content:center" onclick="toast('⚡ Revolut link!')">${L('⚡ Revolut Link','⚡ Revolut Link','⚡ Revolut Link')}</button>
+    <button onclick="closeClientDetail()" style="border:none;background:none;cursor:pointer;color:var(--text3);font-size:18px;padding:2px 4px;line-height:1;flex-shrink:0">✕</button>
+  </div>
+
+  <div>
+    <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:10px">${typeLabel} <span style="font-weight:400;color:var(--text2)">${price}</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+      <div class="sub-box"><div class="sub-box-val">${attendedMonth}</div><div class="sub-box-lbl">этот месяц</div></div>
+      <div class="sub-box" style="background:var(--green-bg)"><div class="sub-box-val" style="color:var(--green)">${upcoming}</div><div class="sub-box-lbl" style="color:var(--green)">предстоит</div></div>
+      <div class="sub-box"><div class="sub-box-val">${available}</div><div class="sub-box-lbl">доступно</div></div>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px"><span>Использовано: ${used} / ${c.total}</span><span>${c.left} осталось</span></div>
+      <div class="progress" style="height:5px"><div class="progress-fill" style="width:${pct}%;background:${BAR_COLOR[c.status]}"></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <div style="background:var(--bg2);border-radius:9px;padding:9px 11px">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Начало абонемента</div>
+        <div style="font-size:12px;font-weight:500;color:var(--text)">${c.start}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px">оплачен: ${c.paid}</div>
+      </div>
+      <div style="background:${isExpiringSoon?'var(--warn-bg)':'var(--bg2)'};border-radius:9px;padding:9px 11px;${isExpiringSoon?'border:0.5px solid #D4B870':''}">
+        <div style="font-size:9px;color:${isExpiringSoon?'var(--warn)':'var(--text3)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Следующая оплата</div>
+        <div style="font-size:12px;font-weight:500;color:${isExpiringSoon?'var(--warn)':'var(--text)'}">${c.nextPayment}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px">+30 дн. от начала</div>
+      </div>
+    </div>
+    ${daysLeft!==null&&daysLeft<=14&&c.left>0?`<div style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-bottom:10px">⚠ Истекает через ${daysLeft} дн. Осталось ${c.left} зан.</div>`:''}
+    <button onclick="toggleManualSettings(${c.id})" style="font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px">⚙ Ручные настройки <span id="manual-arrow-${c.id}">▸</span></button>
+    <div id="manual-settings-${c.id}" style="display:none;background:var(--bg2);border-radius:10px;padding:11px 13px;margin-top:7px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Дата начала</div>
+          <input type="date" value="${c.startIso||''}" onchange="updateClientStart(${c.id},this.value)" style="font-size:12px;border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;background:var(--card);color:var(--text);width:100%">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Тип абонемента</div>
+          <select onchange="updateClientSubType(${c.id},this.value)" style="font-size:12px;border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;background:var(--card);color:var(--text);width:100%">
+            <option value="8" ${c.type==='8'?'selected':''}>8 занятий — €120</option>
+            <option value="12" ${c.type==='12'?'selected':''}>12 занятий — €160</option>
+            <option value="single" ${c.type==='single'?'selected':''}>Разовое — €25</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border);padding-top:12px">
+    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Управление занятиями</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <button class="btn sm" onclick="adjustBalance(${c.id},1)" style="justify-content:center">+ Добавить занятие</button>
+      <button class="btn sm danger" onclick="adjustBalance(${c.id},-1)" style="justify-content:center">− Убрать занятие</button>
+    </div>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border);padding-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">Записать на занятия</div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button class="btn sm" onclick="shiftClientCal(-1,${c.id})" style="padding:2px 7px">‹</button>
+        <span style="font-size:11px;color:var(--text2);min-width:80px;text-align:center" id="ccal-label-${c.id}"></span>
+        <button class="btn sm" onclick="shiftClientCal(1,${c.id})" style="padding:2px 7px">›</button>
+      </div>
+    </div>
+    <div id="ccal-${c.id}"></div>
+    <button class="btn danger" onclick="cancelAllFutureBookings(${c.id})" style="width:100%;justify-content:center;margin-top:8px;font-size:11px">Отменить все будущие записи</button>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border);padding-top:12px">
+    <div class="ctab-row" id="ctab-row-${c.id}">
+      <button class="ctab on" onclick="switchClientTab(${c.id},'visits')">Посещения (${visits.length})</button>
+      <button class="ctab" onclick="switchClientTab(${c.id},'payments')">Оплаты (${payments.length})</button>
+      <button class="ctab" onclick="switchClientTab(${c.id},'cancels')">Отмены (${cancels.length})</button>
+    </div>
+    <div id="ctab-content-${c.id}">${renderHistoryItems(visits,'visits')}</div>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
+    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Связь с клиентом</div>
+    <button class="btn" onclick="sendWhatsApp(${c.id},'booking')" style="width:100%;justify-content:center">📱 WhatsApp — напоминание о записи</button>
+    <button class="btn" onclick="sendWhatsApp(${c.id},'payment')" style="width:100%;justify-content:center;${isExpiringSoon?'background:var(--warn-bg);border-color:#D4B870;color:var(--warn)':''}">💰 WhatsApp — напоминание об оплате</button>
+    <button class="btn dark" onclick="generateRevolutLink(${c.id})" style="width:100%;justify-content:center">⚡ Сгенерировать ссылку Revolut</button>
+  </div>`;
+
+  renderClientCalendar(c.id);
+}
+
+function renderHistoryItems(items,type){
+  if(!items.length) return `<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">Нет записей</div>`;
+  const col=type==='payments'?'var(--green)':type==='cancels'?'var(--red)':'#378ADD';
+  return items.map(h=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px">
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:50%;background:${col};display:inline-block;flex-shrink:0"></span><span style="color:var(--text2)">${h.d}</span></span>
+    <span style="color:var(--text)">${h.t}</span>
+  </div>`).join('');
+}
+
+function switchClientTab(clientId,tab){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const row=document.getElementById('ctab-row-'+clientId);
+  if(row) row.querySelectorAll('.ctab').forEach(b=>b.classList.remove('on'));
+  const btn=row?.querySelector(`.ctab[onclick*="'${tab}'"]`);
+  if(btn) btn.classList.add('on');
+  const visits=(c.history||[]).filter(h=>h.t.toLowerCase().includes('attend')||h.t.includes('Записан'));
+  const payments=(c.history||[]).filter(h=>h.t.toLowerCase().includes('payment')||h.t.includes('Оплата'));
+  const cancels=(c.history||[]).filter(h=>h.t.toLowerCase().includes('cancel')||h.t.includes('Отмен'));
+  const items=tab==='visits'?visits:tab==='payments'?payments:cancels;
+  const el=document.getElementById('ctab-content-'+clientId);
+  if(el) el.innerHTML=renderHistoryItems(items,tab);
+}
+
+function toggleManualSettings(clientId){
+  const el=document.getElementById('manual-settings-'+clientId);
+  const arrow=document.getElementById('manual-arrow-'+clientId);
+  if(!el) return;
+  const showing=el.style.display!=='none';
+  el.style.display=showing?'none':'block';
+  if(arrow) arrow.textContent=showing?'▸':'▾';
+}
+
+function shiftClientCal(d,clientId){
+  clientCalOffset[clientId]=(clientCalOffset[clientId]||0)+d;
+  renderClientCalendar(clientId);
+}
+
+function renderClientCalendar(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const container=document.getElementById('ccal-'+clientId);
+  const labelEl=document.getElementById('ccal-label-'+clientId);
+  if(!container) return;
+  const offset=clientCalOffset[clientId]||0;
+  const ref=new Date(2026,4+offset,1);
+  const curM=ref.getMonth(), curY=ref.getFullYear();
+  if(labelEl){
+    const mn=ref.toLocaleString('ru-RU',{month:'long',year:'numeric'});
+    labelEl.textContent=mn.charAt(0).toUpperCase()+mn.slice(1);
+  }
+  const SCH={0:['16:30','17:30','18:30','19:30'],1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+             2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
+             4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
+  const DAYS7=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const today=new Date(2026,4,18);
+  const first=new Date(curY,curM,1);
+  const startDow=(first.getDay()+6)%7;
+  const cells=[];
+  for(let i=startDow;i>0;i--){const d=new Date(first);d.setDate(d.getDate()-i);cells.push(d);}
+  const last=new Date(curY,curM+1,0);
+  for(let d=new Date(first);d<=last;){cells.push(new Date(d));d.setDate(d.getDate()+1);}
+  const rem=(7-cells.length%7)%7;
+  for(let i=1;i<=rem;i++){const d=new Date(last);d.setDate(d.getDate()+i);cells.push(d);}
+
+  let h=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:4px">
+    ${DAYS7.map((d,i)=>`<div style="text-align:center;font-size:8.5px;font-weight:600;padding:3px 0;color:${i>=5?'var(--red)':'var(--text3)'}">${d}</div>`).join('')}
+  </div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">`;
+
+  cells.forEach(date=>{
+    const isToday=date.toDateString()===today.toDateString();
+    const isCur=date.getMonth()===curM;
+    const isPast=date<today&&!isToday;
+    const dow=(date.getDay()+6)%7;
+    const isSun=dow===6;
+    const slots=isSun||!isCur||isPast?[]:(SCH[dow]||[]);
+    const dateStr=date.toISOString().split('T')[0];
+    let slotsHtml='';
+    slots.forEach(t=>{
+      const key=dow+'_'+t;
+      const bk=(slotBookingsMap[key]||[]).length;
+      const bookKey=clientId+'_'+dateStr+'_'+t;
+      const isBooked=clientDateBookings[bookKey]===true||(clientDateBookings[bookKey]!==false&&(slotBookingsMap[key]||[]).includes(c.name));
+      const full=!isBooked&&bk>=CAP;
+      let bg,color,border;
+      if(isBooked){bg='var(--accent)';color='var(--bg)';border='var(--accent)';}
+      else if(full){bg='var(--red-bg)';color='var(--red)';border='#E8A0A0';}
+      else{bg='transparent';color='var(--text3)';border='var(--border)';}
+      slotsHtml+=`<div onclick="${!full?`toggleClientBooking(${clientId},'${dateStr}',${dow},'${t}')`:''}"
+        style="font-size:7.5px;padding:1px 2px;border-radius:2px;background:${bg};color:${color};cursor:${full?'default':'pointer'};display:flex;justify-content:space-between;gap:1px;line-height:1.6;border:0.5px solid ${border}">
+        <span>${t}</span><span>${isBooked?'✓':bk+'/'+CAP}</span>
+      </div>`;
+    });
+    const minH=slots.length>0?Math.max(40,slots.length*14+8):26;
+    h+=`<div style="border:${isToday?'1.5px solid var(--accent)':'0.5px solid var(--border)'};border-radius:5px;padding:3px;min-height:${minH}px;background:${isToday?'#FBF7F2':isCur?'var(--card)':'transparent'};opacity:${isCur?1:.25}">
+      <div style="font-size:9.5px;font-weight:${isToday?700:400};color:${isToday?'var(--accent)':isPast?'var(--text3)':'var(--text)'};line-height:1;margin-bottom:2px">${date.getDate()}</div>
+      <div style="display:flex;flex-direction:column;gap:1px">${slotsHtml}</div>
     </div>`;
+  });
+  h+='</div>';
+  container.innerHTML=h;
+}
+
+function toggleClientBooking(clientId,dateStr,dow,time){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const bookKey=clientId+'_'+dateStr+'_'+time;
+  const slotKey=dow+'_'+time;
+  if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
+  const names=slotBookingsMap[slotKey];
+  const isBooked=clientDateBookings[bookKey]===true||(clientDateBookings[bookKey]!==false&&names.includes(c.name));
+  if(isBooked){
+    clientDateBookings[bookKey]=false;
+    const idx=names.indexOf(c.name); if(idx>-1) names.splice(idx,1);
+    c.upcoming=Math.max(0,(c.upcoming||0)-1);
+    c.history.unshift({d:dateStr,t:'Отменена запись '+time});
+    toast('Запись отменена');
+  } else {
+    if(names.length>=CAP){toast('Занятие заполнено');return;}
+    clientDateBookings[bookKey]=true;
+    names.push(c.name);
+    c.upcoming=(c.upcoming||0)+1;
+    c.history.unshift({d:dateStr,t:'Записан '+time});
+    toast('✓ Записан на '+time);
+  }
+  renderClientCalendar(clientId);
+  renderClients();
+}
+
+function cancelAllFutureBookings(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  let count=0;
+  Object.keys(slotBookingsMap).forEach(k=>{
+    const arr=slotBookingsMap[k];
+    const idx=arr.indexOf(c.name);
+    if(idx>-1){arr.splice(idx,1);count++;}
+  });
+  Object.keys(clientDateBookings).forEach(k=>{
+    if(k.startsWith(clientId+'_')) delete clientDateBookings[k];
+  });
+  c.upcoming=0;
+  if(count>0) c.history.unshift({d:'Сегодня',t:`Отменено ${count} записей`});
+  toast(`Отменено ${count} записей`);
+  renderClientCard(c);
+  renderClients();
+}
+
+function sendWhatsApp(clientId,type){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const phone=(c.phone||'').replace(/[^\d+]/g,'');
+  const name=c.name.split(' ')[0];
+  const msg=type==='booking'
+    ?`Привет, ${name}! Напоминаем о записи в Alma Pilates Studio. До встречи! 🧘‍♀️`
+    :`Привет, ${name}! Напоминаем об оплате абонемента Alma Pilates (${c.nextPayment}). 💜`;
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+function generateRevolutLink(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const amt={8:120,12:160,single:25}[c.type]||120;
+  const link=`https://revolut.me/almapilates?amount=${amt}&currency=EUR&description=${encodeURIComponent('Alma Pilates '+c.type+' classes - '+c.name)}`;
+  navigator.clipboard?.writeText(link).catch(()=>{});
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#191C1F;color:#fff;padding:12px 18px;border-radius:12px;font-size:12px;z-index:9999;max-width:360px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+  el.innerHTML=`⚡ Revolut — €${amt}<br><small style="opacity:.6;font-size:10px;word-break:break-all">${link}</small><div style="margin-top:6px;font-size:10px;opacity:.6">Скопировано в буфер обмена</div>`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),5000);
+}
+
+function updateClientSubType(clientId,type){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const used=c.total-c.left;
+  c.type=type;
+  c.total={8:8,12:12,single:1}[type]||8;
+  c.left=Math.max(0,c.total-used);
+  toast('Тип абонемента обновлён');
+  renderClientCard(c);
+  renderClients();
 }
 
 // ── SCHEDULE ──────────────────────────────────────────────────
