@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Alma Pilates</title>
+<style>
+:root{
+  --bg:#F5F0E8;--bg2:#EDE7DA;--bg3:#E4DCCC;
+  --card:#FDFAF5;--text:#2C2318;--text2:#7A6A58;--text3:#A89880;
+  --accent:#6B5240;--accent2:#8B6B52;
+  --green:#4A7C5F;--gbg:#E8F0EB;
+  --warn:#8B6020;--wbg:#F5EDD8;
+  --border:#D8CEBE;--serif:'Georgia',serif;
+  --red:#8B3A30;--rbg:#F5EAE8;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display:flex;justify-content:center;padding:16px;min-height:100vh}
+.phone{width:390px;background:var(--bg);border-radius:20px;border:0.5px solid var(--border);overflow:hidden;display:flex;flex-direction:column;min-height:780px;position:relative;box-shadow:0 4px 32px rgba(44,35,24,.12)}
+.sbar{padding:10px 18px 4px;display:flex;justify-content:space-between;font-size:11px;color:var(--text3);flex-shrink:0}
+.hdr{padding:10px 16px 11px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid var(--border);background:var(--card);flex-shrink:0}
+.logo{font-family:var(--serif);font-size:17px;color:var(--text)}
+.logo em{font-style:italic;color:var(--accent2)}
+.lrow{display:flex;gap:3px}
+.lb{font-size:10px;padding:2px 7px;border:0.5px solid var(--border);border-radius:20px;cursor:pointer;color:var(--text2);background:transparent;transition:all .15s}
+.lb.on{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.av{width:28px;height:28px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;border:0.5px solid var(--border);cursor:pointer}
+.scroll{flex:1;overflow-y:auto}
+
+/* screens */
+.scr{display:none;flex-direction:column;gap:13px;padding:18px}
+.scr.on{display:flex}
+.scr.center{justify-content:center;align-items:center;min-height:600px}
+
+/* bottom nav */
+.bnav{border-top:0.5px solid var(--border);padding:6px 0 10px;display:flex;background:var(--card);flex-shrink:0}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 0}
+.bni svg{width:20px;height:20px;stroke:var(--text3);fill:none;stroke-width:1.5}
+.bni.on svg{stroke:var(--accent)}
+.bni span{font-size:10px;color:var(--text3)}
+.bni.on span{color:var(--accent);font-weight:500}
+
+/* typography */
+.ptitle{font-family:var(--serif);font-size:20px;color:var(--text);line-height:1.3}
+.psub{font-size:11px;color:var(--text3);margin-top:3px}
+.slbl{font-family:var(--serif);font-size:13px;font-style:italic;color:var(--text2)}
+
+/* buttons */
+.btn{font-size:13px;padding:12px;border:0.5px solid var(--border);border-radius:12px;cursor:pointer;background:transparent;color:var(--text2);width:100%;font-family:inherit;transition:all .12s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn:active{opacity:.85}
+.btn.pr{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.btn.dk{background:#191C1F;color:#fff;border-color:#191C1F}
+.btn.ol{color:var(--accent);border-color:var(--accent);background:transparent}
+.btn.sm{font-size:12px;padding:8px 12px;border-radius:10px}
+.btn.gh{border-color:transparent;color:var(--text3);font-size:12px;padding:8px;width:auto}
+
+/* form */
+.ff{display:flex;flex-direction:column;gap:4px}
+.ff label{font-size:11px;color:var(--text3)}
+.ff input,.ff select{font-size:14px;padding:11px 13px;border:0.5px solid var(--border);border-radius:11px;background:var(--card);color:var(--text);outline:none;width:100%;font-family:inherit;transition:border-color .15s}
+.ff input:focus,.ff select:focus{border-color:var(--accent)}
+.ff input.err{border-color:var(--red)}
+.ferr{font-size:11px;color:var(--red);margin-top:2px;display:none}
+
+/* checkboxes */
+.cbrow{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+.cbrow input{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;margin-top:1px;cursor:pointer}
+.cbrow span{font-size:12px;color:var(--text2);line-height:1.5}
+.cbrow span a{color:var(--accent);text-decoration:underline;cursor:pointer}
+
+/* legal box */
+.legal{background:var(--bg2);border-radius:11px;padding:11px 13px;font-size:11px;color:var(--text2);line-height:1.6}
+.legal a{color:var(--accent);text-decoration:underline;cursor:pointer}
+
+/* OTP */
+.orow{display:flex;gap:8px;justify-content:center}
+.oi{width:44px;height:52px;border:0.5px solid var(--border);border-radius:11px;background:var(--card);font-size:22px;font-weight:500;color:var(--text);text-align:center;outline:none;font-family:inherit;transition:border-color .15s}
+.oi:focus{border-color:var(--accent)}
+
+/* sub card */
+.subcard{background:var(--accent);border-radius:14px;padding:16px;color:var(--bg);position:relative;overflow:hidden}
+.subcard::before{content:'';position:absolute;right:-20px;top:-20px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.07)}
+.slabel{font-size:10px;opacity:.7;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em}
+.stype{font-family:var(--serif);font-size:14px;margin-bottom:11px;opacity:.9}
+.sdots{display:flex;gap:6px;margin-bottom:9px}
+.sd{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.3)}
+.sd.u{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4)}
+.sd.l{background:rgba(255,255,255,.85);border-color:#fff}
+.smeta{display:flex;justify-content:space-between;font-size:11px;opacity:.7}
+
+/* warn */
+.warn{background:var(--wbg);border:0.5px solid #D4B870;border-radius:12px;padding:9px 12px;display:flex;align-items:center;gap:8px}
+.wi{width:18px;height:18px;border-radius:50%;background:#D4B870;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--warn);font-weight:500;flex-shrink:0}
+
+/* card */
+.card{background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:13px 15px}
+.card2{background:var(--bg2);border-radius:12px;padding:10px 12px}
+
+/* hist */
+.hrow{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);border-radius:12px;border:0.5px solid var(--border)}
+
+/* slots */
+.dayb{background:var(--card);border:0.5px solid var(--border);border-radius:12px;overflow:hidden}
+.daylbl{font-size:11px;font-weight:500;color:var(--text2);padding:7px 11px 5px;background:var(--bg2);border-bottom:0.5px solid var(--border)}
+.slots{display:flex;flex-wrap:wrap;gap:6px;padding:9px 10px}
+.slot{padding:6px 8px;border-radius:8px;font-size:11px;cursor:pointer;border:0.5px solid transparent;display:flex;flex-direction:column;align-items:center;min-width:62px;transition:all .12s}
+.slot.mo{background:var(--card);border-color:var(--border);color:var(--text2)}
+.slot.ev{background:var(--card);border-color:var(--border);color:var(--text2)}
+.slot.fu{background:var(--bg2);border-color:var(--border);color:var(--text3);cursor:default;opacity:.6}
+.slot.mi{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.slot:active:not(.fu):not(.mi){opacity:.8}
+
+/* pay opts */
+.popt{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:13px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all .12s}
+.popt:active{background:var(--bg2)}
+.popt.sel{border-color:var(--accent);background:#F0EAE0}
+.optprice{font-family:var(--serif);font-size:20px;color:var(--accent)}
+
+/* profile rows */
+.prow{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--card);border-radius:10px;border:0.5px solid var(--border)}
+
+/* sheet */
+.ov{display:none;position:absolute;inset:0;background:rgba(44,35,24,.45);z-index:50;align-items:flex-end}
+.ov.on{display:flex}
+.sheet{background:var(--card);border-radius:20px 20px 0 0;padding:18px;width:100%;max-height:88%;overflow-y:auto}
+.shand{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 16px}
+.stitle{font-family:var(--serif);font-size:17px;color:var(--text);margin-bottom:4px}
+.ssub{font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5}
+.tcon{font-size:12px;color:var(--text2);line-height:1.8}
+.tcon h3{font-size:13px;font-weight:500;color:var(--text);margin:12px 0 4px}
+
+/* progress */
+.prog{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:3px}
+.progf{height:100%;border-radius:3px;background:var(--green);transition:width .3s}
+
+/* week nav */
+.wnav{display:flex;align-items:center;gap:8px}
+.wlbl{flex:1;text-align:center;font-size:12px;font-weight:500;color:var(--text)}
+.wbtn{width:28px;height:28px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:transparent;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:14px}
+
+/* onboard steps */
+.ob{display:none;flex-direction:column;gap:14px}
+.ob.on{display:flex}
+.sdots2{display:flex;gap:5px;justify-content:center}
+.sdot2{width:7px;height:7px;border-radius:50%;background:var(--border);transition:all .2s}
+.sdot2.on{background:var(--accent);width:20px;border-radius:4px}
+
+/* toast */
+.toast{position:absolute;bottom:85px;left:16px;right:16px;background:var(--accent);color:var(--bg);padding:10px 14px;border-radius:12px;font-size:12px;opacity:0;transition:opacity .25s;pointer-events:none;text-align:center;z-index:200}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <div class="sbar"><span>9:41</span><span>●●●</span></div>
+
+  <!-- header - hidden on auth -->
+  <div class="hdr" id="hdr" style="display:none">
+    <div class="logo">Alma <em>Pilates</em></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="lrow" id="hdr-langs">
+        <div class="lb" onclick="setLang('el')">EL</div>
+        <div class="lb" onclick="setLang('en')">EN</div>
+        <div class="lb" onclick="setLang('ru')">RU</div>
+      </div>
+      <div class="av" id="av-init" onclick="goTab('profile')">ΜΚ</div>
+    </div>
+  </div>
+
+  <div class="scroll" id="scroll">
+
+    <!-- WELCOME -->
+    <div class="scr center on" id="scr-welcome" style="padding:24px 20px;gap:0;justify-content:space-between">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center">
+        <div style="width:72px;height:72px;border-radius:20px;background:var(--accent);display:flex;align-items:center;justify-content:center">
+          <svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="#F5F0E8" stroke-width="1.5"><circle cx="17" cy="11" r="5"/><path d="M8 29c0-5 4-9 9-9s9 4 9 9"/><circle cx="17" cy="17" r="13" stroke-dasharray="4 3"/></svg>
+        </div>
+        <div>
+          <div style="font-family:var(--serif);font-size:26px;color:var(--text)">Alma <em style="font-style:italic;color:var(--accent2)">Pilates</em></div>
+          <div id="w-city" style="font-size:12px;color:var(--text3);margin-top:5px;letter-spacing:.04em"></div>
+        </div>
+        <div id="w-desc" style="font-size:13px;color:var(--text2);line-height:1.6;max-width:260px"></div>
+      </div>
+      <div style="width:100%;display:flex;flex-direction:column;gap:10px">
+        <div class="lrow" style="justify-content:center;margin-bottom:6px">
+          <div class="lb on" onclick="setLang('el')">EL</div>
+          <div class="lb" onclick="setLang('en')">EN</div>
+          <div class="lb" onclick="setLang('ru')">RU</div>
+        </div>
+        <button class="btn pr" id="w-reg-btn" onclick="go('register')"></button>
+        <button class="btn ol" id="w-login-btn" onclick="go('login')"></button>
+      </div>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="scr" id="scr-register">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn gh" onclick="go('welcome')">←</button>
+        <div class="ptitle" id="r-title"></div>
+      </div>
+      <div class="ff"><label id="r-name-l"></label><input id="r-name" type="text"></div>
+      <div class="ff"><label id="r-phone-l"></label><input id="r-phone" type="tel" placeholder="+357 99 123456"><div class="ferr" id="r-phone-err"></div></div>
+      <div class="ff"><label id="r-email-l"></label><input id="r-email" type="email" placeholder="maria@example.com"></div>
+      <div class="ff"><label id="r-lang-l"></label>
+        <select id="r-lang-sel">
+          <option value="el">Ελληνικά</option>
+          <option value="en">English</option>
+          <option value="ru">Русский</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <div class="cbrow"><input type="checkbox" id="cb-terms"><span id="cb-terms-txt"></span></div>
+        <div class="cbrow"><input type="checkbox" id="cb-gdpr"><span id="cb-gdpr-txt"></span></div>
+        <div class="cbrow"><input type="checkbox" id="cb-mkt"><span id="cb-mkt-txt"></span></div>
+      </div>
+      <div class="legal" id="r-legal"></div>
+      <div class="ferr" id="r-err" style="text-align:center;font-size:12px"></div>
+      <button class="btn pr" id="r-btn" onclick="doRegister()"></button>
+    </div>
+
+    <!-- OTP -->
+    <div class="scr center" id="scr-otp" style="gap:20px;text-align:center">
+      <button class="btn gh" style="align-self:flex-start" onclick="go('register')">←</button>
+      <div>
+        <div class="ptitle" id="otp-title"></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:5px" id="otp-sub"></div>
+        <strong id="otp-phone" style="font-size:12px;color:var(--text2)"></strong>
+      </div>
+      <div class="orow">
+        <input class="oi" maxlength="1" id="o1" oninput="onOtp(this,1)">
+        <input class="oi" maxlength="1" id="o2" oninput="onOtp(this,2)">
+        <input class="oi" maxlength="1" id="o3" oninput="onOtp(this,3)">
+        <input class="oi" maxlength="1" id="o4" oninput="onOtp(this,4)">
+        <input class="oi" maxlength="1" id="o5" oninput="onOtp(this,5)">
+        <input class="oi" maxlength="1" id="o6" oninput="onOtp(this,6)">
+      </div>
+      <button class="btn pr" id="otp-btn" onclick="doOtp()"></button>
+      <button class="btn gh" id="otp-resend" onclick="toast2('SMS отправлен / SMS sent')"></button>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="scr" id="scr-login" style="gap:14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn gh" onclick="go('welcome')">←</button>
+        <div class="ptitle" id="l-title"></div>
+      </div>
+      <div class="ff"><label id="l-phone-l"></label><input id="l-phone" type="tel" placeholder="+357 99 123456"></div>
+      <button class="btn pr" id="l-btn" onclick="doLogin()"></button>
+      <div style="text-align:center;font-size:12px;color:var(--text3)">— <span id="l-or"></span> —</div>
+      <button class="btn ol" id="l-demo-btn" onclick="demoLogin()"></button>
+    </div>
+
+    <!-- ONBOARD -->
+    <div class="scr" id="scr-onboard" style="gap:16px;padding-top:24px">
+      <div class="sdots2" id="ob-dots">
+        <div class="sdot2 on"></div><div class="sdot2"></div><div class="sdot2"></div>
+      </div>
+      <!-- step 0 -->
+      <div class="ob on" id="ob0">
+        <div style="text-align:center;padding:8px 0">
+          <div style="font-size:40px;margin-bottom:10px">🧘</div>
+          <div class="ptitle" id="ob0-t"></div>
+          <div style="font-size:13px;color:var(--text2);margin-top:7px;line-height:1.6" id="ob0-d"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div class="card2" style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">📅</span><span style="font-size:12px;color:var(--text2)" id="ob0-f1"></span></div>
+          <div class="card2" style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">💳</span><span style="font-size:12px;color:var(--text2)" id="ob0-f2"></span></div>
+          <div class="card2" style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><span style="font-size:12px;color:var(--text2)" id="ob0-f3"></span></div>
+        </div>
+        <button class="btn pr" id="ob0-btn" onclick="nextOb()"></button>
+      </div>
+      <!-- step 1 -->
+      <div class="ob" id="ob1">
+        <div style="text-align:center;padding:8px 0">
+          <div style="font-size:40px;margin-bottom:10px">🔔</div>
+          <div class="ptitle" id="ob1-t"></div>
+          <div style="font-size:13px;color:var(--text2);margin-top:7px;line-height:1.6" id="ob1-d"></div>
+        </div>
+        <div class="legal" id="ob1-legal"></div>
+        <button class="btn pr" id="ob1-btn" onclick="toast2('Notifications enabled / Ειδοποιήσεις ενεργές / Включены');nextOb()"></button>
+        <button class="btn gh" id="ob1-skip" onclick="nextOb()"></button>
+      </div>
+      <!-- step 2 -->
+      <div class="ob" id="ob2">
+        <div style="text-align:center;padding:8px 0">
+          <div style="font-size:40px;margin-bottom:10px">📱</div>
+          <div class="ptitle" id="ob2-t"></div>
+          <div style="font-size:13px;color:var(--text2);margin-top:7px;line-height:1.6" id="ob2-d"></div>
+        </div>
+        <div class="card" id="ob2-steps" style="font-size:12px;color:var(--text2);line-height:1.7"></div>
+        <button class="btn pr" id="ob2-btn" onclick="finishOb()"></button>
+      </div>
+    </div>
+
+    <!-- HOME -->
+    <div class="scr" id="scr-home">
+      <div><div class="ptitle" id="h-greet"></div><div class="psub" id="h-sub"></div></div>
+      <div class="subcard">
+        <div class="slabel" id="h-sub-lbl"></div>
+        <div class="stype" id="h-sub-type"></div>
+        <div class="sdots" id="h-dots"></div>
+        <div class="smeta"><span id="h-left"></span><span>€120</span></div>
+      </div>
+      <div class="warn" id="h-warn"><div class="wi">!</div><span style="font-size:11px;color:var(--warn)" id="h-warn-txt"></span></div>
+
+      <!-- Burn / expiry warning -->
+      <div id="h-burn" style="background:#F5EAE8;border:0.5px solid #E8A0A0;border-radius:12px;padding:9px 12px;display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:14px;flex-shrink:0">🔥</span>
+        <span style="font-size:11px;color:var(--red);line-height:1.5" id="h-burn-txt"></span>
+      </div>
+      <div><div class="slbl" id="h-quick-lbl" style="margin-bottom:8px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="card" style="cursor:pointer;padding:12px" onclick="goTab('schedule')">
+            <div style="width:30px;height:30px;border-radius:9px;background:var(--bg3);display:flex;align-items:center;justify-content:center;margin-bottom:8px">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M7 2v4M13 2v4M3 9h14"/></svg>
+            </div>
+            <div style="font-size:12px;font-weight:500;color:var(--text)" id="h-book"></div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px" id="h-book-s"></div>
+          </div>
+          <div class="card" style="cursor:pointer;padding:12px" onclick="goTab('pay')">
+            <div style="width:30px;height:30px;border-radius:9px;background:var(--bg3);display:flex;align-items:center;justify-content:center;margin-bottom:8px">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" stroke-width="1.5"><rect x="2" y="5" width="16" height="11" rx="2"/><path d="M2 9h16"/></svg>
+            </div>
+            <div style="font-size:12px;font-weight:500;color:var(--text)" id="h-pay"></div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px" id="h-pay-s"></div>
+          </div>
+        </div>
+      </div>
+      <div><div class="slbl" id="h-hist-lbl" style="margin-bottom:8px"></div>
+        <div style="display:flex;flex-direction:column;gap:6px" id="h-hist"></div>
+      </div>
+    </div>
+
+    <!-- SCHEDULE -->
+    <div class="scr" id="scr-schedule">
+      <div class="slbl" id="sch-lbl" style="margin-bottom:2px"></div>
+      <div class="wnav">
+        <button class="wbtn" onclick="shiftW(-1)">‹</button>
+        <span class="wlbl" id="w-lbl"></span>
+        <button class="wbtn" onclick="shiftW(1)">›</button>
+      </div>
+      <div style="display:flex;gap:10px;font-size:11px;color:var(--text2);flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--card);border:0.5px solid var(--border);display:inline-block"></span><span id="lg-mo"></span></span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--bg2);border:0.5px solid var(--border);display:inline-block;opacity:.6"></span><span id="lg-ev"></span></span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent);display:inline-block"></span><span id="lg-mi"></span></span>
+      </div>
+      <div id="sch-grid" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <!-- PAY -->
+    <div class="scr" id="scr-pay">
+      <div><div class="ptitle" id="p-title"></div><div class="psub" id="p-sub"></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px" id="p-opts"></div>
+      <div id="p-action" style="display:none">
+        <button class="btn dk" id="p-pay-btn" onclick="openPaySheet()"></button>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="scr" id="scr-profile">
+      <div style="text-align:center;padding:6px 0 12px">
+        <div style="width:58px;height:58px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:500;margin:0 auto 8px;border:0.5px solid var(--border)" id="pf-av">ΜΚ</div>
+        <div style="font-family:var(--serif);font-size:16px;color:var(--text)" id="pf-name"></div>
+        <div style="font-size:12px;color:var(--text3);margin-top:3px">+357 99 111222</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px" id="pf-rows"></div>
+      <div style="padding:10px 12px;background:var(--bg2);border-radius:12px;font-size:11px;color:var(--text2);line-height:1.6;display:flex;gap:7px">
+        <span style="font-size:14px">🔔</span><span id="pf-notif"></span>
+      </div>
+      <button class="btn ol sm" onclick="openSheet('sh-gdpr')" id="pf-gdpr-btn"></button>
+      <button class="btn gh sm" onclick="openSheet('sh-del')" id="pf-del-btn"></button>
+
+      <!-- MAP -->
+      <div style="margin-top:6px">
+        <div style="font-size:11px;font-weight:500;color:var(--text2);margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em" id="pf-map-lbl">Η τοποθεσία μας</div>
+        <!-- Static map preview -->
+        <div style="border-radius:12px;overflow:hidden;border:0.5px solid var(--border);position:relative;cursor:pointer" onclick="openSheet('sh-map')">
+          <div style="background:#E8E4DC;height:140px;display:flex;align-items:center;justify-content:center;position:relative">
+            <!-- Stylized map background -->
+            <svg width="100%" height="140" viewBox="0 0 354 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0">
+              <rect width="354" height="140" fill="#EDE7DA"/>
+              <!-- Streets -->
+              <line x1="0" y1="70" x2="354" y2="70" stroke="#D8CEBE" stroke-width="8"/>
+              <line x1="177" y1="0" x2="177" y2="140" stroke="#D8CEBE" stroke-width="6"/>
+              <line x1="0" y1="35" x2="354" y2="35" stroke="#D8CEBE" stroke-width="3"/>
+              <line x1="0" y1="105" x2="354" y2="105" stroke="#D8CEBE" stroke-width="3"/>
+              <line x1="88" y1="0" x2="88" y2="140" stroke="#D8CEBE" stroke-width="3"/>
+              <line x1="266" y1="0" x2="266" y2="140" stroke="#D8CEBE" stroke-width="3"/>
+              <!-- Blocks -->
+              <rect x="10" y="10" width="60" height="18" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="10" y="42" width="60" height="22" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="10" y="78" width="60" height="20" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="100" y="10" width="64" height="18" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="100" y="42" width="64" height="22" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="100" y="78" width="64" height="20" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="190" y="10" width="64" height="18" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="280" y="10" width="64" height="18" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="280" y="42" width="64" height="22" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="280" y="78" width="64" height="20" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <!-- Label Marathovounou -->
+              <text x="177" y="58" text-anchor="middle" font-size="9" fill="#A89880" font-family="Helvetica Neue">Marathovounou 12</text>
+            </svg>
+            <!-- Pin -->
+            <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center">
+              <div style="width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--accent);box-shadow:0 2px 8px rgba(107,82,64,.4);display:flex;align-items:center;justify-content:center">
+                <div style="transform:rotate(45deg);font-size:14px">🤸</div>
+              </div>
+              <div style="width:6px;height:6px;border-radius:50%;background:rgba(107,82,64,.3);margin-top:2px"></div>
+            </div>
+          </div>
+          <div style="padding:9px 12px;background:var(--card);display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12px;font-weight:500;color:var(--text)">Alma Pilates Studio</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:1px">Marathovounou 12, Limassol</div>
+            </div>
+            <div style="font-size:10px;color:var(--accent);font-weight:500" id="pf-map-open">Άνοιγμα →</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div style="margin-top:8px;padding:12px 0;border-top:0.5px solid var(--border)">
+        <div style="display:flex;justify-content:center;gap:16px;margin-bottom:8px">
+          <a onclick="openSheet('sh-privacy')" style="font-size:11px;color:var(--accent);text-decoration:underline;cursor:pointer" id="ft-privacy">Privacy Policy</a>
+          <a onclick="openSheet('sh-legal')" style="font-size:11px;color:var(--accent);text-decoration:underline;cursor:pointer" id="ft-legal">Legal Notice</a>
+          <a onclick="openSheet('sh-terms')" style="font-size:11px;color:var(--accent);text-decoration:underline;cursor:pointer" id="ft-terms">Terms</a>
+        </div>
+        <div style="text-align:center;font-size:10px;color:var(--text3)">© 2025 Alma Pilates Studio · Limassol, Cyprus</div>
+        <div style="text-align:center;font-size:10px;color:var(--text3);margin-top:2px">Tel: 96850466 · info@almapilatesstudio.com</div>
+      </div>
+    </div>
+
+  </div><!-- /scroll -->
+
+  <!-- BOTTOM NAV -->
+  <div class="bnav" id="bnav" style="display:none">
+    <div class="bni on" id="ni-home" onclick="goTab('home')">
+      <svg viewBox="0 0 20 20"><path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/></svg>
+      <span id="nl-home"></span>
+    </div>
+    <div class="bni" id="ni-schedule" onclick="goTab('schedule')">
+      <svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M7 2v4M13 2v4M3 9h14"/></svg>
+      <span id="nl-sch"></span>
+    </div>
+    <div class="bni" id="ni-pay" onclick="goTab('pay')">
+      <svg viewBox="0 0 20 20"><rect x="2" y="5" width="16" height="11" rx="2"/><path d="M2 9h16"/></svg>
+      <span id="nl-pay"></span>
+    </div>
+    <div class="bni" id="ni-profile" onclick="goTab('profile')">
+      <svg viewBox="0 0 20 20"><circle cx="10" cy="7" r="3"/><path d="M4 18c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+      <span id="nl-prof"></span>
+    </div>
+  </div>
+
+  <!-- SHEETS -->
+  <!-- book confirm -->
+  <div class="ov" id="sh-book">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="shb-title"></div>
+      <div class="ssub" id="shb-info"></div>
+      <div class="card2" style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:5px"><span id="shb-ded"></span><span>1 / 2</span></div>
+        <div class="prog"><div class="progf" style="width:25%"></div></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn sm" style="flex:1" id="shb-cancel" onclick="closeSheet('sh-book')"></button>
+        <button class="btn pr sm" style="flex:1" id="shb-confirm" onclick="confirmBook()"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- pay confirm -->
+  <div class="ov" id="sh-pay">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="shp-title"></div>
+      <div class="card2" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;color:var(--text2)" id="shp-desc"></span>
+        <span class="optprice" id="shp-price"></span>
+      </div>
+      <div class="legal" style="margin-bottom:14px" id="shp-legal"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn sm" style="flex:1" id="shp-cancel" onclick="closeSheet('sh-pay')"></button>
+        <button class="btn dk sm" style="flex:1" id="shp-pay" onclick="doRevPay()"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- terms -->
+  <div class="ov" id="sh-terms">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="sh-terms-title"></div>
+      <div class="tcon">
+        <h3 id="tc1-h"></h3><p id="tc1-p"></p>
+        <h3 id="tc2-h"></h3><p id="tc2-p"></p>
+        <h3 id="tc3-h"></h3><p id="tc3-p"></p>
+        <h3 id="tc4-h"></h3><p id="tc4-p"></p>
+      </div>
+      <button class="btn pr" style="margin-top:14px" id="sh-terms-close" onclick="closeSheet('sh-terms')"></button>
+    </div>
+  </div>
+
+  <!-- privacy -->
+  <div class="ov" id="sh-priv">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="sh-priv-title"></div>
+      <div class="tcon">
+        <h3 id="pr1-h"></h3><p id="pr1-p"></p>
+        <h3 id="pr2-h"></h3><p id="pr2-p"></p>
+        <h3 id="pr3-h"></h3><p id="pr3-p"></p>
+        <h3 id="pr4-h"></h3><p id="pr4-p"></p>
+      </div>
+      <button class="btn pr" style="margin-top:14px" id="sh-priv-close" onclick="closeSheet('sh-priv')"></button>
+    </div>
+  </div>
+
+  <!-- GDPR -->
+  <div class="ov" id="sh-gdpr">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="sh-gdpr-title"></div>
+      <div class="ssub" id="sh-gdpr-sub"></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn sm ol" id="gdpr-exp" onclick="toast2('Δεδομένα εστάλησαν / Data exported / Данные отправлены');closeSheet('sh-gdpr')"></button>
+        <button class="btn sm ol" id="gdpr-cor" onclick="toast2('Στείλτε email / Send email / Отправьте email');closeSheet('sh-gdpr')"></button>
+        <button class="btn sm ol" id="gdpr-uns" onclick="toast2('Κατάργηση / Unsubscribed / Отписка');closeSheet('sh-gdpr')"></button>
+        <div class="legal" id="gdpr-note"></div>
+      </div>
+      <button class="btn gh sm" style="margin-top:8px" id="gdpr-close" onclick="closeSheet('sh-gdpr')"></button>
+    </div>
+  </div>
+
+  <!-- delete -->
+  <div class="ov" id="sh-del">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="sh-del-title" style="color:var(--red)"></div>
+      <div class="ssub" id="sh-del-sub"></div>
+      <div class="legal" style="border:0.5px solid #D4B870;margin-bottom:14px" id="sh-del-legal"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn sm" style="flex:1" id="sh-del-cancel" onclick="closeSheet('sh-del')"></button>
+        <button class="btn sm" id="sh-del-confirm" style="flex:1;background:var(--red);color:#fff;border-color:var(--red)" onclick="toast2('Αίτηση / Request / Запрос отправлен');closeSheet('sh-del')"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP SHEET -->
+  <div class="ov" id="sh-map">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="sh-map-title">Alma Pilates Studio</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Marathovounou 12, 3071, Limassol · Tel: 96850466</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a href="https://maps.app.goo.gl/Wac2j7GNtdJfLSnY6" target="_blank" style="text-decoration:none">
+          <button class="btn pr" style="gap:8px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span id="sh-map-gmaps">Άνοιγμα σε Google Maps</span>
+          </button>
+        </a>
+        <a href="https://waze.com/ul?ll=34.682,33.044&navigate=yes" target="_blank" style="text-decoration:none">
+          <button class="btn" style="gap:8px;background:#05C8F7;color:#fff;border-color:#05C8F7">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="7"/><path d="M9 10h.01M15 10h.01M9.5 13.5c.8.7 4.2.7 5 0"/></svg>
+            <span id="sh-map-waze">Πλοήγηση με Waze</span>
+          </button>
+        </a>
+        <div style="background:var(--bg2);border-radius:10px;padding:10px 12px;font-size:11px;color:var(--text2);line-height:1.6">
+          <strong>Alma Pilates Studio</strong><br>
+          Marathovounou 12, 3071<br>
+          Limassol, Cyprus<br>
+          📞 96850466<br>
+          ✉️ info@almapilatesstudio.com
+        </div>
+      </div>
+      <button class="btn gh sm" style="margin-top:10px" onclick="closeSheet('sh-map')" id="sh-map-close">Κλείσιμο</button>
+    </div>
+  </div>
+
+  <!-- FULL PRIVACY POLICY SHEET -->
+  <div class="ov" id="sh-privacy">
+    <div class="sheet" style="max-height:90%">
+      <div class="shand"></div>
+      <div class="stitle">Privacy Policy</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:12px">Effective Date: 19 May 2025</div>
+      <div class="tcon" style="font-size:11px">
+        <p style="margin-bottom:10px">At Alma Pilates Studio we value your privacy and are committed to protecting your personal data.</p>
+        <h3>1. Information We Collect</h3>
+        <p><strong>Personal:</strong> Full name, email, phone, date of birth (optional), profile photo (optional), fitness goals.</p>
+        <p><strong>Usage data:</strong> Bookings, cancellations, attendance, feedback.</p>
+        <p><strong>Technical:</strong> Device type, OS, IP address, app version, crash reports.</p>
+        <p><strong>Location:</strong> With your permission, to suggest nearby classes.</p>
+        <p><strong>Payments:</strong> Processed securely by third-party providers. We do not store card data.</p>
+        <h3>2. How We Use Your Information</h3>
+        <p>To provide access to classes, process bookings, send reminders and notifications, deliver personalised recommendations, improve features, and ensure app security. With consent, we may send marketing communications — you can opt out at any time.</p>
+        <h3>3. Sharing Your Information</h3>
+        <p>We do not sell your data. We share limited data with instructors/partners for booking management, third-party providers (hosting, analytics, payments), and authorities when legally required.</p>
+        <h3>4. Your Rights & Choices</h3>
+        <p>Access, update, correct, or delete your data via your profile. Revoke consent for push notifications or location via device settings. For EU/EEA users, we comply with GDPR including rights to data portability and to lodge complaints with a supervisory authority.</p>
+        <h3>5. Data Retention</h3>
+        <p>We retain data only as long as necessary to provide services and comply with legal obligations. Data is then securely deleted or anonymised.</p>
+        <h3>6. Security</h3>
+        <p>We use industry-standard encryption, secure servers, and access controls. No system is completely secure — please protect your login credentials.</p>
+        <h3>7. Children's Privacy</h3>
+        <p>The App is not intended for children under 13 (or under 16 in the EU). Contact us immediately if you believe we have collected such data.</p>
+        <h3>8. Third-Party Links</h3>
+        <p>We are not responsible for the privacy practices of linked third-party websites or platforms.</p>
+        <h3>9. Updates</h3>
+        <p>We will notify you of material changes via the App or email and update the Effective Date.</p>
+        <h3>10. Contact</h3>
+        <p>📧 info@almapilatesstudio.com<br>📍 Marathovounou 12, 3071, Limassol, Cyprus<br>📞 96850466</p>
+      </div>
+      <button class="btn pr" style="margin-top:14px" onclick="closeSheet('sh-privacy')">Close / Κλείσιμο / Закрыть</button>
+    </div>
+  </div>
+
+  <!-- LEGAL NOTICE SHEET -->
+  <div class="ov" id="sh-legal">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle">Legal Notice</div>
+      <div style="background:var(--bg2);border-radius:12px;padding:14px;font-size:12px;color:var(--text2);line-height:1.9;margin-bottom:14px">
+        <div><strong>Company:</strong> Alma Pilates Studio</div>
+        <div><strong>Address:</strong> Marathovounou 12, 3071, Limassol, Cyprus</div>
+        <div><strong>Phone:</strong> 96850466</div>
+        <div><strong>Email:</strong> info@almapilatesstudio.com</div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text3)">Registered in Cyprus · Subject to Cyprus law</div>
+      </div>
+      <button class="btn pr" onclick="closeSheet('sh-legal')">Close / Κλείσιμο / Закрыть</button>
+    </div>
+  </div>
+</div><!-- /phone -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// TRANSLATIONS
+// ═══════════════════════════════════════════════════════════════
+const TR = {
+  el:{
+    wCity:'Λεμεσός, Κύπρος',
+    wDesc:'Κλείστε θέση, πληρώστε συνδρομή και παρακολουθείτε τα μαθήματά σας',
+    wReg:'Εγγραφή', wLogin:'Σύνδεση',
+    rTitle:'Δημιουργία λογαριασμού',
+    rNameL:'Ονοματεπώνυμο', rPhoneL:'Τηλέφωνο', rEmailL:'Email (προαιρετικό)', rLangL:'Γλώσσα',
+    cbTerms:'Αποδέχομαι τους <a onclick="openSheet(\'sh-terms\')">Όρους Χρήσης</a> και την <a onclick="openSheet(\'sh-priv\')">Πολιτική Απορρήτου</a>',
+    cbGdpr:'Συναινώ στην επεξεργασία των προσωπικών μου δεδομένων (ΓΚΠΔ)',
+    cbMkt:'Επιθυμώ να λαμβάνω προσφορές (προαιρετικό)',
+    rLegal:'Alma Pilates Studio, Λεμεσός. Βάση επεξεργασίας: σύμβαση (ΓΚΠΔ αρ.6§1β). Επικοινωνία: info@almapilates.cy',
+    rBtn:'Αποστολή κωδικού SMS →',
+    otpTitle:'Επαλήθευση κωδικού',
+    otpSub:'Στείλαμε κωδικό 6 ψηφίων στο',
+    otpBtn:'Επαλήθευση', otpResend:'Επαναποστολή κωδικού',
+    lTitle:'Σύνδεση', lPhoneL:'Τηλέφωνο',
+    lBtn:'Αποστολή κωδικού →', lOr:'ή', lDemo:'Δοκιμαστική είσοδος (Demo)',
+    ob0T:'Καλώς ήρθατε!',ob0D:'Κλείστε θέση σε δευτερόλεπτα',
+    ob0F1:'Πρόγραμμα μαθημάτων',ob0F2:'Πληρωμή μέσω Revolut',ob0F3:'Υπενθυμίσεις',ob0Btn:'Επόμενο →',
+    ob1T:'Ειδοποιήσεις',ob1D:'Θα σας ειδοποιήσουμε για επερχόμενες κρατήσεις',
+    ob1Legal:'Οι ειδοποιήσεις αφορούν μόνο τις κρατήσεις σας. Δεν κοινοποιούμε δεδομένα σε τρίτους.',
+    ob1Btn:'Ενεργοποίηση',ob1Skip:'Παράβλεψη',
+    ob2T:'Προσθήκη στην αρχική',ob2D:'Γρήγορη πρόσβαση από την αρχική σας οθόνη',
+    ob2Steps:'<strong>iOS Safari:</strong> πατήστε Share → "Add to Home Screen"<br><strong>Android:</strong> μενού → "Install app"',
+    ob2Btn:'Έναρξη →',
+    hGreet:'Καλημέρα,',hName:'Μαρία',hSub:'Alma Pilates · Λεμεσός',
+    hSubLbl:'ΣΥΝΔΡΟΜΗ',
+    hWarn:'Λίγα μαθήματα — ανανεώστε τη συνδρομή',
+    hBurn:'🔥 Τα μαθήματα που δεν χρησιμοποιούνται λήγουν στις 3 Ιουν. Έχετε 2 μαθήματα να χρησιμοποιήσετε πριν τη λήξη!',
+    hQuick:'Γρήγορες ενέργειες',hBook:'Κράτηση',hBookS:'Επιλογή θέσης',
+    hPay:'Πληρωμή',hPayS:'Συνδρομή / μεμ.',hHist:'Ιστορικό',
+    days:['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ'],
+    months:['Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'],
+    att:'Παρουσία',mis:'Απουσία',
+    schLbl:'Μάιος 2026',lgMo:'Διαθέσιμο',lgEv:'Πλήρες',lgMi:'Η κράτησή μου',
+    slFull:'πλήρες',slFree:'ελ.',slMine:'✓',
+    shbTitle:'Επιβεβαίωση κράτησης',shbDed:'Αφαίρεση μαθήματος',
+    shbCancel:'Ακύρωση',shbConfirm:'Επιβεβαίωση',
+    bookOk:'Κράτηση επιβεβαιώθηκε!',
+    pTitle:'Πληρωμή',pSub:'Μέσω Revolut · γρήγορα και ασφαλή',
+    pSingle:'Μεμονωμένο μάθημα',pSingleS:'εφάπαξ · χωρίς συνδρομή',
+    p8:'Συνδρομή 8 μαθημάτων',p8S:'€15 / μάθημα · 2× εβδομαδιαίως',
+    p12:'Συνδρομή 12 μαθημάτων',p12S:'€13,33 / μάθημα · 3× εβδομαδιαίως',
+    pBtn:'Πληρωμή μέσω Revolut ↗',
+    shpTitle:'Πληρωμή',shpLegal:'Η πληρωμή γίνεται μέσω Revolut Business. Μετά την επιβεβαίωση θα μεταφερθείτε στη σελίδα πληρωμής.',
+    shpCancel:'Ακύρωση',shpPay:'⚡ Πληρωμή μέσω Revolut',
+    payOk:'Μεταφορά στο Revolut...',
+    pfSub:'Συνδρομή',pfStart:'Έναρξη',pfAtt:'Παρόντα',pfLang:'Γλώσσα',pfPay:'Πληρωμή',
+    pfNotif:'Ειδοποιήσεις: ενεργές · 2 μαθήματα πριν τη λήξη',
+    pfGdpr:'Διαχείριση δεδομένων (ΓΚΠΔ)',pfDel:'Διαγραφή λογαριασμού',
+    nlHome:'Αρχική',nlSch:'Κράτηση',nlPay:'Πληρωμή',nlProf:'Προφίλ',
+    subLeft:' απομένουν',subSince:'από 3 Μαΐου',
+    termsTitle:'Όροι Χρήσης',
+    tc1h:'1. Παροχή υπηρεσιών',tc1p:'Η Alma Pilates Studio παρέχει υπηρεσίες γυμναστικής στη Λεμεσό, Κύπρος.',
+    tc2h:'2. Ακυρώσεις',tc2p:'Ακύρωση τουλάχιστον 2 ώρες πριν. Σε αργία δεν χρεώνεται το μάθημα.',
+    tc3h:'3. Πληρωμές',tc3p:'Εφάπαξ €25 · 8 μαθήματα €120 · 12 μαθήματα €160. Δεν επιστρέφονται συνδρομές.',
+    tc4h:'4. Εφαρμοστέο δίκαιο',tc4p:'Εφαρμόζεται κυπριακό δίκαιο, αρμόδια δικαστήρια Λεμεσού.',
+    close:'Κλείσιμο',
+    privTitle:'Πολιτική Απορρήτου',
+    pr1h:'Υπεύθυνος επεξεργασίας',pr1p:'Alma Pilates Studio, Λεμεσός, Κύπρος. info@almapilates.cy',
+    pr2h:'Δεδομένα που συλλέγουμε',pr2p:'Όνομα, τηλέφωνο, email (προαιρετικό), ιστορικό κρατήσεων. Δεν αποθηκεύουμε δεδομένα καρτών.',
+    pr3h:'Δικαιώματά σας (ΓΚΠΔ)',pr3p:'Πρόσβαση, διόρθωση, διαγραφή, φορητότητα. Αίτηση: info@almapilates.cy. Καταγγελία: dataprotection.gov.cy',
+    pr4h:'Cookies',pr4p:'Χρησιμοποιούμε μόνο απαραίτητα cookies. Δεν χρησιμοποιούμε cookies παρακολούθησης.',
+    gdprTitle:'Διαχείριση δεδομένων',gdprSub:'Τα δικαιώματά σας σύμφωνα με τον ΓΚΠΔ',
+    gdprExp:'📥 Εξαγωγή δεδομένων μου',gdprCor:'✏️ Διόρθωση δεδομένων',gdprUns:'🔕 Κατάργηση marketing',
+    gdprNote:'Για οποιοδήποτε αίτημα: info@almapilates.cy · Αρχή Προστασίας Δεδομένων: dataprotection.gov.cy',
+    gdprClose:'Κλείσιμο',
+    delTitle:'Διαγραφή λογαριασμού',delSub:'Όλα τα δεδομένα σας θα διαγραφούν μόνιμα.',
+    delLegal:'Σύμφωνα με ΓΚΠΔ αρ.17 (δικαίωμα διαγραφής). Η επεξεργασία ολοκληρώνεται εντός 30 ημερών.',
+    delCancel:'Ακύρωση',delConfirm:'Διαγραφή',
+    phoneErr:'Μη έγκυρος αριθμός',termsErr:'Αποδεχτείτε τους όρους και τον ΓΚΠΔ',
+  },
+  en:{
+    wCity:'Limassol, Cyprus',
+    wDesc:'Book classes, pay your membership and track your sessions',
+    wReg:'Register',wLogin:'Sign in',
+    rTitle:'Create account',
+    rNameL:'Full name',rPhoneL:'Phone',rEmailL:'Email (optional)',rLangL:'Language',
+    cbTerms:'I accept the <a onclick="openSheet(\'sh-terms\')">Terms of Service</a> and <a onclick="openSheet(\'sh-priv\')">Privacy Policy</a>',
+    cbGdpr:'I consent to processing of my personal data under GDPR (EU 2016/679)',
+    cbMkt:'I want to receive offers and news (optional)',
+    rLegal:'Alma Pilates Studio, Limassol, Cyprus. Legal basis: contract (GDPR Art.6§1b). Contact: info@almapilates.cy',
+    rBtn:'Send SMS code →',
+    otpTitle:'Verification',otpSub:'We sent a 6-digit code to',
+    otpBtn:'Verify',otpResend:'Resend code',
+    lTitle:'Sign in',lPhoneL:'Phone',
+    lBtn:'Send code →',lOr:'or',lDemo:'Try demo (no account needed)',
+    ob0T:'Welcome!',ob0D:'Book classes in seconds',
+    ob0F1:'Class schedule',ob0F2:'Pay via Revolut',ob0F3:'Reminders',ob0Btn:'Next →',
+    ob1T:'Notifications',ob1D:'We\'ll remind you about upcoming classes and expiring memberships',
+    ob1Legal:'Notifications relate only to your bookings. We never share your data.',
+    ob1Btn:'Enable notifications',ob1Skip:'Skip',
+    ob2T:'Add to home screen',ob2D:'Quick access from your phone\'s home screen',
+    ob2Steps:'<strong>iOS Safari:</strong> tap Share → "Add to Home Screen"<br><strong>Android:</strong> menu → "Install app"',
+    ob2Btn:'Get started →',
+    hGreet:'Good day,',hName:'Maria',hSub:'Alma Pilates · Limassol',
+    hSubLbl:'MEMBERSHIP',
+    hWarn:'Few classes left — renew your membership',
+    hBurn:'🔥 Unused classes expire Jun 3. You have 2 classes to use before your membership ends!',
+    hQuick:'Quick actions',hBook:'Book class',hBookS:'Choose a slot',
+    hPay:'Pay',hPayS:'Membership / single',hHist:'History',
+    days:['Mon','Tue','Wed','Thu','Fri','Sat'],
+    months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    att:'Attended',mis:'Missed',
+    schLbl:'May 2026',lgMo:'Available',lgEv:'Full',lgMi:'My booking',
+    slFull:'full',slFree:'free',slMine:'✓',
+    shbTitle:'Confirm booking',shbDed:'Deduct class',
+    shbCancel:'Cancel',shbConfirm:'Confirm',
+    bookOk:'Booking confirmed!',
+    pTitle:'Payment',pSub:'Via Revolut · fast & secure',
+    pSingle:'Single class',pSingleS:'one-off · no membership',
+    p8:'8-class membership',p8S:'€15 / class · 2× per week',
+    p12:'12-class membership',p12S:'€13.33 / class · 3× per week',
+    pBtn:'Pay via Revolut ↗',
+    shpTitle:'Payment',shpLegal:'Payment processed via Revolut Business. You\'ll be redirected to the Revolut payment page.',
+    shpCancel:'Cancel',shpPay:'⚡ Pay via Revolut',
+    payOk:'Redirecting to Revolut...',
+    pfSub:'Membership',pfStart:'Started',pfAtt:'Attended',pfLang:'Language',pfPay:'Payment',
+    pfNotif:'Notifications: on · 2 classes before expiry',
+    pfGdpr:'Manage my data (GDPR)',pfDel:'Delete account',
+    nlHome:'Home',nlSch:'Book',nlPay:'Pay',nlProf:'Profile',
+    subLeft:' remaining',subSince:'since May 2',
+    termsTitle:'Terms of Service',
+    tc1h:'1. Services',tc1p:'Alma Pilates Studio provides fitness services in Limassol, Cyprus.',
+    tc2h:'2. Cancellations',tc2p:'Cancel at least 2 hours before class. No charge on public holidays.',
+    tc3h:'3. Payments',tc3p:'Single €25 · 8 classes €120 · 12 classes €160. No refunds on memberships.',
+    tc4h:'4. Governing law',tc4p:'Cyprus law applies. Jurisdiction: Limassol courts.',
+    close:'Close',
+    privTitle:'Privacy Policy',
+    pr1h:'Data controller',pr1p:'Alma Pilates Studio, Limassol, Cyprus. info@almapilates.cy',
+    pr2h:'Data we collect',pr2p:'Name, phone, email (optional), booking history. We never store card data.',
+    pr3h:'Your rights (GDPR)',pr3p:'Access, rectification, erasure, portability. Request: info@almapilates.cy. Complaint: dataprotection.gov.cy',
+    pr4h:'Cookies',pr4p:'We use only essential cookies. No tracking or analytics cookies.',
+    gdprTitle:'Data management',gdprSub:'Your rights under GDPR',
+    gdprExp:'📥 Export my data',gdprCor:'✏️ Correct my data',gdprUns:'🔕 Unsubscribe from marketing',
+    gdprNote:'For any request: info@almapilates.cy · Cyprus DPA: dataprotection.gov.cy',
+    gdprClose:'Close',
+    delTitle:'Delete account',delSub:'All your data will be permanently deleted.',
+    delLegal:'Under GDPR Art.17 (right to erasure). Processed within 30 days.',
+    delCancel:'Cancel',delConfirm:'Delete',
+    phoneErr:'Invalid phone number',termsErr:'Please accept terms and GDPR consent',
+  },
+  ru:{
+    wCity:'Лимассол, Кипр',
+    wDesc:'Записывайтесь на занятия, оплачивайте абонемент и следите за посещаемостью',
+    wReg:'Зарегистрироваться',wLogin:'Войти',
+    rTitle:'Создать аккаунт',
+    rNameL:'Полное имя',rPhoneL:'Телефон',rEmailL:'Email (необязательно)',rLangL:'Язык общения',
+    cbTerms:'Я принимаю <a onclick="openSheet(\'sh-terms\')">Условия использования</a> и <a onclick="openSheet(\'sh-priv\')">Политику конфиденциальности</a>',
+    cbGdpr:'Я даю согласие на обработку персональных данных (GDPR / GDPR)',
+    cbMkt:'Я хочу получать акции и новости (необязательно)',
+    rLegal:'Alma Pilates Studio, Лимассол, Кипр. Основание: договор услуг (GDPR ст.6§1б). Контакт: info@almapilates.cy',
+    rBtn:'Отправить SMS-код →',
+    otpTitle:'Подтверждение',otpSub:'Мы отправили 6-значный код на номер',
+    otpBtn:'Подтвердить',otpResend:'Отправить код снова',
+    lTitle:'Войти',lPhoneL:'Телефон',
+    lBtn:'Отправить код →',lOr:'или',lDemo:'Войти как гость (Демо)',
+    ob0T:'Добро пожаловать!',ob0D:'Записывайтесь на занятия за секунды',
+    ob0F1:'Расписание занятий',ob0F2:'Оплата через Revolut',ob0F3:'Напоминания',ob0Btn:'Далее →',
+    ob1T:'Уведомления',ob1D:'Напомним о предстоящих занятиях и окончании абонемента',
+    ob1Legal:'Уведомления только о ваших записях. Данные не передаются третьим лицам.',
+    ob1Btn:'Включить уведомления',ob1Skip:'Пропустить',
+    ob2T:'Добавить на экран',ob2D:'Быстрый доступ с главного экрана телефона',
+    ob2Steps:'<strong>iOS Safari:</strong> нажмите «Поделиться» → "На экран «Домой»"<br><strong>Android:</strong> меню → "Установить приложение"',
+    ob2Btn:'Начать →',
+    hGreet:'Добрый день,',hName:'Мария',hSub:'Alma Pilates · Лимассол',
+    hSubLbl:'АБОНЕМЕНТ',
+    hWarn:'Заканчиваются занятия — продлите абонемент',
+    hBurn:'🔥 Неиспользованные занятия сгорят 3 июня. У вас ещё 2 занятия — запишитесь до конца абонемента!',
+    hQuick:'Быстрые действия',hBook:'Записаться',hBookS:'Выбрать слот',
+    hPay:'Оплатить',hPayS:'Абонемент / разовое',hHist:'История',
+    days:['Пн','Вт','Ср','Чт','Пт','Сб'],
+    months:['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'],
+    att:'Посещено',mis:'Пропущено',
+    schLbl:'Май 2026',lgMo:'Свободно',lgEv:'Занято',lgMi:'Моя запись',
+    slFull:'занято',slFree:'св.',slMine:'✓',
+    shbTitle:'Подтвердить запись',shbDed:'Спишется занятие',
+    shbCancel:'Отмена',shbConfirm:'Подтвердить',
+    bookOk:'Запись подтверждена!',
+    pTitle:'Оплата',pSub:'Через Revolut · быстро и безопасно',
+    pSingle:'Разовое занятие',pSingleS:'разовое · без абонемента',
+    p8:'Абонемент 8 занятий',p8S:'€15 / занятие · 2× в неделю',
+    p12:'Абонемент 12 занятий',p12S:'€13.33 / занятие · 3× в неделю',
+    pBtn:'Оплатить через Revolut ↗',
+    shpTitle:'Оплата',shpLegal:'Оплата через Revolut Business. После подтверждения вы будете перенаправлены на страницу оплаты.',
+    shpCancel:'Отмена',shpPay:'⚡ Оплатить через Revolut',
+    payOk:'Переход в Revolut...',
+    pfSub:'Абонемент',pfStart:'Начало',pfAtt:'Посещено',pfLang:'Язык',pfPay:'Оплата',
+    pfNotif:'Уведомления: вкл. · за 2 занятия до конца',
+    pfGdpr:'Управление данными (GDPR)',pfDel:'Удалить аккаунт',
+    nlHome:'Главная',nlSch:'Запись',nlPay:'Оплата',nlProf:'Профиль',
+    subLeft:' осталось',subSince:'с 2 мая',
+    termsTitle:'Условия использования',
+    tc1h:'1. Услуги',tc1p:'Alma Pilates Studio предоставляет фитнес-услуги в Никосии, Кипр.',
+    tc2h:'2. Отмена занятий',tc2p:'Отмена минимум за 2 часа. В праздничные дни занятие не списывается.',
+    tc3h:'3. Оплата',tc3p:'Разовое €25 · 8 занятий €120 · 12 занятий €160. Абонементы не возвращаются.',
+    tc4h:'4. Применимое право',tc4p:'Применяется кипрское право. Юрисдикция: суды Никосии.',
+    close:'Закрыть',
+    privTitle:'Политика конфиденциальности',
+    pr1h:'Оператор данных',pr1p:'Alma Pilates Studio, Лимассол, Кипр. info@almapilates.cy',
+    pr2h:'Собираемые данные',pr2p:'Имя, телефон, email (необязательно), история посещений. Данные карт не хранятся.',
+    pr3h:'Ваши права (GDPR)',pr3p:'Доступ, исправление, удаление, переносимость. Запрос: info@almapilates.cy. Жалоба: dataprotection.gov.cy',
+    pr4h:'Cookies',pr4p:'Только необходимые cookie. Трекинговые cookie не используются.',
+    gdprTitle:'Управление данными',gdprSub:'Ваши права по GDPR',
+    gdprExp:'📥 Экспорт моих данных',gdprCor:'✏️ Исправить данные',gdprUns:'🔕 Отписаться от рассылки',
+    gdprNote:'Любой запрос: info@almapilates.cy · Орган по защите данных Кипра: dataprotection.gov.cy',
+    gdprClose:'Закрыть',
+    delTitle:'Удалить аккаунт',delSub:'Все ваши данные будут удалены безвозвратно.',
+    delLegal:'На основании GDPR ст.17 (право на удаление). Обрабатывается в течение 30 дней.',
+    delCancel:'Отмена',delConfirm:'Удалить',
+    phoneErr:'Неверный номер телефона',termsErr:'Примите условия и дайте согласие GDPR',
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+const SCH = {
+  0:[{t:'16:30',tp:'ev'},{t:'17:30',tp:'ev'},{t:'18:30',tp:'ev'},{t:'19:30',tp:'ev'}],
+  1:[{t:'07:00',tp:'mo'},{t:'08:00',tp:'mo'},{t:'09:15',tp:'mo'},{t:'16:30',tp:'ev'},{t:'17:30',tp:'ev'},{t:'18:30',tp:'ev'},{t:'19:30',tp:'ev'}],
+  2:[{t:'16:30',tp:'ev'},{t:'17:30',tp:'ev'},{t:'18:30',tp:'ev'},{t:'19:30',tp:'ev'}],
+  3:[{t:'07:00',tp:'mo'},{t:'08:00',tp:'mo'},{t:'16:30',tp:'ev'},{t:'17:30',tp:'ev'},{t:'18:30',tp:'ev'},{t:'19:30',tp:'ev'}],
+  4:[{t:'07:00',tp:'mo'},{t:'08:00',tp:'mo'},{t:'09:15',tp:'mo'},{t:'16:30',tp:'ev'},{t:'17:30',tp:'ev'},{t:'18:30',tp:'ev'},{t:'19:30',tp:'ev'}],
+  5:[{t:'09:30',tp:'mo'},{t:'10:30',tp:'mo'}],
+};
+const HIST=[{di:1,t:'07:00–08:00',date:'6 мая / 6 Μαΐου / May 6',s:'att'},{di:3,t:'17:30–18:30',date:'1 мая / 1 Μαΐου / May 1',s:'mis'},{di:1,t:'07:00–08:00',date:'29 апр / 29 Απρ / Apr 29',s:'att'}];
+const MINE_SET=new Set(['1_07:00','4_17:30']);
+const CAP=4;
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let lang='el', curTab='home', wkOff=0, selOpt=null, selSlot=null, obStep=0;
+let bkCounts={};
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+const t=()=>TR[lang];
+const $=id=>document.getElementById(id);
+function tx(id,val){ const e=$(id); if(e&&val!==undefined) e.textContent=val; }
+function txh(id,val){ const e=$(id); if(e&&val!==undefined) e.innerHTML=val; }
+function nh(tm){ const[h,m]=tm.split(':').map(Number); return String(h+1).padStart(2,'0')+':'+String(m).padStart(2,'0'); }
+
+function toast2(msg){
+  const el=$('toast-box');
+  el.textContent=msg; el.classList.add('on');
+  setTimeout(()=>el.classList.remove('on'),2500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LANGUAGE
+// ═══════════════════════════════════════════════════════════════
+function setLang(l){
+  lang=l;
+  // update all lang buttons
+  document.querySelectorAll('.lb').forEach(b=>{
+    b.classList.toggle('on', b.textContent.toLowerCase()===l);
+  });
+  applyLang();
+}
+
+function applyLang(){
+  const T=t();
+  // Welcome
+  tx('w-city',T.wCity); tx('w-desc',T.wDesc);
+  tx('w-reg-btn',T.wReg); tx('w-login-btn',T.wLogin);
+  // Register
+  tx('r-title',T.rTitle); tx('r-name-l',T.rNameL);
+  tx('r-phone-l',T.rPhoneL); tx('r-email-l',T.rEmailL); tx('r-lang-l',T.rLangL);
+  txh('cb-terms-txt',T.cbTerms); tx('cb-gdpr-txt',T.cbGdpr); tx('cb-mkt-txt',T.cbMkt);
+  tx('r-legal',T.rLegal); tx('r-btn',T.rBtn);
+  // OTP
+  tx('otp-title',T.otpTitle); tx('otp-sub',T.otpSub);
+  tx('otp-btn',T.otpBtn); tx('otp-resend',T.otpResend);
+  // Login
+  tx('l-title',T.lTitle); tx('l-phone-l',T.lPhoneL);
+  tx('l-btn',T.lBtn); tx('l-or',T.lOr); tx('l-demo-btn',T.lDemo);
+  // Onboard
+  tx('ob0-t',T.ob0T); tx('ob0-d',T.ob0D);
+  tx('ob0-f1',T.ob0F1); tx('ob0-f2',T.ob0F2); tx('ob0-f3',T.ob0F3); tx('ob0-btn',T.ob0Btn);
+  tx('ob1-t',T.ob1T); tx('ob1-d',T.ob1D); tx('ob1-legal',T.ob1Legal);
+  tx('ob1-btn',T.ob1Btn); tx('ob1-skip',T.ob1Skip);
+  tx('ob2-t',T.ob2T); tx('ob2-d',T.ob2D);
+  txh('ob2-steps',T.ob2Steps); tx('ob2-btn',T.ob2Btn);
+  // Home
+  tx('h-sub',T.hSub); tx('h-sub-lbl',T.hSubLbl);
+  tx('h-warn-txt',T.hWarn); tx('h-quick-lbl',T.hQuick);
+  // burn warning - show when <= 14 days left on subscription
+  const burnEl=document.getElementById('h-burn');
+  const burnTxt=document.getElementById('h-burn-txt');
+  if(burnEl&&burnTxt){burnTxt.textContent=T.hBurn||'';burnEl.style.display='flex';}
+  tx('h-book',T.hBook); tx('h-book-s',T.hBookS);
+  tx('h-pay',T.hPay); tx('h-pay-s',T.hPayS); tx('h-hist-lbl',T.hHist);
+  // rebuild greeting
+  const g=$('h-greet');
+  if(g) g.innerHTML=T.hGreet+' <em style="font-style:italic;color:var(--accent2)">'+T.hName+'</em>';
+  // sub card
+  const sub={left:2,total:8};
+  const dots=$('h-dots');
+  if(dots) dots.innerHTML=Array.from({length:sub.total},(_,i)=>`<div class="sd ${i<sub.total-sub.left?'u':'l'}"></div>`).join('');
+  tx('h-sub-type','8 '+(lang==='el'?'μαθήματα':lang==='en'?'classes':'занятий')+' · '+T.subSince);
+  tx('h-left',sub.left+T.subLeft);
+  // history
+  const hel=$('h-hist');
+  if(hel) hel.innerHTML=HIST.map(h=>`<div class="hrow"><div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${h.s==='att'?'var(--green)':'var(--red)'}"></div><div style="flex:1"><div style="font-size:12px;color:var(--text)">${h.t} · ${T.days[h.di]}</div><div style="font-size:10px;color:var(--text3);margin-top:1px">${h.date.split('/')[lang==='el'?1:lang==='ru'?0:2].trim()}</div></div><span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;background:${h.s==='att'?'var(--gbg)':'var(--rbg)'};color:${h.s==='att'?'var(--green)':'var(--red)'}">${h.s==='att'?T.att:T.mis}</span></div>`).join('');
+  // Schedule
+  tx('sch-lbl',T.schLbl); tx('lg-mo',T.lgMo); tx('lg-ev',T.lgEv); tx('lg-mi',T.lgMi);
+  tx('shb-title',T.shbTitle); tx('shb-ded',T.shbDed);
+  tx('shb-cancel',T.shbCancel); tx('shb-confirm',T.shbConfirm);
+  // Pay
+  tx('p-title',T.pTitle); tx('p-sub',T.pSub); tx('p-pay-btn',T.pBtn);
+  tx('shp-title',T.shpTitle); tx('shp-legal',T.shpLegal);
+  tx('shp-cancel',T.shpCancel); tx('shp-pay',T.shpPay);
+  // Profile
+  tx('pf-notif',T.pfNotif); tx('pf-gdpr-btn',T.pfGdpr); tx('pf-del-btn',T.pfDel);
+  tx('pf-name',lang==='el'?'Μαρία Κωνσταντίνου':lang==='en'?'Maria Constantinou':'Мария Константину');
+  // nav
+  tx('nl-home',T.nlHome); tx('nl-sch',T.nlSch); tx('nl-pay',T.nlPay); tx('nl-prof',T.nlProf);
+  // Terms
+  tx('sh-terms-title',T.termsTitle);
+  tx('tc1-h',T.tc1h); tx('tc1-p',T.tc1p);
+  tx('tc2-h',T.tc2h); tx('tc2-p',T.tc2p);
+  tx('tc3-h',T.tc3h); tx('tc3-p',T.tc3p);
+  tx('tc4-h',T.tc4h); tx('tc4-p',T.tc4p);
+  tx('sh-terms-close',T.close);
+  // Privacy
+  tx('sh-priv-title',T.privTitle);
+  tx('pr1-h',T.pr1h); tx('pr1-p',T.pr1p);
+  tx('pr2-h',T.pr2h); tx('pr2-p',T.pr2p);
+  tx('pr3-h',T.pr3h); tx('pr3-p',T.pr3p);
+  tx('pr4-h',T.pr4h); tx('pr4-p',T.pr4p);
+  tx('sh-priv-close',T.close);
+  // GDPR
+  tx('sh-gdpr-title',T.gdprTitle); tx('sh-gdpr-sub',T.gdprSub);
+  tx('gdpr-exp',T.gdprExp); tx('gdpr-cor',T.gdprCor); tx('gdpr-uns',T.gdprUns);
+  tx('gdpr-note',T.gdprNote); tx('gdpr-close',T.gdprClose);
+  // Delete
+  tx('sh-del-title',T.delTitle); tx('sh-del-sub',T.delSub);
+  tx('sh-del-legal',T.delLegal); tx('sh-del-cancel',T.delCancel); tx('sh-del-confirm',T.delConfirm);
+  // map & footer
+  tx('pf-map-lbl', lang==='el'?'Η τοποθεσία μας':lang==='en'?'Our location':'Наш адрес');
+  tx('pf-map-open', lang==='el'?'Άνοιγμα →':lang==='en'?'Open →':'Открыть →');
+  tx('sh-map-title','Alma Pilates Studio');
+  tx('sh-map-gmaps', lang==='el'?'Άνοιγμα σε Google Maps':lang==='en'?'Open in Google Maps':'Открыть в Google Maps');
+  tx('sh-map-waze', lang==='el'?'Πλοήγηση με Waze':lang==='en'?'Navigate with Waze':'Маршрут в Waze');
+  tx('sh-map-close', lang==='el'?'Κλείσιμο':lang==='en'?'Close':'Закрыть');
+  tx('ft-privacy','Privacy Policy');
+  tx('ft-legal', lang==='el'?'Νομική Γνωστοποίηση':lang==='en'?'Legal Notice':'Правовая информация');
+  tx('ft-terms', lang==='el'?'Όροι Χρήσης':lang==='en'?'Terms':'Условия');
+  // profile rows
+  buildProfileRows();
+  // pay opts
+  buildPayOpts();
+  // always rebuild schedule grid and active tab
+  buildSchedule();
+  // re-render active main screen content
+  if(curTab==='home') {
+    // greeting and history already updated above
+  } else if(curTab==='schedule') {
+    buildSchedule();
+  } else if(curTab==='pay') {
+    buildPayOpts();
+  } else if(curTab==='profile') {
+    buildProfileRows();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function go(name){
+  document.querySelectorAll('.scr').forEach(s=>{ s.classList.remove('on'); s.style.display='none'; });
+  const s=$('scr-'+name);
+  if(s){ s.style.display='flex'; s.classList.add('on'); }
+  // scroll to top
+  const sc=$('scroll'); if(sc) sc.scrollTop=0;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════
+function doRegister(){
+  const T=t();
+  const phone=$('r-phone').value.trim();
+  const termsOk=$('cb-terms').checked;
+  const gdprOk=$('cb-gdpr').checked;
+  const errEl=$('r-err');
+  const phoneErr=$('r-phone-err');
+
+  // reset
+  errEl.style.display='none';
+  phoneErr.style.display='none';
+  $('r-phone').classList.remove('err');
+
+  if(!termsOk||!gdprOk){
+    errEl.textContent=T.termsErr;
+    errEl.style.display='block';
+    return;
+  }
+  if(!phone||phone.replace(/\D/g,'').length<8){
+    phoneErr.textContent=T.phoneErr;
+    phoneErr.style.display='block';
+    $('r-phone').classList.add('err');
+    return;
+  }
+  $('otp-phone').textContent=phone;
+  go('otp');
+  setTimeout(()=>$('o1')&&$('o1').focus(),200);
+}
+
+function doLogin(){
+  const phone=$('l-phone').value.trim();
+  if(!phone){ $('l-phone').classList.add('err'); return; }
+  $('l-phone').classList.remove('err');
+  $('otp-phone').textContent=phone;
+  go('otp');
+  setTimeout(()=>$('o1')&&$('o1').focus(),200);
+}
+
+function demoLogin(){
+  startApp();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OTP
+// ═══════════════════════════════════════════════════════════════
+function onOtp(el,idx){
+  el.value=el.value.replace(/\D/g,'');
+  if(el.value.length===1&&idx<6){
+    const nxt=$('o'+(idx+1));
+    if(nxt) nxt.focus();
+  }
+  // check if all filled
+  let code='';
+  for(let i=1;i<=6;i++){
+    const oi=$('o'+i);
+    code+=oi?oi.value:'';
+  }
+  if(code.length===6) doOtp();
+}
+
+function doOtp(){
+  let code='';
+  for(let i=1;i<=6;i++){
+    const oi=$('o'+i);
+    code+=oi?oi.value:'';
+  }
+  if(code.length<6){
+    toast2('Εισάγετε όλα τα ψηφία / Enter all digits / Введите код');
+    return;
+  }
+  // In real app: verify with Supabase
+  startApp();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ONBOARDING
+// ═══════════════════════════════════════════════════════════════
+function nextOb(){
+  $('ob'+obStep).classList.remove('on');
+  obStep++;
+  if(obStep>=3){ finishOb(); return; }
+  $('ob'+obStep).classList.add('on');
+  document.querySelectorAll('.sdot2').forEach((d,i)=>d.classList.toggle('on',i===obStep));
+}
+
+function finishOb(){
+  go('home');
+  $('bnav').style.display='flex';
+  curTab='home';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// APP START
+// ═══════════════════════════════════════════════════════════════
+function startApp(){
+  $('hdr').style.display='flex';
+  obStep=0;
+  go('onboard');
+  $('ob0').classList.add('on');
+  applyLang();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════
+function goTab(tab){
+  curTab=tab;
+  ['home','schedule','pay','profile'].forEach(id=>{
+    const s=$('scr-'+id);
+    if(s){ s.style.display=id===tab?'flex':'none'; s.classList.toggle('on',id===tab); }
+    const n=$('ni-'+id);
+    if(n) n.classList.toggle('on',id===tab);
+  });
+  const sc=$('scroll'); if(sc) sc.scrollTop=0;
+  if(tab==='schedule') buildSchedule();
+  if(tab==='pay') buildPayOpts();
+  if(tab==='profile') buildProfileRows();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCHEDULE
+// ═══════════════════════════════════════════════════════════════
+function getWeekDates(){
+  const base=new Date(2026,4,4);
+  base.setDate(base.getDate()+wkOff*7);
+  return Array.from({length:6},(_,i)=>{ const d=new Date(base); d.setDate(d.getDate()+i); return d; });
+}
+
+function shiftW(d){ wkOff+=d; buildSchedule(); }
+
+function buildSchedule(){
+  const T=t();
+  const dates=getWeekDates();
+  const d0=dates[0], d5=dates[5];
+  tx('w-lbl', d0.getDate()+' '+T.months[d0.getMonth()]+' — '+d5.getDate()+' '+T.months[d5.getMonth()]);
+  const today=new Date();
+  const grid=$('sch-grid');
+  if(!grid) return;
+  grid.innerHTML=dates.map((date,di)=>{
+    const daySlots=SCH[di]||[];
+    if(!daySlots.length) return '';
+    const isToday=date.toDateString()===today.toDateString();
+    const slotsHTML=daySlots.map(s=>{
+      const key=di+'_'+s.t;
+      const mine=MINE_SET.has(key);
+      if(!bkCounts[wkOff+'_'+key]) bkCounts[wkOff+'_'+key]=(di*3+s.t.length+wkOff+1)%4;
+      const bk=bkCounts[wkOff+'_'+key];
+      const free=CAP-bk;
+      const full=free<=0&&!mine;
+      const cls=mine?'mi':full?'fu':s.tp==='mo'?'mo':'ev';
+      const lbl=mine?T.slMine:full?T.slFull:free+' '+T.slFree;
+      const onclick=(!full&&!mine)?`onclick="openBookSheet(${di},'${s.t}',${free})"` :'';
+      return `<div class="slot ${cls}" ${onclick}><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
+    }).join('');
+    return `<div class="dayb"><div class="daylbl" style="${isToday?'background:var(--accent);color:var(--bg)':''}">${T.days[di]} · ${date.getDate()} ${T.months[date.getMonth()]}</div><div class="slots">${slotsHTML}</div></div>`;
+  }).join('');
+}
+
+function openBookSheet(di,time,free){
+  selSlot={di,time,free};
+  const T=t();
+  const dates=getWeekDates();
+  const date=dates[di];
+  tx('shb-title',T.shbTitle);
+  tx('shb-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
+  openSheet('sh-book');
+}
+
+function confirmBook(){
+  if(selSlot){
+    const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
+    bkCounts[key]=(bkCounts[key]||0)+1;
+    MINE_SET.add(selSlot.di+'_'+selSlot.time);
+  }
+  closeSheet('sh-book');
+  toast2(t().bookOk);
+  buildSchedule();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PAY
+// ═══════════════════════════════════════════════════════════════
+function buildPayOpts(){
+  const T=t();
+  const opts=[
+    {k:'single',price:25,title:T.pSingle,sub:T.pSingleS},
+    {k:'sub8',price:120,title:T.p8,sub:T.p8S},
+    {k:'sub12',price:160,title:T.p12,sub:T.p12S},
+  ];
+  const el=$('p-opts');
+  if(!el) return;
+  el.innerHTML=opts.map(o=>`
+    <div class="popt ${selOpt===o.k?'sel':''}" onclick="selPay('${o.k}','${o.title}',${o.price})">
+      <div><div style="font-size:13px;font-weight:500;color:var(--text)">${o.title}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${o.sub}</div></div>
+      <div class="optprice">€${o.price}</div>
+    </div>`).join('');
+  const act=$('p-action');
+  if(act) act.style.display=selOpt?'block':'none';
+}
+
+function selPay(k,title,price){
+  selOpt=k;
+  const T=t();
+  tx('shp-desc',title);
+  tx('shp-price','€'+price);
+  buildPayOpts();
+}
+
+function openPaySheet(){
+  if(!selOpt) return;
+  openSheet('sh-pay');
+}
+
+function doRevPay(){
+  closeSheet('sh-pay');
+  toast2(t().payOk);
+  selOpt=null;
+  setTimeout(()=>buildPayOpts(),400);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════════════════════════
+function buildProfileRows(){
+  const T=t();
+  const el=$('pf-rows');
+  if(!el) return;
+  const rows=[
+    [T.pfSub,'8 '+(lang==='el'?'μαθ.':lang==='en'?'cl.':'зан.')+' · 2'+T.subLeft.trim()],
+    [T.pfStart,lang==='el'?'2 Μαΐου 2026':lang==='en'?'May 2, 2026':'2 мая 2026'],
+    [T.pfAtt,'6'],
+    [T.pfLang,lang==='el'?'Ελληνικά':lang==='en'?'English':'Русский'],
+    [T.pfPay,'Revolut'],
+  ];
+  el.innerHTML=rows.map(([l,v])=>`<div class="prow"><span style="font-size:12px;color:var(--text2)">${l}</span><span style="font-size:12px;font-weight:500;color:var(--text)">${v}</span></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHEETS
+// ═══════════════════════════════════════════════════════════════
+function openSheet(id){ const e=$(id); if(e) e.classList.add('on'); }
+function closeSheet(id){ const e=$(id); if(e) e.classList.remove('on'); }
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+// Fix the OTP focus bug — fullwidth parenthesis was in source
+// Re-declare safely:
+window.onOtp=function(el,idx){
+  el.value=el.value.replace(/\D/g,'');
+  if(el.value.length===1&&idx<6){
+    const nxt=document.getElementById('o'+(idx+1));
+    if(nxt) nxt.focus();
+  }
+  let code='';
+  for(let i=1;i<=6;i++){
+    const oi=document.getElementById('o'+i);
+    code+=oi?oi.value:'';
+  }
+  if(code.length===6) doOtp();
+};
+
+applyLang();
+</script>
+</body>
+</html>

@@ -1,0 +1,2633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alma Pilates — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#F5F0E8;--bg2:#EDE7DA;--bg3:#E4DCCC;
+  --card:#FDFAF5;--text:#2C2318;--text2:#7A6A58;--text3:#A89880;
+  --accent:#6B5240;--accent2:#8B6B52;
+  --green:#4A7C5F;--green-bg:#E8F0EB;
+  --warn:#8B6020;--warn-bg:#F5EDD8;
+  --border:#D8CEBE;--serif:'Georgia',serif;
+  --red-bg:#F5EAE8;--red:#8B3A30;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);color:var(--text);min-height:100vh;display:flex}
+
+/* SIDEBAR */
+.sidebar{width:210px;min-height:100vh;background:var(--bg2);border-right:0.5px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh}
+.logo{padding:18px 16px 16px;border-bottom:0.5px solid var(--border)}
+.logo-title{font-family:var(--serif);font-size:17px;color:var(--text)}
+.logo-title em{font-style:italic;color:var(--accent2)}
+.logo-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.nav-section{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);padding:12px 16px 4px;font-weight:500}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:13px;color:var(--text2);cursor:pointer;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{background:var(--bg3);color:var(--text);padding-left:20px}
+.nav-item.active{background:var(--card);color:var(--text);font-weight:500;border-left-color:var(--accent)}
+.nav-item svg{width:14px;height:14px;flex-shrink:0;opacity:.7}
+.nav-item.active svg{opacity:1}
+.lang-row{margin-top:auto;padding:12px 16px;border-top:0.5px solid var(--border);display:flex;gap:5px}
+.lang-btn{font-size:11px;padding:3px 8px;border:0.5px solid var(--border);border-radius:20px;cursor:pointer;color:var(--text2);background:transparent;transition:all .15s}
+.lang-btn.active{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;background:var(--bg)}
+.page{display:none;padding:24px;min-height:100vh}
+.page.active{display:block}
+.page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+.page-title{font-family:var(--serif);font-size:22px;color:var(--text)}
+.page-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.btn{font-size:12px;padding:7px 14px;border:0.5px solid var(--border);border-radius:10px;cursor:pointer;background:transparent;color:var(--text2);transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:var(--bg2)}
+.btn.sm{font-size:11px;padding:4px 10px;border-radius:8px}
+.btn.danger{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+.btn.danger:hover{background:var(--red);color:#fff}
+.btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.btn.primary:hover{background:#5A4435}
+.btn.dark{background:#191C1F;color:#fff;border-color:#191C1F}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.metric{background:var(--bg2);border-radius:12px;padding:12px 14px}
+.metric-label{font-size:10px;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.metric-val{font-family:var(--serif);font-size:24px;color:var(--text);font-weight:400}
+.metric-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.metric-sub.up{color:var(--green)}
+.metric-sub.warn{color:var(--warn)}
+
+/* CARDS */
+.card{background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.card-head{font-size:13px;font-weight:500;color:var(--text);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.card-head-r{font-size:11px;color:var(--text3);font-weight:400}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+
+/* TABLE */
+.table-wrap{background:var(--card);border:0.5px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px}
+table{width:100%;border-collapse:collapse}
+thead th{font-size:11px;font-weight:500;color:var(--text3);padding:9px 12px;text-align:left;background:var(--bg2);border-bottom:0.5px solid var(--border)}
+tbody td{font-size:12px;padding:10px 12px;border-bottom:0.5px solid var(--border);color:var(--text);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{cursor:pointer;transition:background .12s}
+tbody tr:hover{background:var(--bg2)}
+tbody tr.selected{background:#EDE4D8}
+
+/* PROGRESS BAR */
+.progress{height:4px;border-radius:2px;background:var(--border);overflow:hidden;margin-top:3px;min-width:60px}
+.progress-fill{height:100%;border-radius:2px}
+
+/* BADGES */
+.badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;display:inline-block}
+.badge.ok{background:var(--green-bg);color:var(--green)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.danger{background:var(--red-bg);color:var(--red)}
+.badge.inactive{background:var(--bg2);color:var(--text3)}
+.badge.paid{background:var(--green-bg);color:var(--green)}
+.badge.pending{background:var(--warn-bg);color:var(--warn)}
+.badge.revolut{background:#191C1F;color:#fff}
+.badge.cash{background:var(--green-bg);color:var(--green)}
+.badge.bank{background:#E6F1FB;color:#0C447C}
+.badge.card{background:#EEEDFE;color:#3C3489}
+
+/* DETAIL PANEL */
+.detail-panel{width:280px;border-left:0.5px solid var(--border);background:var(--card);padding:18px;display:none;flex-direction:column;gap:12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.detail-panel.open{display:flex}
+.detail-avatar{width:44px;height:44px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;border:0.5px solid var(--border)}
+.detail-stat{background:var(--bg);border-radius:10px;padding:9px 11px}
+.detail-stat-label{font-size:10px;color:var(--text3);margin-bottom:3px}
+.detail-stat-val{font-family:var(--serif);font-size:20px;color:var(--text)}
+
+/* SCHEDULE */
+.week-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.week-label{flex:1;text-align:center;font-size:13px;font-weight:500;color:var(--text)}
+.week-btn{width:28px;height:28px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:transparent;display:flex;align-items:center;justify-content:center;color:var(--text2)}
+.week-btn:hover{background:var(--bg2)}
+.sched-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.day-col{display:flex;flex-direction:column;gap:3px}
+.day-head{text-align:center;padding:5px 2px 6px;font-size:10px;font-weight:500;color:var(--text2);border-radius:8px;background:var(--bg2)}
+.day-head.today{background:var(--accent);color:var(--bg)}
+.dn{font-size:16px;font-weight:500;display:block;line-height:1.2;margin-bottom:1px}
+.slot{border-radius:6px;padding:5px 4px;cursor:pointer;border:0.5px solid transparent;transition:all .15s;text-align:center}
+.slot.morning{background:#FBF5E6;border-color:#D4B870;color:#7A5C20}
+.slot.evening{background:var(--green-bg);border-color:#8BAF96;color:#3A6B50}
+.slot.cancelled-slot,.slot-cancelled{background:var(--rbg);border-color:#E8A0A0;color:var(--red);cursor:default;opacity:.6}
+.slot.slot-full-mark{background:var(--rbg);border-color:#E8A0A0;color:var(--red)}
+.slot.slot-avail{background:var(--card);border-color:var(--border);color:var(--text2)}
+.slot.slot-avail:hover{background:var(--bg2)}
+.slot.cancelled-slot:hover{opacity:.6}
+.slot.full-red{background:var(--rbg);border-color:#E8A0A0;color:var(--red)}
+.slot.available{background:var(--card);border-color:var(--border);color:var(--text2)}
+.slot.available:hover{background:var(--bg2)}
+.slot.full{background:var(--bg2);border-color:var(--border);color:var(--text3);cursor:default}
+.slot:hover:not(.full){filter:brightness(.94)}
+.slot-time{font-size:10px;font-weight:500;display:block}
+.slot-spots{font-size:9px;display:block;margin-top:1px;opacity:.8}
+.ph{height:46px}
+
+/* FINANCIALS */
+.tax-block{background:var(--bg2);border-radius:10px;padding:10px 13px}
+.tax-row{display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:var(--text2)}
+.tax-row.total{font-weight:500;color:var(--text);border-top:0.5px solid var(--border);margin-top:5px;padding-top:7px}
+.bar-chart{display:flex;flex-direction:column;gap:7px;margin-top:6px}
+.bar-row{display:flex;align-items:center;gap:8px}
+.bar-name{font-size:11px;color:var(--text2);width:100px;flex-shrink:0}
+.bar-wrap2{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px}
+.bar-val{font-size:11px;font-weight:500;color:var(--text);width:40px;text-align:right}
+
+/* PAYMENTS */
+.pay-method-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px}
+.pay-method{border:0.5px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;transition:all .15s}
+.pay-method:hover,.pay-method.selected{border-color:var(--accent);background:var(--bg2)}
+.pay-method.selected.rev{border-color:#191C1F;background:#f0efed}
+.pm-icon{font-size:18px;display:block;margin-bottom:4px}
+.pm-label{font-size:10px;color:var(--text2);font-weight:500}
+.form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.ff label{font-size:10px;color:var(--text3);display:block;margin-bottom:3px}
+.ff select,.ff input{width:100%;font-size:12px;padding:6px 9px;border:0.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);outline:none;font-family:inherit}
+.ff select:focus,.ff input:focus{border-color:var(--accent)}
+
+/* FILTERS */
+.filter-row{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.fp{font-size:11px;padding:4px 10px;border:0.5px solid var(--border);border-radius:20px;cursor:pointer;color:var(--text2);background:transparent;transition:all .15s}
+.fp.active,.fp:hover{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+
+/* SEARCH */
+.search-input{width:100%;font-size:13px;padding:7px 12px;border:0.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);outline:none;margin-bottom:10px}
+.search-input:focus{border-color:var(--accent)}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--accent);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:100}
+.toast.show{opacity:1}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(44,35,24,.45);z-index:50;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:16px;padding:20px;width:380px;border:0.5px solid var(--border)}
+.modal-title{font-family:var(--serif);font-size:16px;color:var(--text);margin-bottom:4px}
+.modal-sub{font-size:12px;color:var(--text2);margin-bottom:14px}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+
+/* EXPENSE CATS */
+.cat-item{display:flex;align-items:center;gap:10px;background:var(--card);border:0.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px}
+.cat-swatch{width:22px;height:22px;border-radius:50%;flex-shrink:0;position:relative;cursor:pointer;border:2px solid transparent}
+.cat-swatch:hover{border-color:var(--text2)}
+.cat-swatch input[type=color]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border-radius:50%}
+.cat-name-input{flex:1;font-size:13px;padding:3px 7px;border:0.5px solid transparent;border-radius:7px;background:transparent;color:var(--text);outline:none;font-family:inherit}
+.cat-name-input:focus{border-color:var(--border);background:var(--bg)}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-title">Alma <em>Pilates</em></div>
+    <div class="logo-sub">Лимассол, Кипр · Demo</div>
+  </div>
+  <div class="nav-section">Основное</div>
+  <div class="nav-item active" onclick="showPage('dashboard')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></svg>
+    Дашборд
+  </div>
+  <div class="nav-item" onclick="showPage('clients')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><circle cx="6" cy="5" r="2.5"/><path d="M1 14c0-2.8 2.2-5 5-5"/><circle cx="12" cy="7" r="2"/><path d="M10 13c0-1.7 1-3 2-3s2 1.3 2 3"/></svg>
+    Клиенты
+  </div>
+  <div class="nav-item" onclick="showPage('schedule')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><rect x="1" y="3" width="14" height="12" rx="1.5"/><path d="M5 1v4M11 1v4M1 7h14"/></svg>
+    Расписание
+  </div>
+  <div class="nav-section">Финансы</div>
+  <div class="nav-item" onclick="showPage('finance')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><path d="M2 12L6 8l3 3 5-6"/><path d="M1 15h14"/></svg>
+    <span id="nav-finance">Финансовый обзор</span>
+  </div>
+  <div class="nav-item" onclick="showPage('payments')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><rect x="1" y="4" width="14" height="9" rx="1.5"/><path d="M1 7h14"/><circle cx="4.5" cy="10.5" r="1"/></svg>
+    Платежи
+  </div>
+  <div class="nav-item" onclick="showPage('expenses')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><path d="M2 12L6 8l3 3 5-6"/></svg>
+    Расходы
+  </div>
+  <div class="nav-section">Система</div>
+  <div class="nav-item" onclick="showPage('settings')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4"/></svg>
+    Настройки
+  </div>
+  <div class="lang-row">
+    <button class="lang-btn" onclick="setLang('el',this)">EL</button>
+    <button class="lang-btn active" onclick="setLang('en',this)">EN</button>
+    <button class="lang-btn" onclick="setLang('ru',this)">RU</button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active">
+  <div id="dash-page-header" class="page-header"></div>
+  <div id="dash-metrics-row" class="metrics"></div>
+  <div id="dash-alert-banner" style="display:none;background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:12px;padding:10px 14px;align-items:center;gap:10px;margin-bottom:14px;cursor:pointer" onclick="showPage('clients')">
+    <div style="width:20px;height:20px;border-radius:50%;background:#D4B870;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--warn);font-weight:500;flex-shrink:0">!</div>
+    <span style="font-size:12px;color:var(--warn)" id="dash-alert-text"></span>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-head" id="dash-chart-head"></div>
+      <div id="dash-chart"></div>
+      <div id="dash-summary" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <div class="card-head" id="dash-alert-card-head"></div>
+      <div id="alert-clients"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENTS -->
+<div id="page-clients" class="page" style="padding:0;display:none;flex-direction:row">
+  <div style="flex:1;padding:24px;overflow-y:auto">
+    <div class="page-header" id="clients-page-header"></div>
+    <input class="search-input" id="client-search" type="text" oninput="filterClients(this.value)">
+    <div class="filter-row" id="client-filters"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="clients-thead"></tr></thead>
+        <tbody id="clients-table"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="detail-panel" id="client-detail">
+    <div style="display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:0.5px solid var(--border)">
+      <div class="detail-avatar" id="dp-avatar"></div>
+      <div><div style="font-family:var(--serif);font-size:15px;color:var(--text)" id="dp-name"></div><div style="font-size:11px;color:var(--text3);margin-top:2px" id="dp-meta"></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="detail-stat"><div class="detail-stat-label" id="dp-start-label"></div><div style="font-size:13px;font-weight:500;color:var(--text);margin-top:2px" id="dp-start"></div><div style="font-size:10px;color:var(--text3)" id="dp-paid"></div></div>
+      <div class="detail-stat"><div class="detail-stat-label" id="dp-next-label"></div><div style="font-size:13px;font-weight:500;color:var(--text);margin-top:2px" id="dp-next-pay"></div></div>
+    </div>
+    <div style="font-size:11px;font-weight:500;color:var(--text2);margin-bottom:6px" id="dp-hist-label"></div>
+    <div id="dp-history" style="display:flex;flex-direction:column;gap:4px"></div>
+    <div id="dp-burn-warn" style="display:none;background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:10px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-top:8px"></div>
+    <div style="display:flex;flex-direction:column;gap:7px;margin-top:auto;padding-top:12px;border-top:0.5px solid var(--border)" id="dp-actions"></div>
+  </div>
+</div>
+
+<!-- SCHEDULE -->
+<div id="page-schedule" class="page" style="display:none;padding:0">
+<div style="display:flex;min-height:100vh">
+
+<!-- LEFT: grid -->
+<div style="flex:1;padding:24px;overflow-y:auto;min-width:0">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Расписание</div>
+      <div class="page-sub" id="sched-page-sub">Alma Pilates · 4 чел./занятие</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="openAddSlotModal()" id="btn-add-slot">+ Add / Cancel slot</button>
+    </div>
+  </div>
+
+  <!-- Cyprus holidays quick bar -->
+  <div style="background:var(--bg2);border-radius:10px;padding:8px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0">Праздники:</span>
+    <div style="display:flex;gap:5px;flex-wrap:wrap" id="holiday-chips"></div>
+  </div>
+
+  <div class="week-nav">
+    <button class="week-btn" onclick="shiftWeek(-1)">‹</button>
+    <span class="week-label" id="week-label"></span>
+    <button class="week-btn" onclick="shiftWeek(1)">›</button>
+  </div>
+
+  <!-- Legend: only 3 states -->
+  <div style="display:flex;gap:12px;margin-bottom:10px;font-size:11px;color:var(--text2)" id="sched-legend-row">
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--card);border:0.5px solid var(--border);display:inline-block"></span><span id="leg-avail">Свободно</span></span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--rbg);border:0.5px solid #E8A0A0;display:inline-block"></span><span id="leg-full">Мест нет</span></span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#EDE4D8;border:0.5px solid #C4AA94;display:inline-block;opacity:.6"></span><span id="leg-cancel">Отменено</span></span>
+  </div>
+
+  <div class="sched-grid" id="sched-grid"></div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px">
+    <div class="metric"><div class="metric-label" id="sm-week">Занятий на неделе</div><div class="metric-val" id="s-tot">—</div></div>
+    <div class="metric"><div class="metric-label" id="sm-cap">Мест всего</div><div class="metric-val" id="s-cap">—</div></div>
+    <div class="metric"><div class="metric-label" id="sm-bk">Занято</div><div class="metric-val" id="s-bk">—</div></div>
+    <div class="metric"><div class="metric-label" id="sm-fill">Заполненность</div><div class="metric-val" id="s-fill">—</div></div>
+  </div>
+
+  <!-- Cancellations list (inline) -->
+  <div style="margin-top:16px" id="cancel-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:13px;font-weight:500;color:var(--text)" id="cancel-list-title">Отмены и праздники</div>
+      <span style="font-size:11px;color:var(--text3)" id="cancel-count-lbl"></span>
+    </div>
+    <div id="cancel-inline-list">
+      <div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center" id="cancel-empty-inline">Нет запланированных отмен</div>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT: slot detail panel -->
+<div id="slot-detail-panel" style="width:280px;border-left:0.5px solid var(--border);background:var(--card);padding:18px;display:none;flex-direction:column;gap:12px;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <div style="font-family:var(--serif);font-size:15px;color:var(--text)" id="sdp-title">—</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px" id="sdp-date"></div>
+    </div>
+    <button class="btn" style="padding:3px 8px;font-size:11px" onclick="closeSlotDetail()">✕</button>
+  </div>
+
+  <!-- capacity dots -->
+  <div style="background:var(--bg2);border-radius:10px;padding:10px 12px">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:7px">
+      <span id="sdp-cap-label">Мест занято</span>
+      <span id="sdp-cap-val" style="font-weight:500;color:var(--text)"></span>
+    </div>
+    <div style="display:flex;gap:6px" id="sdp-seat-dots"></div>
+  </div>
+
+  <!-- attendees -->
+  <div>
+    <div style="font-size:11px;font-weight:500;color:var(--text2);margin-bottom:7px;text-transform:uppercase;letter-spacing:.04em" id="sdp-att-label">Записаны</div>
+    <div id="sdp-attendees" style="display:flex;flex-direction:column;gap:5px"></div>
+    <div id="sdp-empty-att" style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center;display:none">Никто не записался</div>
+  </div>
+
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:7px;padding-top:12px;border-top:0.5px solid var(--border)">
+    <button class="btn primary" style="width:100%;justify-content:center" id="sdp-btn-book" onclick="openBookFromSlot()">+ Записать клиента</button>
+    <button class="btn" style="width:100%;justify-content:center" id="sdp-btn-cancel" onclick="cancelSlotFromDetail()">Отменить занятие</button>
+  </div>
+</div>
+
+</div><!-- /flex -->
+</div>
+
+<!-- PAYMENTS -->
+<div id="page-payments" class="page" style="display:none">
+  <div class="page-header" id="pay-page-header"></div>
+  <div class="metrics" id="pay-metrics"></div>
+  <div class="card">
+    <div class="card-head" id="pay-form-head"></div>
+    <div class="pay-method-grid">
+      <div class="pay-method selected rev" id="pm-revolut" onclick="selPM('revolut')"><span class="pm-icon">⚡</span><span class="pm-label">Revolut</span></div>
+      <div class="pay-method" id="pm-cash" onclick="selPM('cash')"><span class="pm-icon">💵</span><span class="pm-label" id="pm-cash-lbl">Cash</span></div>
+      <div class="pay-method" id="pm-bank" onclick="selPM('bank')"><span class="pm-icon">🏦</span><span class="pm-label" id="pm-bank-lbl">Bank transfer</span></div>
+      <div class="pay-method" id="pm-card" onclick="selPM('card')"><span class="pm-icon">💳</span><span class="pm-label" id="pm-card-lbl">Card</span></div>
+    </div>
+    <div class="form-grid">
+      <div class="ff"><label id="pay-client-lbl">Client</label><select id="pay-client"></select></div>
+      <div class="ff"><label id="pay-type-lbl">Type</label><select id="pay-type" onchange="updatePayAmt()">
+        <option value="120">8-class membership — €120</option>
+        <option value="160">12-class membership — €160</option>
+        <option value="25">Single class — €25</option>
+        <option value="0">Custom amount</option>
+      </select></div>
+      <div class="ff"><label id="pay-amt-lbl">Amount (€)</label><input type="number" id="pay-amt" value="120"></div>
+    </div>
+    <div class="form-grid">
+      <div class="ff"><label id="pay-date-lbl">Payment date</label><input type="date" id="pay-date" value="2026-05-02"></div>
+      <div class="ff"><label id="pay-start-lbl">Membership start</label><input type="date" id="pay-start" value="2026-05-02"></div>
+      <div class="ff"><label id="pay-note-lbl">Note</label><input type="text" id="pay-note" placeholder="Optional..."></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" id="pay-clear-btn" onclick="renderPayments()">Clear</button>
+      <button class="btn primary" id="pay-submit-btn" onclick="submitPayment()">Create Revolut Payment Link ↗</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head" id="pay-hist-head"></div>
+    <div class="filter-row" id="pay-filters"></div>
+    <div id="payments-list"></div>
+  </div>
+</div>
+
+<!-- EXPENSES -->
+<div id="page-expenses" class="page" style="display:none">
+  <div class="page-header" id="exp-page-header"></div>
+  <div class="metrics" id="exp-metrics"></div>
+  <div id="exp-form-wrap" style="display:none;background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:10px" id="exp-form-title">New expense</div>
+    <div class="form-grid">
+      <div class="ff"><label id="exp-cat-lbl">Category</label>
+        <select id="exp-cat-sel">
+          <option value="rent">🏢 Rent</option>
+          <option value="salary">👤 Salary</option>
+          <option value="equip">🏋️ Equipment</option>
+          <option value="util">💡 Utilities</option>
+          <option value="market">📣 Marketing</option>
+          <option value="other">📦 Other</option>
+        </select>
+      </div>
+      <div class="ff"><label id="exp-desc-lbl">Description</label><input type="text" id="exp-desc" placeholder="Studio rent, May..."></div>
+      <div class="ff"><label id="exp-amt-lbl">Amount (€)</label><input type="number" id="exp-amt" placeholder="0"></div>
+    </div>
+    <div class="form-grid">
+      <div class="ff"><label id="exp-date-lbl">Date</label><input type="date" id="exp-date" value="2026-05-02"></div>
+      <div class="ff"><label id="exp-freq-lbl">Frequency</label>
+        <select id="exp-freq">
+          <option>One-time</option>
+          <option>Monthly</option>
+          <option>Weekly</option>
+        </select>
+      </div>
+      <div class="ff"><label id="exp-method-lbl">Payment method</label>
+        <select id="exp-method">
+          <option>Revolut</option>
+          <option>Cash</option>
+          <option>Bank transfer</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" onclick="toggleExpForm()">Cancel</button>
+      <button class="btn primary" onclick="saveExpense()">Save expense</button>
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-head" id="exp-list-head"></div>
+      <div id="exp-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-head" id="exp-chart-head"></div>
+      <div id="exp-chart"></div>
+      <div style="margin-top:14px;padding-top:12px;border-top:0.5px solid var(--border)" class="tax-block">
+        <div class="tax-row"><span id="exp-sum-income-lbl">Income (May)</span><span style="color:var(--green);font-weight:500">+€2 840</span></div>
+        <div class="tax-row"><span id="exp-sum-exp-lbl">Expenses</span><span style="color:var(--red)">−€1 820</span></div>
+        <div class="tax-row total"><span id="exp-sum-profit-lbl">Net Profit</span><span style="color:var(--green)">€1 020</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="page-settings" class="page" style="display:none">
+  <div class="page-header"><div><div class="page-title">Settings</div><div class="page-sub" id="sett-sub">Alma Pilates Studio</div></div></div>
+  <div class="two-col">
+    <div>
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-head">Studio</div>
+        <div class="form-grid-2">
+          <div class="ff"><label>Studio name</label><input value="Alma Pilates Studio"></div>
+          <div class="ff"><label>City</label><input value="Лимассол, Кипр"></div>
+        </div>
+        <div class="form-grid-2">
+          <div class="ff"><label>8-class membership (€)</label><input type="number" value="120"></div>
+          <div class="ff"><label>12-class membership (€)</label><input type="number" value="160"></div>
+        </div>
+        <div class="form-grid-2">
+          <div class="ff"><label>Single class (€)</label><input type="number" value="25"></div>
+          <div class="ff"><label>Class capacity</label><input type="number" value="4"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px">
+          <button class="btn primary" onclick="toast('Настройки сохранены!')">Save</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">Revolut Business</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+          <div>
+            <div style="font-size:12px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:6px">
+              ⚡ Revolut Business
+              <span style="font-size:9px;padding:2px 7px;border-radius:10px;background:var(--green-bg);color:var(--green);font-weight:500">● Подключён</span>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:3px">Баланс: €3 412.50 · Синхронизация: сегодня</div>
+          </div>
+        </div>
+        <div class="ff"><label>API Key</label><input type="password" value="sk_sandbox_••••••••••••••••" placeholder="Revolut API key"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn primary" onclick="toast('Revolut подключён!')">Save key</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- FINANCE OVERVIEW -->
+<div id="page-finance" class="page" style="display:none">
+  <div class="page-header">
+    <div><div class="page-title" id="pg-fin-title">Финансовый обзор</div><div class="page-sub">Доходы и расходы · Alma Pilates</div></div>
+    <select id="fin-month-sel" style="font-size:12px;padding:6px 10px;border:0.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--text)">
+      <option value="5">Май 2026</option><option value="4">Апрель 2026</option><option value="3">Март 2026</option>
+    </select>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
+    <div class="metric" style="cursor:pointer" onclick="showPage('payments')"><div class="metric-label">Total Income</div><div class="metric-val" style="color:var(--green)">€2 840</div><div class="metric-sub up">+12% vs April</div></div>
+    <div class="metric" style="cursor:pointer" onclick="showPage('expenses')"><div class="metric-label">Total Expenses</div><div class="metric-val" style="color:var(--red)">€1 820</div><div class="metric-sub">this month</div></div>
+    <div class="metric"><div class="metric-label">Net Profit</div><div class="metric-val">€1 020</div><div class="metric-sub">this month</div></div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-head">Expenses by category</div>
+      <div id="fin-exp-breakdown"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">Payment methods</div>
+      <div id="fin-methods"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">Cash flow — 6 months
+      <div style="display:flex;gap:10px;font-size:11px;color:var(--text2)">
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:2px;background:var(--green);display:inline-block"></span>Income</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:2px;background:var(--red);display:inline-block"></span>Expenses</span>
+      </div>
+    </div>
+    <div id="fin-cashflow"></div>
+  </div>
+</div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-head">Праздники Кипра 2026 <span class="card-head-r">нажмите для быстрого добавления</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px" id="cy-holidays-list"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-head">Запланированные отмены <span class="card-head-r" id="cancel-count"></span></div>
+    <div id="cancel-list-items">
+      <div style="font-size:12px;color:var(--text3);text-align:center;padding:20px 0" id="cancel-empty-msg">Нет запланированных отмен</div>
+    </div>
+  </div>
+
+  <div style="background:var(--green-bg);border:0.5px solid #9FD8BE;border-radius:12px;padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.7">
+    ✅ <strong>Как это работает:</strong> При отмене занятие НЕ списывается с абонемента клиента — занятие просто пропускается. 
+    Клиенты, записанные на отменённое занятие, получат уведомление автоматически. 
+    Отменённые слоты отображаются красным в расписании.
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- BOOK MODAL -->
+<div class="modal-overlay" id="book-modal">
+  <div class="modal">
+    <div class="modal-title">Записать клиента</div>
+    <div class="modal-sub" id="book-slot-info">Выберите занятие</div>
+    <div class="form-grid-2">
+      <div class="ff"><label>Клиент</label><select><option>Мария Константину</option><option>Анна Николаиду</option><option>Елена Папаиоанну</option><option>Ирина Смирнова</option><option>Наталья Кузнецова</option></select></div>
+      <div class="ff"><label>Тип записи</label><select><option>Записать (−1 из абонемента)</option><option>Пробное занятие</option></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('book-modal')">Отмена</button>
+      <button class="btn primary" onclick="closeModal('book-modal');toast('Клиент записан!')">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────
+const CLIENTS = [
+  {id:1,name:'Мария Константину',initials:'МК',phone:'+357 99 111222',lang:'EL',type:'8',left:2,total:8,start:'3 мая',paid:'15 апр',nextPayment:'3 июн',expiresDate:'2026-06-03',status:'warn',
+   history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Attended'},{d:'29 апр',t:'Attended'},{d:'24 апр',t:'Payment €120'}]},
+  {id:2,name:'Анна Николаиду',initials:'АН',phone:'+357 96 333444',lang:'EL',type:'12',left:1,total:12,start:'15 апр',paid:'1 апр',nextPayment:'15 мая',expiresDate:'2026-05-15',status:'danger',
+   history:[{d:'2 мая',t:'Attended'},{d:'30 апр',t:'Attended'},{d:'1 апр',t:'Payment €160'}]},
+  {id:3,name:'Елена Папаиоанну',initials:'ЕП',phone:'+357 97 555666',lang:'EL',type:'8',left:2,total:8,start:'1 мая',paid:'1 мая',nextPayment:'1 июн',expiresDate:'2026-06-01',status:'warn',
+   history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Payment €120 · Attended'}]},
+  {id:4,name:'София Васильеу',initials:'СВ',phone:'+357 95 777888',lang:'EL',type:'12',left:8,total:12,start:'28 апр',paid:'28 апр',nextPayment:'28 мая',expiresDate:'2026-05-28',status:'ok',
+   history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Attended'},{d:'28 апр',t:'Payment €160'}]},
+  {id:5,name:'Ирина Смирнова',initials:'ИС',phone:'+357 96 100200',lang:'RU',type:'8',left:7,total:8,start:'2 мая',paid:'2 мая',nextPayment:'2 июн',expiresDate:'2026-06-02',status:'ok',
+   history:[{d:'2 мая',t:'Payment €120 · Attended'}]},
+  {id:6,name:'Наталья Кузнецова',initials:'НК',phone:'+357 99 300400',lang:'RU',type:'12',left:11,total:12,start:'30 апр',paid:'30 апр',nextPayment:'30 мая',expiresDate:'2026-05-30',status:'ok',
+   history:[{d:'3 мая',t:'Attended'},{d:'30 апр',t:'Payment €160'}]},
+  {id:7,name:'Ольга Петрова',initials:'ОП',phone:'+357 96 700800',lang:'RU',type:'12',left:5,total:12,start:'20 апр',paid:'20 апр',nextPayment:'20 мая',expiresDate:'2026-05-20',status:'ok',
+   history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Attended'},{d:'20 апр',t:'Payment €160'}]},
+  {id:8,name:'Кристина Георгиу',initials:'КГ',phone:'+357 97 500600',lang:'EL',type:'8',left:0,total:8,start:'1 мар',paid:'1 мар',nextPayment:'—',expiresDate:null,status:'inactive',
+   history:[{d:'28 мар',t:'Attended'},{d:'1 мар',t:'Payment €120'}]},
+];
+
+const PAYMENTS = [
+  {name:'Мария Константину',init:'МК',detail:'8-class membership',method:'revolut',amt:120,date:'2 мая',status:'paid'},
+  {name:'Наталья Кузнецова',init:'НК',detail:'12-class membership',method:'revolut',amt:160,date:'30 апр',status:'paid'},
+  {name:'Ирина Смирнова',init:'ИС',detail:'8-class membership',method:'cash',amt:120,date:'2 мая',status:'paid'},
+  {name:'София Васильеу',init:'СВ',detail:'12-class membership',method:'bank',amt:160,date:'28 апр',status:'paid'},
+  {name:'Ольга Петрова',init:'ОП',detail:'12-class membership',method:'card',amt:160,date:'20 апр',status:'paid'},
+  {name:'Анна Николаиду',init:'АН',detail:'12-class membership',method:'revolut',amt:160,date:'?',status:'pending'},
+  {name:'Елена Папаиоанну',init:'ЕП',detail:'8-class membership',method:'revolut',amt:120,date:'?',status:'pending'},
+];
+
+const EXPENSES = [
+  {cat:'rent',desc:'Studio rent',amt:650,date:'1 мая',recurring:true},
+  {cat:'salary',desc:'Trainer — Alexia',amt:800,date:'1 мая',recurring:true},
+  {cat:'util',desc:'Electricity & water',amt:95,date:'3 мая',recurring:false},
+  {cat:'market',desc:'Instagram ads',amt:80,date:'2 мая',recurring:false},
+  {cat:'equip',desc:'Mats (6 pcs)',amt:120,date:'4 мая',recurring:false},
+  {cat:'market',desc:'Flyers / print',amt:50,date:'5 мая',recurring:false},
+  {cat:'other',desc:'Cleaning supplies',amt:25,date:'2 мая',recurring:false},
+];
+
+const CATS = {
+  rent:{name:'Rent',color:'#E24B4A',icon:'🏢'},
+  salary:{name:'Salary',color:'#EF9F27',icon:'👤'},
+  equip:{name:'Equipment',color:'#378ADD',icon:'🏋️'},
+  util:{name:'Utilities',color:'#1D9E75',icon:'💡'},
+  market:{name:'Marketing',color:'#7B6EF6',icon:'📣'},
+  other:{name:'Other',color:'#8E8E93',icon:'📦'},
+};
+
+// ── HELPERS ───────────────────────────────────────────────────
+function getCatName(key){
+  const names={
+    rent:   adminLang==='el'?'Ενοίκιο':'Rent',
+    salary: adminLang==='el'?'Μισθός':'Salary',
+    equip:  adminLang==='el'?'Εξοπλισμός':'Equipment',
+    util:   adminLang==='el'?'Κοινόχρηστα':'Utilities',
+    market: adminLang==='el'?'Μάρκετινγκ':'Marketing',
+    other:  adminLang==='el'?'Άλλα':'Other',
+  };
+  return names[key]||key;
+}
+
+// Format DD/MM → "3 May" / "3 Μαΐου"
+function fmtDate(ddmm){
+  if(!ddmm||ddmm==='—') return '—';
+  const p=ddmm.split('/');
+  if(p.length!==2) return ddmm;
+  const day=parseInt(p[0],10), mo=parseInt(p[1],10)-1;
+  const elM=['Ιαν','Φεβ','Μαρ','Απρ','Μαΐου','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+  const enM=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const ruM=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  const m=adminLang==='el'?elM[mo]:adminLang==='en'?enM[mo]:ruM[mo];
+  return day+' '+(m||ddmm);
+}
+
+// Get localised expense description
+function expDesc(e){
+  if(adminLang==='el') return e.descEl||e.desc||e.descRu||'';
+  if(adminLang==='en') return e.descEn||e.desc||e.descRu||'';
+  return e.descRu||e.desc||'';
+}
+
+// Convert ISO date YYYY-MM-DD → DD/MM
+function isoFmt(iso){
+  if(!iso||iso==='—') return '—';
+  const p=iso.split('-');
+  return p.length>=3?p[2].slice(0,2)+'/'+p[1]:iso;
+}
+
+// CAP defined in schedule section
+const DAYS_RU = ['Пн','Вт','Ср','Чт','Пт','Сб'];
+const MONTHS_RU = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+
+
+// Per-slot bookings: key = "di_time", value = array of client names
+const SLOT_BOOKINGS = {
+  '1_07:00': ['Ειρήνη Σμίρνοβα','Σοφία Βασιλείου'],
+  '1_08:00': ['Μαρία Κωνσταντίνου','Ναταλία Κουζνέτσοβα','Άννα Νικολαΐδου','Ελένη Παπαϊωάννου'],
+  '1_09:15': ['Όλγα Πέτροβα','Κρυστίνα Γεωργίου'],
+  '3_07:00': ['Μαρία Κωνσταντίνου','Σοφία Βασιλείου','Ναταλία Κουζνέτσοβα'],
+  '4_07:00': ['Ειρήνη Σμίρνοβα','Ελένη Παπαϊωάννου','Άννα Νικολαΐδου','Σοφία Βασιλείου'],
+  '4_17:30': ['Μαρία Κωνσταντίνου','Ναταλία Κουζνέτσοβα'],
+  '0_16:30': ['Ειρήνη Σμίρνοβα'],
+  '0_17:30': ['Σοφία Βασιλείου','Μαρία Κωνσταντίνου'],
+  '2_18:30': ['Ναταλία Κουζνέτσοβα','Άννα Νικολαΐδου','Ελένη Παπαϊωάννου'],
+  '5_09:30': ['Ειρήνη Σμίρνοβα','Μαρία Κωνσταντίνου','Σοφία Βασιλείου','Ναταλία Κουζνέτσοβα'],
+};
+
+// Extra slots added manually by admin (di_time -> {added:true,label:'...'})
+let extraSlots = {};
+// Manually cancelled slots (key -> true)
+let manualCancelled = {};
+
+const SCHEDULE = {
+  0:[{t:'16:30',tp:'evening'},{t:'17:30',tp:'evening'},{t:'18:30',tp:'evening'},{t:'19:30',tp:'evening'}],
+  1:[{t:'07:00',tp:'morning'},{t:'08:00',tp:'morning'},{t:'09:15',tp:'morning'},{t:'16:30',tp:'evening'},{t:'17:30',tp:'evening'},{t:'18:30',tp:'evening'},{t:'19:30',tp:'evening'}],
+  2:[{t:'16:30',tp:'evening'},{t:'17:30',tp:'evening'},{t:'18:30',tp:'evening'},{t:'19:30',tp:'evening'}],
+  3:[{t:'07:00',tp:'morning'},{t:'08:00',tp:'morning'},{t:'16:30',tp:'evening'},{t:'17:30',tp:'evening'},{t:'18:30',tp:'evening'},{t:'19:30',tp:'evening'}],
+  4:[{t:'07:00',tp:'morning'},{t:'08:00',tp:'morning'},{t:'09:15',tp:'morning'},{t:'16:30',tp:'evening'},{t:'17:30',tp:'evening'},{t:'18:30',tp:'evening'},{t:'19:30',tp:'evening'}],
+  5:[{t:'09:30',tp:'morning'},{t:'10:30',tp:'morning'}],
+};
+
+// MAX_M/MAX_E defined in schedule section
+let clientFilter='all', payFilter='all';
+
+// ── NAVIGATION ────────────────────────────────────────────────
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>{p.style.display='none';p.classList.remove('active')});
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const page=document.getElementById('page-'+id);
+  if(!page) return;
+  page.style.display = (id==='clients') ? 'flex' : 'block';
+  page.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{if(n.textContent.trim().toLowerCase().includes(id.slice(0,4))||n.getAttribute('onclick')?.includes(id)) n.classList.add('active')});
+  if(id==='clients') renderClients();
+  if(id==='schedule') renderSchedule();
+  if(id==='payments') renderPayments();
+  if(id==='expenses') renderExpenses();
+  if(id==='taxes') renderTaxChart();
+  if(id==='settings') renderSettings();
+  if(id==='finance') renderFinancePage();
+  if(id==='cancellations'){ renderHolidayChips(); renderCancelList(); }
+  if(id==='dashboard') renderDashboard();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+function renderDashboard(){
+  const t=AL();
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const income=PAYMENTS.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amt,0)||2840;
+  const expenses=EXPENSES.reduce((s,e)=>s+e.amt,0)||1820;
+  const profit=income-expenses;
+  const warnClients=CLIENTS.filter(c=>c.status==='warn'||c.status==='danger');
+  const activeClients=CLIENTS.filter(c=>c.status!=='inactive');
+
+  // Page header
+  const ph=document.getElementById('dash-page-header');
+  if(ph) ph.innerHTML=`
+    <div>
+      <div class="page-title">${t.dashboard}</div>
+      <div class="page-sub">Alma Pilates · ${t.studio.split(',')[0]} · May 2026</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="db-test-btn" onclick="testConnection()" style="font-size:11px">🔌 Test DB</button>
+      <button class="btn" onclick="showPage('expenses')">+ ${t.addExpense}</button>
+      <button class="btn primary" onclick="showPage('payments')">+ ${t.newPayment}</button>
+    </div>`;
+
+  // Metrics
+  const mr=document.getElementById('dash-metrics-row');
+  if(mr) mr.innerHTML=`
+    <div class="metric" onclick="showPage('payments')" style="cursor:pointer">
+      <div class="metric-label">${t.income}</div>
+      <div class="metric-val" style="color:var(--green)">€${income.toLocaleString()}</div>
+      <div class="metric-sub up">${t.incomeUp}</div>
+    </div>
+    <div class="metric" onclick="showPage('expenses')" style="cursor:pointer">
+      <div class="metric-label">${t.expLabel}</div>
+      <div class="metric-val" style="color:var(--red)">€${expenses.toLocaleString()}</div>
+      <div class="metric-sub">${t.expSub}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">${t.profit}</div>
+      <div class="metric-val">€${profit.toLocaleString()}</div>
+      <div class="metric-sub">${t.profSub}</div>
+    </div>
+    <div class="metric" onclick="showPage('clients')" style="cursor:pointer">
+      <div class="metric-label">${t.clientsLabel}</div>
+      <div class="metric-val">${activeClients.length}</div>
+      <div class="metric-sub warn">${warnClients.length} ${t.clientsSub}</div>
+    </div>`;
+
+  // Alert banner
+  const ab=document.getElementById('dash-alert-banner');
+  const at=document.getElementById('dash-alert-text');
+  if(ab&&at){
+    if(warnClients.length>0){
+      ab.style.display='flex';
+      at.textContent=`${warnClients.length} ${t.alertText||'clients need attention →'}`;
+    } else {
+      ab.style.display='none';
+    }
+  }
+
+  // Chart card head
+  const ch=document.getElementById('dash-chart-head');
+  if(ch) ch.innerHTML=`${L('Έσοδα ανά μήνα','Income by month','Доходы по месяцам')} <span class="card-head-r">2026</span>`;
+
+  // Chart bars
+  const cfI=[2100,1800,2300,2650,2500,2840];
+  const cfM=adminLang==='el'?['Δεκ','Ιαν','Φεβ','Μαρ','Απρ','Μάι']:adminLang==='en'?['Dec','Jan','Feb','Mar','Apr','May']:['Дек','Янв','Фев','Мар','Апр','Май'];
+  const maxV=Math.max(...cfI);
+  const dc=document.getElementById('dash-chart');
+  if(dc) dc.innerHTML=`
+    <div style="display:flex;gap:3px;align-items:flex-end;height:70px;margin-bottom:5px">
+      ${cfI.map((v,i)=>`<div style="flex:1;background:${i===5?'var(--accent)':'#D8CEBE'};border-radius:2px 2px 0 0;height:${Math.round(v/maxV*100)}%"></div>`).join('')}
+    </div>
+    <div style="display:flex;gap:3px">
+      ${cfM.map((m,i)=>`<div style="flex:1;font-size:9px;color:${i===5?'var(--accent)':'var(--text3)'};text-align:center;font-weight:${i===5?600:400}">${m}</div>`).join('')}
+    </div>`;
+
+  // Summary
+  const ds=document.getElementById('dash-summary');
+  if(ds) ds.innerHTML=`
+    <div class="tax-block">
+      <div class="tax-row"><span>${L('Έσοδα','Income','Доход')}</span><span>€${income.toLocaleString()}</span></div>
+      <div class="tax-row"><span>${L('Έξοδα','Expenses','Расходы')}</span><span style="color:var(--red)">−€${expenses.toLocaleString()}</span></div>
+      <div class="tax-row total"><span>${L('Κέρδος','Profit','Прибыль')}</span><span style="color:var(--green)">€${profit.toLocaleString()}</span></div>
+    </div>`;
+
+  // Alert card head
+  const ach=document.getElementById('dash-alert-card-head');
+  if(ach) ach.textContent=L('Πελάτες — προσοχή','Clients — attention needed','Клиенты — требуют внимания');
+
+  // Alert clients list
+  const alertEl=document.getElementById('alert-clients');
+  if(alertEl) alertEl.innerHTML=warnClients.length===0
+    ? `<div style="padding:20px;text-align:center;font-size:12px;color:var(--text3)">✓ ${L('Όλα καλά','All good','Всё хорошо')}</div>`
+    : warnClients.map(c=>`
+      <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="showPage('clients');setTimeout(()=>selectClient(${c.id}),100)">
+        <div style="width:6px;height:6px;border-radius:50%;background:${c.status==='danger'?'#C0392B':'#D4A017'};flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:500;color:var(--text)">${c.name}</div>
+          <div style="font-size:10px;color:var(--text3)">${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}</div>
+        </div>
+        <span class="badge ${c.status==='danger'?'danger':'warn'}">${c.left}</span>
+      </div>`).join('');
+}
+
+// ── CLIENTS ───────────────────────────────────────────────────
+const BADGE_CLS={ok:'ok',warn:'warn',danger:'danger',inactive:'inactive'};
+const BAR_COLOR={ok:'#4A7C5F',warn:'#D4A017',danger:'#C0392B',inactive:'#B4B2A9'};
+
+function renderClients(search=''){
+  const t=AL();
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+
+  // Page header
+  const ph=document.getElementById('clients-page-header');
+  if(ph) ph.innerHTML=`
+    <div>
+      <div class="page-title">${t.clients}</div>
+      <div class="page-sub">${CLIENTS.filter(c=>c.status!=='inactive').length} ${L('ενεργοί','active','активных')} · ${CLIENTS.filter(c=>c.status==='warn'||c.status==='danger').length} ${L('προσοχή','need attention','требуют внимания')}</div>
+    </div>
+    <button class="btn primary" onclick="openNewClientModal()">+ ${t.newClient||'New client'}</button>`;
+
+  // Search placeholder
+  const si=document.getElementById('client-search');
+  if(si) si.placeholder=t.searchPlaceholder||'Search...';
+
+  // Filters
+  const ff=document.getElementById('client-filters');
+  if(ff) ff.innerHTML=`
+    <button class="fp ${clientFilter==='all'?'active':''}" onclick="setClientFilter('all',this)">${t.allClients||'All'}</button>
+    <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">⚠ ${t.warningClients||'Expiring'}</button>
+    <button class="fp ${clientFilter==='active'?'active':''}" onclick="setClientFilter('active',this)">${t.activeClients||'Active'}</button>
+    <button class="fp ${clientFilter==='inactive'?'active':''}" onclick="setClientFilter('inactive',this)">${t.inactiveClients||'Inactive'}</button>`;
+
+  // Table head
+  const thead=document.getElementById('clients-thead');
+  if(thead) thead.innerHTML=`
+    <th style="width:28%">${t.colClient}</th>
+    <th style="width:13%">${t.colSub}</th>
+    <th style="width:20%">${t.colLeft}</th>
+    <th style="width:14%">${t.colNextPayment}</th>
+    <th style="width:12%">${t.colPaid}</th>
+    <th style="width:13%">${t.colStatus}</th>`;
+
+  // Rows
+  const tbody=document.getElementById('clients-table');
+  const filtered=CLIENTS.filter(c=>{
+    const ms=c.name.toLowerCase().includes((search||'').toLowerCase());
+    if(clientFilter==='warn') return ms&&(c.status==='warn'||c.status==='danger');
+    if(clientFilter==='active') return ms&&c.status!=='inactive';
+    if(clientFilter==='inactive') return ms&&c.status==='inactive';
+    return ms;
+  });
+  if(tbody) tbody.innerHTML=filtered.map(c=>{
+    const pct=Math.round(c.left/c.total*100);
+    const isActive=c.status!=='inactive';
+    const lbl=isActive?t.badgeOk:t.badgeInactive;
+    const typeLabel=c.type+(adminLang==='el'?' μαθ.':adminLang==='en'?' cl.':' зан.');
+    const isSoon=isActive&&c.expiresDate&&new Date(c.expiresDate)<=new Date('2026-05-20');
+    return `<tr onclick="selectClient(${c.id})" id="row-${c.id}">
+      <td><span style="width:26px;height:26px;border-radius:50%;background:var(--bg3);color:var(--accent);font-size:9px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;margin-right:7px;vertical-align:middle">${c.initials}</span><span style="font-size:12px;font-weight:500">${c.name}</span></td>
+      <td style="color:var(--text2)">${typeLabel}</td>
+      <td><span style="font-weight:500">${c.left}</span><span style="color:var(--text3)"> / ${c.total}</span><div class="progress" style="min-width:50px"><div class="progress-fill" style="width:${pct}%;background:${BAR_COLOR[c.status]}"></div></div></td>
+      <td style="font-size:11px"><span style="color:${isSoon?'var(--warn)':'var(--text2)'}">${fmtDate(c.nextPayment)}</span>${isSoon?`<span style="font-size:9px;display:block;color:var(--warn)">soon</span>`:''}</td>
+      <td style="color:var(--text3);font-size:11px">${fmtDate(c.paid)}</td>
+      <td><span class="badge ${BADGE_CLS[c.status]}">${lbl}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterClients(v){ renderClients(v); }
+function setClientFilter(f,btn){
+  clientFilter=f;
+  document.querySelectorAll('#page-clients .fp').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderClients();
+}
+
+function selectClient(id){
+  const c=CLIENTS.find(x=>x.id===id);
+  if(!c) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  document.querySelectorAll('#clients-table tr').forEach(r=>r.classList.remove('selected'));
+  document.getElementById('row-'+id)?.classList.add('selected');
+  const panel=document.getElementById('client-detail');
+  if(panel) panel.classList.add('open');
+
+  // Avatar + name
+  const av=document.getElementById('dp-avatar'); if(av) av.textContent=c.initials;
+  const dn=document.getElementById('dp-name'); if(dn) dn.textContent=c.name;
+  const dm=document.getElementById('dp-meta'); if(dm) dm.textContent=`${c.phone||'—'} · ${c.lang}`;
+
+  // Start date (editable)
+  const dpSLbl=document.getElementById('dp-start-label');
+  if(dpSLbl) dpSLbl.textContent=L('Έναρξη','Start date','Начало абонемента');
+  const dpS=document.getElementById('dp-start');
+  if(dpS){
+    const iso=c.start&&c.start!=='—'?'2026-'+c.start.split('/')[1].padStart(2,'0')+'-'+c.start.split('/')[0].padStart(2,'0'):'';
+    dpS.innerHTML=`<input type="date" value="${iso}" onchange="updateClientStart(${c.id},this.value)"
+      style="font-size:12px;border:0.5px solid var(--border);border-radius:6px;padding:3px 6px;background:var(--bg2);color:var(--text);width:130px">`;
+  }
+  const dpPd=document.getElementById('dp-paid');
+  if(dpPd) dpPd.textContent=L('paid','paid','оплачен')+': '+fmtDate(c.paid);
+
+  // Next payment (auto, read-only)
+  const dpNL=document.getElementById('dp-next-label');
+  if(dpNL) dpNL.textContent=L('Επόμενη πληρωμή','Next payment','След. оплата');
+  const dpNP=document.getElementById('dp-next-pay');
+  if(dpNP) dpNP.innerHTML=`<span style="font-size:13px;font-weight:500;color:var(--text)">${fmtDate(c.nextPayment)}</span><span style="font-size:10px;color:var(--text3);display:block">auto (start +30 days)</span>`;
+
+  // History label
+  const dpHL=document.getElementById('dp-hist-label');
+  if(dpHL) dpHL.textContent=L('Ιστορικό','Visit history','История посещений');
+
+  // History list
+  const dpH=document.getElementById('dp-history');
+  if(dpH) dpH.innerHTML=(c.history||[]).map(h=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:12px">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="width:5px;height:5px;border-radius:50%;background:${h.t.includes('Payment')||h.t.includes('Оплата')?'var(--green)':'#378ADD'};display:inline-block"></span>
+        ${fmtDate(h.d)}
+      </span>
+      <span style="color:var(--text2)">${h.t}</span>
+    </div>`).join('');
+
+  // Burn warning
+  const bw=document.getElementById('dp-burn-warn');
+  if(bw){
+    if(c.status!=='inactive'&&c.expiresDate){
+      const dl=Math.ceil((new Date(c.expiresDate)-new Date())/(864e5));
+      if(dl<=14&&c.left>0){
+        bw.style.display='block';
+        bw.textContent=L(
+          `⚠ Λήξη σε ${dl} μέρες. Απομένουν ${c.left} μαθ.`,
+          `⚠ Expires in ${dl} days. ${c.left} classes will expire unused.`,
+          `⚠ Истекает через ${dl} дн. Осталось ${c.left} зан.`
+        );
+      } else bw.style.display='none';
+    } else bw.style.display='none';
+  }
+
+  // Action buttons
+  const da=document.getElementById('dp-actions');
+  if(da) da.innerHTML=`
+    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${L('Διαχείριση','Manage','Управление')}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+      <button class="btn sm" onclick="adjustBalance(${c.id},1)" style="justify-content:center">+ ${L('Μάθ.','Class','Занятие')}</button>
+      <button class="btn sm danger" onclick="adjustBalance(${c.id},-1)" style="justify-content:center">− ${L('Μάθ.','Class','Занятие')}</button>
+    </div>
+    <button class="btn" style="width:100%;justify-content:center;margin-bottom:5px" onclick="openAddToScheduleModal(${c.id})">📅 ${L('Πρόγραμμα','Add to schedule','В расписание')}</button>
+    <button class="btn" style="width:100%;justify-content:center;margin-bottom:8px" onclick="openManageBookingsModal(${c.id})">📋 ${L('Κρατήσεις','Bookings','Записи')}</button>
+    <div style="border-top:0.5px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:6px">
+      <button class="btn" style="width:100%;justify-content:center" onclick="toast('${L('Εστάλη!','Reminder sent!','Напоминание отправлено!')}')">${L('Υπενθύμιση','Send reminder','Напоминание')}</button>
+      <button class="btn dark" style="width:100%;justify-content:center" onclick="toast('⚡ Revolut link!')">${L('⚡ Revolut Link','⚡ Revolut Link','⚡ Revolut Link')}</button>
+    </div>`;
+}
+
+// ── SCHEDULE ──────────────────────────────────────────────────
+const CAP=4, MAX_M=3, MAX_E=4;
+const SLOT_BOOKINGS_DATA = {
+  '1_07:00':['Ирина Смирнова','София Васильеу'],
+  '1_08:00':['Мария Константину','Наталья Кузнецова','Анна Николаиду','Елена Папаиоанну'],
+  '1_09:15':['Ольга Петрова','Кристина Георгиу'],
+  '3_07:00':['Мария Константину','София Васильеу','Наталья Кузнецова'],
+  '4_07:00':['Ирина Смирнова','Елена Папаиоанну','Анна Николаиду','София Васильеу'],
+  '4_17:30':['Мария Константину','Наталья Кузнецова'],
+  '0_16:30':['Ирина Смирнова'],
+  '0_17:30':['София Васильеу','Мария Константину'],
+  '2_18:30':['Наталья Кузнецова','Анна Николаиду','Елена Папаиоанну'],
+  '5_09:30':['Ирина Смирнова','Мария Константину','София Васильеу','Наталья Кузнецова'],
+};
+
+// Map di_time -> array of names (mutable)
+const slotBookingsMap = Object.fromEntries(
+  Object.entries(SLOT_BOOKINGS_DATA).map(([k,v])=>[k,[...v]])
+);
+
+let cancellations = [];
+let currentSlot = null;
+let weekOffset = 0;
+
+function getWeekDates(){
+  const base=new Date(2026,4,4);
+  base.setDate(base.getDate()+weekOffset*7);
+  return Array.from({length:6},(_,i)=>{const d=new Date(base);d.setDate(d.getDate()+i);return d;});
+}
+function shiftWeek(d){ weekOffset+=d; renderSchedule(); }
+
+function isSlotCancelled(di, time, date){
+  const ds=date.toISOString().split('T')[0];
+  return cancellations.some(c=>{
+    if(c.type==='slot') return c.date===ds&&c.slot===time;
+    return ds>=c.date&&ds<=(c.endDate||c.date);
+  });
+}
+
+function renderSchedule(){
+  const t=AL();
+  const dates=getWeekDates();
+  const d0=dates[0], d5=dates[5];
+  const mo=m=>t.months[m%12]||'';
+
+  // header text
+  // View toggle buttons
+  const pt=document.getElementById('sched-page-title');
+  if(pt) pt.innerHTML=`${L('Πρόγραμμα','Schedule','Расписание')} <span style="display:inline-flex;gap:4px;margin-left:8px;vertical-align:middle">
+    <button onclick="setViewMode('week')" class="btn sm" style="font-size:10px;padding:2px 8px;${viewMode==='week'?'background:var(--accent);color:var(--bg);border-color:var(--accent)':''}">${L('Εβδ.','Week','Нед.')}</button>
+    <button onclick="setViewMode('month')" class="btn sm" style="font-size:10px;padding:2px 8px;${viewMode==='month'?'background:var(--accent);color:var(--bg);border-color:var(--accent)':''}">${L('Μήνας','Month','Месяц')}</button>
+  </span>`;
+
+  // Navigation label
+  const wl=document.getElementById('week-label');
+  if(wl){
+    if(viewMode==='month'){
+      const mn=currentDate.toLocaleString(adminLang==='el'?'el-GR':adminLang==='en'?'en-GB':'ru-RU',{month:'long',year:'numeric'});
+      wl.textContent=mn.charAt(0).toUpperCase()+mn.slice(1);
+    } else {
+      wl.textContent=d0.getDate()+' '+mo(d0.getMonth())+' — '+d5.getDate()+' '+mo(d5.getMonth())+' '+d5.getFullYear();
+    }
+  }
+  if(viewMode==='month'){ renderMonthView(); return; }
+  const sg=document.getElementById('sched-grid'); if(sg) sg.style.display='grid';
+
+  // legend
+  const legL=['leg-avail','leg-full','leg-cancel'];
+  const legT=adminLang==='el'?['Διαθέσιμο','Πλήρες','Ακυρωμένο']:adminLang==='en'?['Available','Full','Cancelled']:['Свободно','Мест нет','Отменено'];
+  legL.forEach((id,i)=>{const e=document.getElementById(id);if(e)e.textContent=legT[i];});
+
+  // stat labels
+  const smW=document.getElementById('sm-week'), smC=document.getElementById('sm-cap'), smB=document.getElementById('sm-bk'), smF=document.getElementById('sm-fill');
+  if(smW) smW.textContent=adminLang==='el'?'Μαθήματα εβδ.':adminLang==='en'?'Classes/week':'Занятий/нед.';
+  if(smC) smC.textContent=adminLang==='el'?'Σύνολο θέσεων':adminLang==='en'?'Total spots':'Мест всего';
+  if(smB) smB.textContent=adminLang==='el'?'Κατειλημμένες':adminLang==='en'?'Booked':'Занято';
+  if(smF) smF.textContent=adminLang==='el'?'Πληρότητα':adminLang==='en'?'Fill rate':'Заполненность';
+
+  // buttons
+  const addBtn=document.getElementById('btn-add-slot');
+  const bookBtn=document.getElementById('btn-book-slot');
+  if(addBtn) addBtn.textContent=adminLang==='el'?'+ Προσθήκη / Ακύρωση':adminLang==='en'?'+ Add / Cancel slot':'+ Доп. занятие / Отмена';
+  if(bookBtn) bookBtn.textContent=adminLang==='el'?'+ Κράτηση':adminLang==='en'?'+ Book client':'+ Записать клиента';
+
+  const today=new Date();
+  const DAYS_LOC=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  let totalSlots=0, totalBooked=0, html='';
+
+  const SCH_FLAT={
+    0:[{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
+    1:[{t:'07:00'},{t:'08:00'},{t:'09:15'},{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
+    2:[{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
+    3:[{t:'07:00'},{t:'08:00'},{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
+    4:[{t:'07:00'},{t:'08:00'},{t:'09:15'},{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
+    5:[{t:'09:30'},{t:'10:30'}],
+  };
+  const isMorning=t=>t<'12:00';
+
+  for(let di=0;di<6;di++){
+    const date=dates[di];
+    const isToday=date.toDateString()===today.toDateString();
+    const dateStr=date.toISOString().split('T')[0];
+    const daySlots=SCH_FLAT[di]||[];
+    const mSlots=daySlots.filter(s=>isMorning(s.t));
+    const eSlots=daySlots.filter(s=>!isMorning(s.t));
+
+    html+=`<div class="day-col">`;
+    html+=`<div class="day-head${isToday?' today':''}"><span class="dn">${date.getDate()}</span>${DAYS_LOC[di]}</div>`;
+
+    const renderSlot=(s)=>{
+      const key=di+'_'+s.t;
+      const names=slotBookingsMap[key]||[];
+      const bk=names.length;
+      const cancelled=isSlotCancelled(di,s.t,date);
+      const full=bk>=CAP&&!cancelled;
+      totalSlots++; totalBooked+=bk;
+
+      let cls, txt, style='';
+      if(cancelled){
+        cls='cancelled-slot'; txt='✕';
+      } else if(full){
+        // ONLY full slots get color - red background
+        cls='slot-full-mark'; txt=bk+'/'+CAP;
+        style='color:var(--red);font-weight:500';
+      } else {
+        // Available - neutral, no color
+        cls='slot-avail'; txt=bk+'/'+CAP;
+      }
+
+      return `<div class="slot ${cls}" onclick="openSlotDetail(${di},'${s.t}','${dateStr}')" style="cursor:pointer">
+        <span class="slot-time">${s.t}</span>
+        <span class="slot-spots" style="${style}">${txt}</span>
+      </div>`;
+    };
+
+    for(let mi=0;mi<MAX_M;mi++){
+      html += mi<mSlots.length ? renderSlot(mSlots[mi]) : `<div class="ph"></div>`;
+    }
+    html+=`<div style="height:4px"></div>`;
+    for(let ei=0;ei<MAX_E;ei++){
+      html += ei<eSlots.length ? renderSlot(eSlots[ei]) : `<div class="ph"></div>`;
+    }
+    html+=`</div>`;
+  }
+
+  document.getElementById('sched-grid').innerHTML=html;
+  const totalCap=totalSlots*CAP;
+  document.getElementById('s-tot').textContent=totalSlots;
+  document.getElementById('s-cap').textContent=totalCap;
+  document.getElementById('s-bk').textContent=totalBooked;
+  document.getElementById('s-fill').textContent=totalCap>0?Math.round(totalBooked/totalCap*100)+'%':'0%';
+
+  // render holiday chips
+  renderHolidayChips();
+  // render inline cancellations list
+  renderCancelInline();
+}
+
+// ── SLOT DETAIL PANEL ─────────────────────────────────────────
+function openSlotDetail(di, time, dateStr){
+  currentSlot={di,time,dateStr};
+  const DAYS=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  const d=new Date(dateStr);
+  const mo=m=>AL().months[m%12]||'';
+  document.getElementById('sdp-title').textContent=DAYS[di]+' · '+time;
+  document.getElementById('sdp-date').textContent=d.getDate()+' '+mo(d.getMonth())+' '+d.getFullYear();
+
+  const key=di+'_'+time;
+  const names=slotBookingsMap[key]||[];
+  const bk=names.length;
+  const cancelled=isSlotCancelled(di,time,new Date(dateStr));
+
+  document.getElementById('sdp-cap-label').textContent=adminLang==='el'?'Κατειλημμένες':adminLang==='en'?'Booked':'Занято';
+  document.getElementById('sdp-cap-val').textContent=bk+' / '+CAP;
+  document.getElementById('sdp-seat-dots').innerHTML=Array.from({length:CAP},(_,i)=>
+    `<div style="flex:1;height:8px;border-radius:4px;background:${i<bk?'var(--accent)':'var(--border)'}"></div>`
+  ).join('');
+
+  document.getElementById('sdp-att-label').textContent=adminLang==='el'?'Εγγεγραμμένοι':adminLang==='en'?'Enrolled':'Записаны';
+  const atEl=document.getElementById('sdp-attendees');
+  const emEl=document.getElementById('sdp-empty-att');
+  emEl.textContent=adminLang==='el'?'Κανείς δεν έχει κάνει κράτηση':adminLang==='en'?'No bookings yet':'Никто не записался';
+
+  if(names.length===0){ atEl.innerHTML=''; emEl.style.display='block'; }
+  else {
+    emEl.style.display='none';
+    atEl.innerHTML=names.map((name,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:9px">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:9px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">${name.charAt(0)}</div>
+        <span style="font-size:12px;font-weight:500;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+        <button onclick="removeFromSlot('${key}',${i})" style="font-size:10px;padding:2px 6px;border:0.5px solid var(--border);border-radius:5px;background:transparent;cursor:pointer;color:var(--text3)" title="Удалить запись">✕</button>
+      </div>`).join('');
+  }
+
+  const btnBook=document.getElementById('sdp-btn-book');
+  const btnCancel=document.getElementById('sdp-btn-cancel');
+  if(btnBook) btnBook.textContent=adminLang==='el'?'+ Προσθήκη κράτησης':adminLang==='en'?'+ Add booking':'+ Добавить клиента';
+  if(btnCancel){
+    if(cancelled){
+      btnCancel.textContent=adminLang==='el'?'↩ Αναίρεση ακύρωσης':adminLang==='en'?'↩ Restore class':'↩ Восстановить занятие';
+      btnCancel.className='btn success';
+    } else {
+      btnCancel.textContent=adminLang==='el'?'✕ Ακύρωση αυτού':adminLang==='en'?'✕ Cancel this class':'✕ Отменить это занятие';
+      btnCancel.className='btn';
+      btnCancel.style.borderColor='var(--border)';
+    }
+    btnCancel.style.width='100%';
+    btnCancel.style.justifyContent='center';
+  }
+
+  document.getElementById('slot-detail-panel').style.display='flex';
+}
+
+function closeSlotDetail(){
+  document.getElementById('slot-detail-panel').style.display='none';
+  currentSlot=null;
+}
+
+function removeFromSlot(key,idx){
+  if(slotBookingsMap[key]) slotBookingsMap[key].splice(idx,1);
+  if(currentSlot) openSlotDetail(currentSlot.di,currentSlot.time,currentSlot.dateStr);
+  renderSchedule();
+  toast(adminLang==='ru'?'Запись удалена':adminLang==='en'?'Booking removed':'Αφαιρέθηκε');
+}
+
+function openBookFromSlot(){
+  if(!currentSlot) return;
+  const DAYS=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  openBookModal(currentSlot.di, currentSlot.time);
+}
+
+function cancelSlotFromDetail(){
+  if(!currentSlot) return;
+  const {di,time,dateStr}=currentSlot;
+  const date=new Date(dateStr);
+  const cancelled=isSlotCancelled(di,time,date);
+  if(cancelled){
+    cancellations=cancellations.filter(c=>!(c.date===dateStr&&c.slot===time&&c.type==='slot'));
+    toast(adminLang==='ru'?'Занятие восстановлено!':adminLang==='en'?'Class restored!':'Αποκαταστάθηκε!');
+  } else {
+    const reason=prompt(
+      adminLang==='ru'?'Причина отмены (если праздник — введите "праздник"):':
+      adminLang==='en'?'Reason (type "holiday" to transfer classes):':
+      'Αιτιολογία (γράψτε "αργία" για μεταφορά μαθημάτων):','');
+    if(reason===null) return;
+    const isHoliday=/праздник|holiday|αργία|αργια/i.test(reason);
+    cancellations.push({type:'slot',date:dateStr,endDate:dateStr,slot:time,reason,name:reason||time});
+    if(isHoliday){
+      // Transfer: extend subscriptions of enrolled clients by 7 days
+      const key=di+'_'+time;
+      const enrolled=slotBookingsMap[key]||[];
+      let extended=0;
+      enrolled.forEach(name=>{
+        const c=CLIENTS.find(x=>x.name===name);
+        if(c&&c.expiresDate){
+          const d=new Date(c.expiresDate);
+          d.setDate(d.getDate()+7);
+          c.expiresDate=d.toISOString().split('T')[0];
+          const mo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+          c.nextPayment=d.getDate()+' '+mo[d.getMonth()];
+          extended++;
+        }
+      });
+      toast(`✅ Занятие отменено. ${extended} клиентам продлён абонемент на 7 дней!`);
+    } else {
+      toast(adminLang==='ru'?'Занятие отменено':adminLang==='en'?'Class cancelled':'Ακυρώθηκε');
+    }
+  }
+  renderSchedule();
+  openSlotDetail(di,time,dateStr);
+}
+
+// ── ADD SLOT MODAL ────────────────────────────────────────────
+function openAddSlotModal(){
+  document.getElementById('add-slot-modal').classList.add('open');
+}
+
+function saveSlotAction(){
+  const action=document.getElementById('asm-action').value;
+  const di=parseInt(document.getElementById('asm-day').value);
+  const timeRaw=document.getElementById('asm-time').value;
+  const time=timeRaw.split('–')[0].split('—')[0].trim();
+  const reason=document.getElementById('asm-reason').value;
+  const dates=getWeekDates();
+  const dateStr=dates[di].toISOString().split('T')[0];
+  if(action==='add'){
+    if(!slotBookingsMap[di+'_'+time]) slotBookingsMap[di+'_'+time]=[];
+    toast('✅ '+(adminLang==='ru'?'Дополнительное занятие добавлено!':adminLang==='en'?'Extra class added!':'Επιπλέον μάθημα προστέθηκε!'));
+  } else {
+    const isHoliday=action==='holiday';
+    cancellations.push({type:isHoliday?'holiday':'slot',date:dateStr,endDate:dateStr,slot:time,reason,name:reason||dateStr});
+    if(isHoliday) toast('🎉 '+(adminLang==='ru'?'Праздник добавлен. Занятия клиентов перенесены.':adminLang==='en'?'Holiday added. Clients notified.':'Αργία προστέθηκε.'));
+    else toast(adminLang==='ru'?'Занятие отменено':'Class cancelled');
+  }
+  closeModal('add-slot-modal');
+  renderSchedule();
+}
+
+// ── HOLIDAYS CHIPS ────────────────────────────────────────────
+const CY_HOLIDAYS=[
+  {date:'2026-01-01',name:'Πρωτοχρονιά / New Year / Новый год'},
+  {date:'2026-04-01',name:'ΕΟΚΑ / Cyprus National Day'},
+  {date:'2026-04-19',name:'Πάσχα / Easter / Пасха'},
+  {date:'2026-04-20',name:'Δ. Πάσχα / Easter Monday'},
+  {date:'2026-05-01',name:'Εργατική / Labour Day / 1 Мая'},
+  {date:'2026-08-15',name:'Κοίμηση / Assumption / Успение'},
+  {date:'2026-10-01',name:'Ανεξαρτησία / Cyprus Independence'},
+  {date:'2026-10-28',name:'28η Οκτωβρίου / Ochi Day'},
+  {date:'2026-12-25',name:'Χριστούγεννα / Christmas / Рождество'},
+];
+
+function renderHolidayChips(){
+  const el=document.getElementById('holiday-chips');
+  if(!el) return;
+  el.innerHTML=CY_HOLIDAYS.map(h=>{
+    const active=cancellations.some(c=>c.date===h.date);
+    return `<button onclick="toggleHoliday('${h.date}','${h.name}')"
+      style="font-size:10px;padding:3px 8px;border-radius:20px;border:0.5px solid ${active?'var(--green)':'var(--border)'};background:${active?'var(--green-bg)':'transparent'};color:${active?'var(--green)':'var(--text2)'};cursor:pointer">
+      ${h.date.slice(5).replace('-','/')} ${h.name.split(' / ')[0]}${active?' ✓':''}
+    </button>`;
+  }).join('');
+}
+
+function toggleHoliday(date,name){
+  const idx=cancellations.findIndex(c=>c.date===date&&c.type==='holiday');
+  if(idx>=0){
+    cancellations.splice(idx,1);
+    toast(adminLang==='ru'?'Праздник удалён':adminLang==='en'?'Holiday removed':'Αφαιρέθηκε');
+  } else {
+    cancellations.push({type:'holiday',date,endDate:date,name,slot:'',reason:''});
+    toast('🎉 '+(adminLang==='ru'?'Праздник добавлен!':adminLang==='en'?'Holiday added!':'Αργία προστέθηκε!'));
+  }
+  renderSchedule();
+}
+
+// ── INLINE CANCEL LIST ────────────────────────────────────────
+function renderCancelInline(){
+  const el=document.getElementById('cancel-inline-list');
+  const empty=document.getElementById('cancel-empty-inline');
+  const countEl=document.getElementById('cancel-count-lbl');
+  const titleEl=document.getElementById('cancel-list-title');
+  if(titleEl) titleEl.textContent=adminLang==='el'?'Ακυρώσεις & Αργίες':adminLang==='en'?'Cancellations & Holidays':'Отмены и Праздники';
+  if(countEl) countEl.textContent=cancellations.length>0?cancellations.length+(adminLang==='ru'?' шт.':adminLang==='en'?' total':' σύν.'):'';
+  if(!el) return;
+  if(cancellations.length===0){
+    el.innerHTML='';
+    if(empty) empty.style.display='block';
+    if(empty) empty.textContent=adminLang==='el'?'Δεν υπάρχουν ακυρώσεις':adminLang==='en'?'No cancellations':'Нет отмен';
+    return;
+  }
+  if(empty) empty.style.display='none';
+  const typeL={
+    all:adminLang==='ru'?'Весь день':adminLang==='en'?'All day':'Όλη μέρα',
+    slot:adminLang==='ru'?'Слот':adminLang==='en'?'Slot':'Θέση',
+    holiday:adminLang==='ru'?'Праздник':adminLang==='en'?'Holiday':'Αργία',
+    vacation:adminLang==='ru'?'Отпуск':adminLang==='en'?'Vacation':'Διακοπές',
+  };
+  el.innerHTML=cancellations.map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 12px;background:${c.type==='holiday'?'#F5F0FD':'var(--card)'};border:0.5px solid ${c.type==='holiday'?'#D4B0F0':'var(--border)'};border-radius:10px;margin-bottom:6px">
+      <span style="font-size:14px">${c.type==='holiday'?'🎉':c.type==='vacation'?'🏖️':'❌'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;color:var(--text)">${c.name||c.date}</div>
+        <div style="font-size:10px;color:var(--text3)">${c.date}${c.endDate&&c.endDate!==c.date?' → '+c.endDate:''} · ${typeL[c.type]||c.type}${c.slot?' · '+c.slot:''}</div>
+      </div>
+      <button onclick="removeCancel(${i})" style="font-size:10px;padding:3px 8px;border:0.5px solid var(--border);border-radius:7px;background:transparent;cursor:pointer;color:var(--text3)">✕</button>
+    </div>`).join('');
+}
+
+function removeCancel(i){
+  cancellations.splice(i,1);
+  toast(adminLang==='ru'?'Удалено':adminLang==='en'?'Removed':'Αφαιρέθηκε');
+  renderSchedule();
+}
+
+function openBookModal(di, time){
+  const DAYS=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  const info=di!==null?DAYS[di]+', '+time:(adminLang==='ru'?'Выберите занятие':adminLang==='en'?'Select a class':'Επιλέξτε μάθημα');
+  document.getElementById('book-slot-info').textContent=info;
+  document.getElementById('book-modal').classList.add('open');
+}
+
+
+
+// ── PAYMENTS ─────────────────────────────────────────────────
+let currentPM='revolut';
+function selPM(m){
+  currentPM=m;
+  ['revolut','cash','bank','card'].forEach(id=>{
+    const el=document.getElementById('pm-'+id);
+    el.classList.toggle('selected',id===m);
+    el.classList.toggle('rev',id===m&&m==='revolut');
+  });
+  document.getElementById('pay-submit-btn').textContent=
+    m==='revolut'?'Создать Revolut Payment Link ↗':'Сохранить платёж и активировать';
+}
+
+function updatePayAmt(){
+  const v=document.getElementById('pay-type').value;
+  if(v!=='0') document.getElementById('pay-amt').value=v;
+}
+
+function submitPayment(){
+  const t=AL();
+  if(currentPM==='revolut') toast(t.toastRevLink);
+  else toast(t.toastPaySaved);
+}
+
+function selPM(m){
+  currentPM=m;
+  const t=AL();
+  ['revolut','cash','bank','card'].forEach(id=>{
+    const el=document.getElementById('pm-'+id);
+    el.classList.toggle('selected',id===m);
+    el.classList.toggle('rev',id===m&&m==='revolut');
+  });
+  const sb=document.getElementById('pay-submit-btn');
+  if(sb) sb.textContent=m==='revolut'?t.paySubmitRev:t.paySubmit;
+}
+
+function setPayFilter(f,btn){
+  payFilter=f;
+  document.querySelectorAll('#page-payments .fp').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPayments();
+}
+
+function renderPayments(){
+  const t=AL();
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const mLabel={revolut:'Revolut',cash:t.pmCash||'Cash',bank:t.pmBank||'Bank',card:t.pmCard||'Card'};
+
+  // Page header
+  const ph=document.getElementById('pay-page-header');
+  if(ph) ph.innerHTML=`<div><div class="page-title">${t.payTitle||'Payments'}</div><div class="page-sub">May 2026 · Alma Pilates</div></div>`;
+
+  // Metrics
+  const pm=document.getElementById('pay-metrics');
+  if(pm){
+    const paid=PAYMENTS.filter(p=>p.status==='paid');
+    const pending=PAYMENTS.filter(p=>p.status==='pending');
+    const revPct=Math.round(paid.filter(p=>p.method==='revolut').length/Math.max(paid.length,1)*100);
+    pm.innerHTML=`
+      <div class="metric"><div class="metric-label">${L('Έσοδα','Income','Доход')}, May</div><div class="metric-val" style="color:var(--green)">€${paid.reduce((s,p)=>s+p.amt,0).toLocaleString()}</div><div class="metric-sub up">+12% vs April</div></div>
+      <div class="metric"><div class="metric-label">${L('Συναλλαγές','Transactions','Транзакций')}</div><div class="metric-val">${paid.length||19}</div><div class="metric-sub">this month</div></div>
+      <div class="metric"><div class="metric-label">${L('Εκκρεμείς','Pending','Ожидают')}</div><div class="metric-val">${pending.length||2}</div><div class="metric-sub warn">${pending.reduce((s,p)=>s+p.amt,0)||280} pending</div></div>
+      <div class="metric"><div class="metric-label">Revolut</div><div class="metric-val">${revPct||84}%</div><div class="metric-sub">${100-(revPct||84)}% ${L('μετρητά','cash','наличными')}</div></div>`;
+    pm.style.gridTemplateColumns='repeat(4,1fr)';
+  }
+
+  // Form head
+  const fh=document.getElementById('pay-form-head');
+  if(fh) fh.textContent=t.newPayment||'New payment';
+
+  // Update pay method labels
+  const pmCashLbl=document.getElementById('pm-cash-lbl'); if(pmCashLbl) pmCashLbl.textContent=t.pmCash||'Cash';
+  const pmBankLbl=document.getElementById('pm-bank-lbl'); if(pmBankLbl) pmBankLbl.textContent=t.pmBank||'Bank';
+  const pmCardLbl=document.getElementById('pm-card-lbl'); if(pmCardLbl) pmCardLbl.textContent=t.pmCard||'Card';
+
+  // Populate client select
+  const cs=document.getElementById('pay-client');
+  if(cs) cs.innerHTML=CLIENTS.filter(c=>c.status!=='inactive').map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+
+  // Labels
+  const labels={
+    'pay-client-lbl':L('Πελάτης','Client','Клиент'),
+    'pay-type-lbl':L('Τύπος','Type','Тип'),
+    'pay-amt-lbl':L('Ποσό (€)','Amount (€)','Сумма (€)'),
+    'pay-date-lbl':L('Ημ. πληρωμής','Payment date','Дата оплаты'),
+    'pay-start-lbl':L('Έναρξη','Start date','Начало абонемента'),
+    'pay-note-lbl':L('Σχόλιο','Note','Комментарий'),
+    'pay-hist-head':L('Ιστορικό πληρωμών','Payment history','История платежей'),
+  };
+  Object.entries(labels).forEach(([id,txt])=>{const el=document.getElementById(id);if(el)el.textContent=txt;});
+
+  // Submit btn
+  const sb=document.getElementById('pay-submit-btn');
+  if(sb) sb.textContent=currentPM==='revolut'?'Create Revolut Payment Link ↗':L('Αποθήκευση','Save payment','Сохранить платёж');
+
+  // Filters
+  const pf=document.getElementById('pay-filters');
+  if(pf) pf.innerHTML=`
+    <button class="fp ${payFilter==='all'?'active':''}" onclick="setPayFilter('all',this)">${t.filterAll||'All'}</button>
+    <button class="fp ${payFilter==='revolut'?'active':''}" onclick="setPayFilter('revolut',this)">⚡ Revolut</button>
+    <button class="fp ${payFilter==='cash'?'active':''}" onclick="setPayFilter('cash',this)">💵 ${t.pmCash||'Cash'}</button>
+    <button class="fp ${payFilter==='bank'?'active':''}" onclick="setPayFilter('bank',this)">🏦 ${t.pmBank||'Bank'}</button>`;
+
+  // List
+  const list=document.getElementById('payments-list');
+  if(list){
+    const filtered=payFilter==='all'?PAYMENTS:PAYMENTS.filter(p=>p.method===payFilter);
+    list.innerHTML=filtered.map(p=>`
+      <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:0.5px solid var(--border)">
+        <div style="width:6px;height:6px;border-radius:50%;background:${p.status==='paid'?'var(--green)':'#D4A017'};flex-shrink:0"></div>
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);color:var(--accent);font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.init}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:500;color:var(--text)">${p.name}</div>
+          <div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:5px">${p.detail} <span class="badge ${p.method}">${mLabel[p.method]||p.method}</span></div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:13px;font-weight:500;color:${p.status==='paid'?'var(--green)':'var(--warn)'}">${p.status==='paid'?'+':''}€${p.amt}</div>
+          <div style="font-size:10px;color:var(--text3)">${p.date}</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+// ── EXPENSES ─────────────────────────────────────────────────
+function toggleExpForm(){
+  const f=document.getElementById('exp-form-wrap');
+  f.style.display=f.style.display==='none'?'block':'none';
+}
+
+function renderExpenses(){
+  const t=AL();
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+
+  // Page header
+  const ph=document.getElementById('exp-page-header');
+  if(ph) ph.innerHTML=`
+    <div><div class="page-title">${t.expTitle||'Expenses'}</div><div class="page-sub">May 2026</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" onclick="toggleExpForm()">+ ${t.addExpBtn||'Add expense'}</button>
+    </div>`;
+
+  // Form title
+  const ft=document.getElementById('exp-form-title');
+  if(ft) ft.textContent=L('Νέο έξοδο','New expense','Новый расход');
+
+  // Form labels
+  const lblMap={
+    'exp-cat-lbl':L('Κατηγορία','Category','Категория'),
+    'exp-desc-lbl':L('Περιγραφή','Description','Описание'),
+    'exp-amt-lbl':L('Ποσό (€)','Amount (€)','Сумма (€)'),
+    'exp-date-lbl':L('Ημερομηνία','Date','Дата'),
+    'exp-freq-lbl':L('Συχνότητα','Frequency','Периодичность'),
+    'exp-method-lbl':L('Τρόπος','Method','Способ'),
+  };
+  Object.entries(lblMap).forEach(([id,txt])=>{const el=document.getElementById(id);if(el)el.textContent=txt;});
+
+  // Translate cat select options
+  const cs=document.getElementById('exp-cat-sel');
+  if(cs){
+    cs.options[0].text='🏢 '+getCatName('rent');
+    cs.options[1].text='👤 '+getCatName('salary');
+    cs.options[2].text='🏋️ '+getCatName('equip');
+    cs.options[3].text='💡 '+getCatName('util');
+    cs.options[4].text='📣 '+getCatName('market');
+    cs.options[5].text='📦 '+getCatName('other');
+  }
+
+  // Metrics
+  const em=document.getElementById('exp-metrics');
+  if(em){
+    const total=EXPENSES.reduce((s,e)=>s+e.amt,0);
+    const cats={}; EXPENSES.forEach(e=>cats[e.cat]=(cats[e.cat]||0)+e.amt);
+    const maxCat=Object.entries(cats).sort((a,b)=>b[1]-a[1])[0]||['other',0];
+    em.innerHTML=`
+      <div class="metric"><div class="metric-label">${L('Σύνολο','Total expenses','Всего расходов')}</div><div class="metric-val" style="color:var(--red)">€${total.toLocaleString()}</div><div class="metric-sub">May 2026</div></div>
+      <div class="metric"><div class="metric-label">${L('Μεγαλύτερη','Largest category','Крупнейший')}</div><div class="metric-val" style="font-size:14px;margin-top:4px">${getCatName(maxCat[0])}</div><div class="metric-sub">€${maxCat[1]}</div></div>
+      <div class="metric"><div class="metric-label">${L('Αριθμός','Count','Кол-во')}</div><div class="metric-val">${EXPENSES.length}</div><div class="metric-sub">entries</div></div>`;
+  }
+
+  // Card heads
+  const lh=document.getElementById('exp-list-head');
+  if(lh) lh.textContent=L('Όλα τα έξοδα','All expenses','Все расходы');
+  const ch=document.getElementById('exp-chart-head');
+  if(ch) ch.textContent=L('Ανά κατηγορία','By category','По категориям');
+
+  // Summary labels
+  const si=document.getElementById('exp-sum-income-lbl'); if(si) si.textContent=L('Έσοδα','Income (May)','Доход (май)');
+  const se=document.getElementById('exp-sum-exp-lbl'); if(se) se.textContent=L('Έξοδα','Expenses','Расходы');
+  const sp=document.getElementById('exp-sum-profit-lbl'); if(sp) sp.textContent=L('Κέρδος','Net Profit','Прибыль');
+
+  // Expense list
+  const list=document.getElementById('exp-list');
+  if(list) list.innerHTML=EXPENSES.map(e=>`
+    <div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:${CATS[e.cat]?.color||'#888'};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;color:var(--text)">${expDesc(e)}${e.recurring?'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:#E6F1FB;color:#0C447C;margin-left:5px">↻</span>':''}</div>
+        <div style="margin-top:2px"><span class="badge" style="background:${CATS[e.cat]?.color||'#888'}22;color:${CATS[e.cat]?.color||'#888'}">${getCatName(e.cat)}</span></div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:13px;font-weight:500;color:var(--red)">−€${e.amt}</div>
+        <div style="font-size:10px;color:var(--text3)">${fmtDate(e.date)}</div>
+      </div>
+    </div>`).join('');
+
+  // Chart
+  const totals={};
+  EXPENSES.forEach(e=>totals[e.cat]=(totals[e.cat]||0)+e.amt);
+  const max=Math.max(...Object.values(totals),1);
+  const chart=document.getElementById('exp-chart');
+  if(chart) chart.innerHTML='<div class="bar-chart">'+Object.entries(totals).sort((a,b)=>b[1]-a[1]).map(([cat,amt])=>`
+    <div class="bar-row">
+      <div class="bar-name" style="font-size:11px;color:var(--text2)">${CATS[cat]?.icon||'📦'} ${getCatName(cat)}</div>
+      <div class="bar-wrap2"><div class="bar-fill" style="width:${Math.round(amt/max*100)}%;background:${CATS[cat]?.color||'#888'}"></div></div>
+      <div class="bar-val">€${amt}</div>
+    </div>`).join('')+'</div>';
+}
+
+// ── TAXES ────────────────────────────────────────────────────
+function renderTaxChart(){
+  const t=AL();
+  // Update page header
+  const ph=document.querySelector('#page-taxes .page-header');
+  if(ph){
+    const title=ph.querySelector('.page-title');
+    const sub=ph.querySelector('.page-sub');
+    if(title)title.textContent=t.taxTitle;
+    if(sub)sub.textContent=t.taxSub;
+    const btn=ph.querySelector('.btn');
+    if(btn)btn.textContent=t.taxDownload;
+  }
+  // Update metric labels
+  const mcs=document.querySelectorAll('#page-taxes .metric');
+  const mlabels=[t.taxIncome,t.taxVat,t.taxCorpTax,t.taxNet];
+  mcs.forEach((mc,i)=>{const l=mc.querySelector('.metric-label');if(l&&mlabels[i])l.textContent=mlabels[i];});
+  // Update tax note
+  const tn=document.querySelector('#page-taxes .warn-note');
+  if(tn)tn.textContent=t.taxNote;
+  // Chart
+  const months=t.taxMonths||['Jan','Feb','Mar','Apr','May'];
+  const incomes=[2100,1800,2300,2650,2840];
+  const expenses=[1600,1500,1700,1750,1820];
+  const chart=document.getElementById('tax-chart');
+  if(!chart)return;
+  chart.innerHTML='<div style="display:flex;flex-direction:column;gap:8px">'+
+    months.map((m,i)=>{
+      const net=incomes[i]-expenses[i];
+      const w=Math.round(net/1500*100);
+      return `<div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;font-size:11px;color:var(--text2)">${m}</div>
+        <div style="flex:1;height:18px;background:var(--bg2);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${w}%;background:${i===4?'var(--accent)':'var(--border)'};border-radius:4px;transition:width .3s"></div>
+        </div>
+        <div style="width:50px;font-size:11px;font-weight:500;color:var(--text);text-align:right">€${net}</div>
+      </div>`;
+    }).join('')+'</div>';
+}
+
+function renderSettings(){
+  const t=AL();
+  // Update section labels
+  const settCards=document.querySelectorAll('#page-settings .card-head');
+  if(settCards[0])settCards[0].childNodes[0].textContent=t.settCats;
+  if(settCards[1])settCards[1].childNodes[0].textContent=t.settStudio;
+  if(settCards[2])settCards[2].childNodes[0].textContent=t.settRevTitle;
+  // Add cat button
+  const addCatBtn=document.querySelector('#page-settings .card .btn:not(.primary)');
+  if(addCatBtn)addCatBtn.textContent=t.settAddCat;
+  // Revolut status
+  const revConn=document.querySelector('#page-settings .card:last-child span[style*="green"]');
+  if(revConn)revConn.textContent=t.settRevConnected;
+
+// cat-list removed — categories managed in Expenses
+}
+
+// ── UTILS ────────────────────────────────────────────────────
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ── ADMIN i18n ────────────────────────────────────────────────
+const ADMIN_I18N={
+  el:{
+    dashboard:'Πίνακας ελέγχου', clients:'Πελάτες', schedule:'Πρόγραμμα',
+    payments:'Πληρωμές', expenses:'Έξοδα', taxes:'Φορολογία', settings:'Ρυθμίσεις',
+    basic:'Κύρια', finance:'Οικονομικά', system:'Σύστημα',
+    studio:'Λεμεσός, Κύπρος',
+    income:'Έσοδα, Μάιος', expLabel:'Έξοδα, Μάιος', profit:'Καθαρό κέρδος', clientsLabel:'Ενεργοί πελάτες',
+    incomeUp:'+12% από Απρίλιο', expSub:'ενοίκιο · μισθός · άλλα', profSub:'πριν φόρους', clientsSub:'3 λήγουν σύντομα',
+    newPayment:'+ Νέα πληρωμή', addExpense:'+ Προσθήκη εξόδου',
+    alertText:'3 πελάτες με 1–2 μαθήματα — χρειάζονται ανανέωση →',
+    allClients:'Όλοι', warningClients:'⚠ Λήγουν (3)', activeClients:'Ενεργοί', inactiveClients:'Ανενεργοί',
+    searchPlaceholder:'Αναζήτηση ονόματος, τηλεφώνου...',
+    newClient:'+ Νέος πελάτης', clientsSub2:' ενεργοί · 3 χρειάζονται προσοχή',
+    colClient:'Πελάτης', colSub:'Συνδρομή', colLeft:'Απομένουν', colNextPayment:'Επόμενη πληρωμή', colPaid:'Πληρώθηκε', colStatus:'Κατάσταση',
+    badgeOk:'Ενεργή', badgeDanger:'μαθ.', badgeInactive:'Έληξε',
+    sendReminder:'Αποστολή υπενθύμισης', revLink:'⚡ Revolut Payment Link', openProfile:'Άνοιγμα προφίλ →',
+    schedTitle:'Πρόγραμμα', schedSub:'Alma Pilates · 4 άτομα/μάθημα',
+    cancelHoliday:'Ακύρωση / αργία', bookClient:'+ Κράτηση',
+    legMorn:'Πρωί', legEve:'Απόγευμα', legFull:'Πλήρες',
+    slotFull:'πλήρες', slotFree:'ελ.',
+    sWeek:'μαθήματα εβδομάδας', sCap:'Σύνολο θέσεων', sBk:'Κατειλημμένες', sFill:'Πληρότητα',
+    payTitle:'Πληρωμές', paySub:'Μάιος 2026 · Alma Pilates',
+    pmRevolut:'Revolut', pmCash:'Μετρητά', pmBank:'Τράπεζα', pmCard:'Κάρτα',
+    payType8:'Συνδρομή 8 μαθ. — €120', payType12:'Συνδρομή 12 μαθ. — €160', payTypeSingle:'Μεμονωμένο — €25', payTypeOther:'Άλλο ποσό',
+    payDate:'Ημερομηνία πληρωμής', payStart:'Έναρξη συνδρομής', payNote:'Σχόλιο',
+    payClear:'Καθαρισμός', paySubmitRev:'Δημιουργία Revolut Link ↗', paySubmit:'Αποθήκευση & ενεργοποίηση',
+    histTitle:'Ιστορικό πληρωμών', filterAll:'Όλες',
+    expTitle:'Έξοδα', addExpBtn:'+ Προσθήκη εξόδου',
+    expCatLbl:'Κατηγορία', expDescLbl:'Περιγραφή', expAmtLbl:'Ποσό (€)', expDateLbl:'Ημερομηνία',
+    expFreqLbl:'Περιοδικότητα', expFreqOne:'Εφάπαξ', expFreqMon:'Μηνιαίο', expFreqWeek:'Εβδομαδιαίο',
+    expPayLbl:'Τρόπος πληρωμής', expSave:'Αποθήκευση', expCancel:'Ακύρωση',
+    expBycat:'Ανά κατηγορία', expMonth:'Μηνιαία σύνοψη',
+    taxTitle:'Φορολογική αναφορά', taxSub:'Κύπρος · ΦΠΑ 19% · Φόρος εισοδήματος 12,5%',
+    taxDownload:'Λήψη PDF ↓',
+    taxIncome:'Έσοδα (Μάιος)', taxVat:'ΦΠΑ προς καταβολή', taxCorpTax:'Φόρος εισοδήματος', taxNet:'Καθαρό κέρδος',
+    settTitle:'Ρυθμίσεις', settSub:'Alma Pilates Studio',
+    settCats:'Κατηγορίες εξόδων', settAddCat:'+ Προσθήκη κατηγορίας',
+    settStudio:'Στούντιο', settName:'Όνομα', settCity:'Πόλη',
+    settPrice8:'Συνδρομή 8 μαθ. (€)', settPrice12:'Συνδρομή 12 μαθ. (€)',
+    settPriceSingle:'Μεμονωμένο (€)', settCap:'Χωρητικότητα τάξης',
+    settSave:'Αποθήκευση', settRevTitle:'Revolut Business', settRevConnected:'● Συνδεδεμένο',
+    settRevSave:'Αποθήκευση κλειδιού',
+    recurring:'↻ μηνιαίο', toastSaved:'Αποθηκεύτηκε!', toastDeleted:'Διαγράφηκε!',
+    toastRevLink:'⚡ Revolut Link δημιουργήθηκε!', toastPaySaved:'Πληρωμή αποθηκεύτηκε!',
+    months:['Ιαν','Φεβ','Μαρ','Απρ','Μάι'],
+    taxMonths:['Ιαν','Φεβ','Μαρ','Απρ','Μάι'],
+    taxNote:'⚠ Συμβουλευτείτε λογιστή: οι εκπαιδευτικές υπηρεσίες ενδέχεται να απαλλάσσονται ΦΠΑ στην Κύπρο',
+  },
+  en:{
+    dashboard:'Dashboard', clients:'Clients', schedule:'Schedule',
+    payments:'Payments', expenses:'Expenses', taxes:'Taxes', settings:'Settings',
+    basic:'Main', finance:'Finance', system:'System',
+    studio:'Limassol, Cyprus',
+    income:'Income, May', expLabel:'Expenses, May', profit:'Net profit', clientsLabel:'Active clients',
+    incomeUp:'+12% vs April', expSub:'this month', profSub:'this month', clientsSub:'3 expiring soon',
+    newPayment:'+ New payment', addExpense:'+ Add expense',
+    alertText:'3 clients with 1–2 classes left — need renewal →',
+    allClients:'All', warningClients:'⚠ Expiring (3)', activeClients:'Active', inactiveClients:'Inactive',
+    searchPlaceholder:'Search by name, phone...',
+    newClient:'+ New client', clientsSub2:' active · 3 need attention',
+    colClient:'Client', colSub:'Membership', colLeft:'Remaining', colNextPayment:'Next payment', colPaid:'Paid', colStatus:'Status',
+    badgeOk:'Active', badgeDanger:'classes', badgeInactive:'Expired',
+    sendReminder:'Send reminder', revLink:'⚡ Revolut Payment Link', openProfile:'Open profile →',
+    schedTitle:'Schedule', schedSub:'Alma Pilates · 4 per class',
+    cancelHoliday:'Cancel / holiday', bookClient:'+ Book client',
+    legMorn:'Morning', legEve:'Evening', legFull:'Full',
+    slotFull:'full', slotFree:'free',
+    sWeek:'classes this week', sCap:'Total capacity', sBk:'Booked', sFill:'Fill rate',
+    payTitle:'Payments', paySub:'May 2026 · Alma Pilates',
+    pmRevolut:'Revolut', pmCash:'Cash', pmBank:'Bank transfer', pmCard:'Card',
+    payType8:'8-class membership — €120', payType12:'12-class membership — €160', payTypeSingle:'Single class — €25', payTypeOther:'Custom amount',
+    payDate:'Payment date', payStart:'Membership start', payNote:'Note',
+    payClear:'Clear', paySubmitRev:'Create Revolut Link ↗', paySubmit:'Save & activate',
+    histTitle:'Payment history', filterAll:'All',
+    expTitle:'Expenses', addExpBtn:'+ Add expense',
+    expCatLbl:'Category', expDescLbl:'Description', expAmtLbl:'Amount (€)', expDateLbl:'Date',
+    expFreqLbl:'Frequency', expFreqOne:'One-off', expFreqMon:'Monthly', expFreqWeek:'Weekly',
+    expPayLbl:'Payment method', expSave:'Save', expCancel:'Cancel',
+    expBycat:'By category', expMonth:'Monthly summary',
+    taxTitle:'Tax report', taxSub:'Cyprus · VAT 19% · Corporate tax 12.5%',
+    taxDownload:'Download PDF ↓',
+    taxIncome:'Income (May)', taxVat:'VAT payable', taxCorpTax:'Corporate tax', taxNet:'Net profit',
+    settTitle:'Settings', settSub:'Alma Pilates Studio',
+    settCats:'Expense categories', settAddCat:'+ Add category',
+    settStudio:'Studio', settName:'Name', settCity:'City',
+    settPrice8:'8-class membership (€)', settPrice12:'12-class membership (€)',
+    settPriceSingle:'Single class (€)', settCap:'Class capacity',
+    settSave:'Save', settRevTitle:'Revolut Business', settRevConnected:'● Connected',
+    settRevSave:'Save API key',
+    recurring:'↻ monthly', toastSaved:'Saved!', toastDeleted:'Deleted!',
+    toastRevLink:'⚡ Revolut Link created!', toastPaySaved:'Payment saved!',
+    months:['Jan','Feb','Mar','Apr','May'],
+    taxMonths:['Jan','Feb','Mar','Apr','May'],
+    taxNote:'⚠ Check with accountant: educational services may be VAT-exempt in Cyprus',
+  },
+  ru:{
+    dashboard:'Дашборд', clients:'Клиенты', schedule:'Расписание',
+    payments:'Платежи', expenses:'Расходы', taxes:'Налоги', settings:'Настройки',
+    basic:'Основное', finance:'Финансы', system:'Система',
+    studio:'Лимассол, Кипр',
+    income:'Доход, май', expLabel:'Расходы, май', profit:'Чистая прибыль', clientsLabel:'Активные клиенты',
+    incomeUp:'+12% к апрелю', expSub:'в этом месяце', profSub:'в этом месяце', clientsSub:'3 заканчивается',
+    newPayment:'+ Новый платёж', addExpense:'+ Добавить расход',
+    alertText:'clients with 1–2 classes — renewal needed →',
+    allClients:'Все', warningClients:'⚠ Заканчивается (3)', activeClients:'Активные', inactiveClients:'Неактивные',
+    searchPlaceholder:'Поиск по имени, телефону...',
+    newClient:'+ Новый клиент', clientsSub2:' активных · 3 требуют внимания',
+    colClient:'Клиент', colSub:'Абонемент', colLeft:'Осталось', colNextPayment:'След. оплата', colPaid:'Оплачен', colStatus:'Статус',
+    badgeOk:'Активен', badgeDanger:'зан.', badgeInactive:'Истёк',
+    sendReminder:'Отправить напоминание', revLink:'⚡ Revolut Payment Link', openProfile:'Открыть профиль →',
+    schedTitle:'Расписание', schedSub:'Alma Pilates · 4 чел./занятие',
+    cancelHoliday:'Отмена / праздник', bookClient:'+ Записать клиента',
+    legMorn:'Утро', legEve:'Вечер', legFull:'Мест нет',
+    slotFull:'занято', slotFree:'св.',
+    sWeek:'занятий на неделе', sCap:'Мест всего', sBk:'Занято', sFill:'Заполненность',
+    payTitle:'Платежи', paySub:'Май 2026 · Alma Pilates',
+    pmRevolut:'Revolut', pmCash:'Наличные', pmBank:'Банк. перевод', pmCard:'Карта',
+    payType8:'Абонемент 8 зан. — €120', payType12:'Абонемент 12 зан. — €160', payTypeSingle:'Разовое занятие — €25', payTypeOther:'Другая сумма',
+    payDate:'Дата оплаты', payStart:'Начало абонемента', payNote:'Комментарий',
+    payClear:'Очистить', paySubmitRev:'Создать Revolut Payment Link ↗', paySubmit:'Сохранить и активировать',
+    histTitle:'История платежей', filterAll:'Все',
+    expTitle:'Расходы', addExpBtn:'+ Добавить расход',
+    expCatLbl:'Категория', expDescLbl:'Описание', expAmtLbl:'Сумма (€)', expDateLbl:'Дата',
+    expFreqLbl:'Периодичность', expFreqOne:'Разовый', expFreqMon:'Ежемесячный', expFreqWeek:'Еженедельный',
+    expPayLbl:'Способ оплаты', expSave:'Сохранить', expCancel:'Отмена',
+    expBycat:'По категориям', expMonth:'Итог месяца',
+    taxTitle:'Налоговый отчёт', taxSub:'Кипр · ΦΠΑ 19% · Налог на прибыль 12.5%',
+    taxDownload:'Скачать PDF ↓',
+    taxIncome:'Доход (май)', taxVat:'ΦΠΑ к уплате', taxCorpTax:'Налог на прибыль', taxNet:'Чистая прибыль',
+    settTitle:'Settings', settSub:'Alma Pilates Studio',
+    settCats:'Категории расходов', settAddCat:'+ Добавить категорию',
+    settStudio:'Studio', settName:'Название', settCity:'Город',
+    settPrice8:'Абонемент 8 занятий (€)', settPrice12:'Абонемент 12 занятий (€)',
+    settPriceSingle:'Разовое занятие (€)', settCap:'Вместимость класса',
+    settSave:'Сохранить', settRevTitle:'Revolut Business', settRevConnected:'● Connected',
+    settRevSave:'Сохранить ключ',
+    recurring:'↻ ежемес.', toastSaved:'Сохранено!', toastDeleted:'Удалено!',
+    toastRevLink:'⚡ Revolut Link создан!', toastPaySaved:'Платёж сохранён!',
+    months:['Янв','Фев','Мар','Апр','Май'],
+    taxMonths:['Янв','Фев','Мар','Апр','Май'],
+    taxNote:'⚠ Уточни у бухгалтера: образовательные услуги могут быть освобождены от ΦΠΑ на Кипре',
+  }
+};
+
+let adminLang='en';
+function AL(){ return ADMIN_I18N[adminLang]; }
+
+function setLang(l,btn){
+  adminLang=l;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyAdminLang();
+}
+
+function applyAdminLang(){
+  const t=AL();
+  // Sidebar nav labels
+  const navMap={dashboard:t.dashboard,clients:t.clients,schedule:t.schedTitle,payments:t.payTitle,expenses:t.expTitle,settings:t.settTitle};
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    const fn=n.getAttribute('onclick')||'';
+    for(const[k,v] of Object.entries(navMap)){
+      if(fn.includes(k)){n.childNodes[n.childNodes.length-1].textContent=' '+v;break;}
+    }
+  });
+  // Section labels
+  // new nav
+  const navFin=document.getElementById('nav-finance');
+  if(navFin) navFin.textContent=adminLang==='el'?'Οικ. Επισκόπηση':adminLang==='en'?'Finance Overview':'Финансовый обзор';
+  const navCan=document.getElementById('nav-cancellations');
+  // if(navCan) navCan.textContent=adminLang==='el'?'Ακυρώσεις':adminLang==='en'?'Cancellations':'Отмены / Праздники';
+  const sections=document.querySelectorAll('.nav-section');
+  if(sections[0])sections[0].textContent=t.basic;
+  if(sections[1])sections[1].textContent=t.finance;
+  if(sections[2])sections[2].textContent=t.system;
+  // Logo sub
+  const logoSub=document.querySelector('.logo-sub');
+  if(logoSub)logoSub.textContent=t.studio;
+  // Re-render active page
+  const activePage=document.querySelector('.page.active')?.id?.replace('page-','');
+  if(activePage){
+    if(activePage==='dashboard')renderDashboard();
+    else if(activePage==='clients')renderClients();
+    else if(activePage==='schedule')renderSchedule();
+    else if(activePage==='payments')renderPayments();
+    else if(activePage==='expenses')renderExpenses();
+    else if(activePage==='taxes')renderTaxChart();
+    else if(activePage==='settings')renderSettings();
+  }
+  toast(adminLang==='el'?'Γλώσσα: Ελληνικά':adminLang==='en'?'Language: English':'Язык: Русский');
+}
+
+function getMonthNames(){ return AL().months||['Jan','Feb','Mar','Apr','May']; }
+
+function openBookModal(di, time){
+  currentBookSlot=(di!==null&&di!==undefined)?{di,time}:null;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const DAYS=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  const info=di!==null&&di!==undefined?DAYS[di]+' '+time:L('Επιλέξτε','Select','Выберите занятие');
+  const bsi=document.getElementById('book-slot-info');
+  if(bsi) bsi.textContent=info;
+  // Populate client dropdown
+  const sel=document.querySelector('#book-modal select');
+  if(sel) sel.innerHTML=CLIENTS.filter(c=>c.status!=='inactive').map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  // Show/hide waitlist button
+  const wlBtn=document.getElementById('bm-waitlist-btn');
+  const confBtn=document.getElementById('bm-confirm-btn');
+  if(di!==null&&di!==undefined){
+    const key=di+'_'+time;
+    const full=(slotBookingsMap[key]||[]).length>=CAP;
+    if(wlBtn) wlBtn.style.display=full?'block':'none';
+    if(confBtn) confBtn.style.display=full?'none':'block';
+  }
+  document.getElementById('book-modal').classList.add('open');
+}
+
+
+// ─── CANCELLATIONS ────────────────────────────────────────────
+
+function isSlotCancelled(di, time, date){
+  const ds = date.toISOString().split('T')[0];
+  return cancellations.some(c=>{
+    if((c.type==='all'||c.type==='holiday'||c.type==='vacation')&&ds>=c.date&&ds<=(c.endDate||c.date)) return true;
+    if(c.type==='slot'&&c.date===ds&&c.slot===time) return true;
+    return false;
+  });
+}
+
+function toggleCancelSlot(){
+  const type = document.getElementById('cm-type')?.value||'all';
+  const slotRow = document.getElementById('cm-slot-row');
+  const vacRow = document.getElementById('cm-vacation-row');
+  if(slotRow) slotRow.style.display = type==='slot'?'grid':'none';
+  if(vacRow) vacRow.style.display = type==='vacation'?'grid':'none';
+}
+
+function saveCancellation(){
+  const type = document.getElementById('cm-type').value;
+  const date = document.getElementById('cm-date').value;
+  const slot = type==='slot' ? (document.getElementById('cm-slot')?.value||'') : '';
+  const reason = document.getElementById('cm-reason')?.value || document.getElementById('cm-reason2')?.value || '';
+  const endDate = type==='vacation' ? (document.getElementById('cm-vac-end')?.value||date) : date;
+  const typeNames={all:'Весь день',slot:'Конкретный слот',holiday:'Праздник',vacation:'Отпуск'};
+  cancellations.push({type,date,endDate,slot,reason,name:reason||typeNames[type]+' '+date});
+  closeModal('cancel-modal');
+  toast('Отмена добавлена!');
+  renderHolidayChips();
+  renderCancelList();
+  renderSchedule();
+}
+
+// ─── FINANCE PAGE ─────────────────────────────────────────────
+function renderFinancePage(){
+  const EXPENSES_DATA=[
+    {cat:'rent',color:'#E24B4A',icon:'🏢',name:'Rent',amt:650},
+    {cat:'salary',color:'#EF9F27',icon:'👤',name:'Salary',amt:800},
+    {cat:'util',color:'#1D9E75',icon:'💡',name:'Utilities',amt:95},
+    {cat:'market',color:'#7B6EF6',icon:'📣',name:'Marketing',amt:130},
+    {cat:'equip',color:'#378ADD',icon:'🏋️',name:'Equipment',amt:120},
+    {cat:'other',color:'#8E8E93',icon:'📦',name:'Other',amt:25},
+  ];
+  const maxE=Math.max(...EXPENSES_DATA.map(e=>e.amt));
+  const eb=document.getElementById('fin-exp-breakdown');
+  if(eb) eb.innerHTML='<div style="display:flex;flex-direction:column;gap:7px">'+EXPENSES_DATA.map(e=>`
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="width:90px;font-size:11px;color:var(--text2);flex-shrink:0">${e.icon} ${e.name}</div>
+      <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Math.round(e.amt/maxE*100)}%;background:${e.color};border-radius:4px"></div></div>
+      <div style="width:44px;font-size:11px;font-weight:500;color:var(--text);text-align:right">€${e.amt}</div>
+    </div>`).join('')+'</div>';
+
+  const cfMonths=['Dec','Jan','Feb','Mar','Apr','May'];
+  const cfI=[2100,1800,2300,2650,2500,2840]; const cfE=[1600,1500,1700,1750,1650,1820];
+  const maxCF=Math.max(...cfI,...cfE);
+  const cf=document.getElementById('fin-cashflow');
+  if(cf) cf.innerHTML='<div style="display:flex;flex-direction:column;gap:6px">'+cfMonths.map((m,i)=>{
+    const net=cfI[i]-cfE[i];
+    return `<div style="display:flex;align-items:center;gap:8px">
+      <div style="width:30px;font-size:11px;color:var(--text2)">${m}</div>
+      <div style="flex:1;position:relative;height:20px;background:var(--bg2);border-radius:4px;overflow:hidden">
+        <div style="position:absolute;left:0;top:2px;height:8px;width:${Math.round(cfI[i]/maxCF*100)}%;background:var(--green);opacity:.8;border-radius:2px"></div>
+        <div style="position:absolute;left:0;top:11px;height:8px;width:${Math.round(cfE[i]/maxCF*100)}%;background:var(--red);opacity:.7;border-radius:2px"></div>
+      </div>
+      <div style="width:48px;font-size:11px;font-weight:500;color:${net>0?'var(--green)':'var(--red)'};text-align:right">€${net}</div>
+    </div>`;
+  }).join('')+'</div>';
+
+  const fm=document.getElementById('fin-methods');
+  if(fm) fm.innerHTML=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+    <div style="display:flex;width:200px;height:14px;border-radius:7px;overflow:hidden;flex-shrink:0">
+      <div style="width:63%;background:#191C1F;opacity:.9"></div>
+      <div style="width:21%;background:var(--green);opacity:.8"></div>
+      <div style="width:11%;background:#378ADD;opacity:.8"></div>
+      <div style="width:5%;background:#7B6EF6;opacity:.8"></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--text2)">
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#191C1F;display:inline-block"></span>Revolut 63%</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--green);display:inline-block"></span>Cash 21%</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#378ADD;display:inline-block"></span>Bank 11%</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#7B6EF6;display:inline-block"></span>Card 5%</span>
+  </div>`;
+}
+
+
+// ─── SLOT DETAIL PANEL ────────────────────────────────────────
+function openSlotDetail(di, time, dateStr){
+  currentSlot = {di, time, dateStr};
+  const t = AL();
+  const DAYS = adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  document.getElementById('sdp-title').textContent = DAYS[di] + ' · ' + time;
+  const d = new Date(dateStr);
+  const months = adminLang==='el'?['Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ']:
+                 adminLang==='en'?['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']:
+                 ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  document.getElementById('sdp-date').textContent = d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+
+  const slotKey = di + '_' + time;
+  const attendees = slotBookingsMap[slotKey] || [];
+  const booked = attendees.length;
+  // CAP=4 global
+
+  document.getElementById('sdp-cap-label').textContent = adminLang==='el'?'Κατειλημμένες θέσεις':adminLang==='en'?'Spots booked':'Мест занято';
+  document.getElementById('sdp-cap-val').textContent = booked + ' / ' + CAP;
+  document.getElementById('sdp-att-label').textContent = adminLang==='el'?'Εγγεγραμμένοι':adminLang==='en'?'Enrolled':'Записаны';
+
+  // Seat dots
+  document.getElementById('sdp-seat-dots').innerHTML = Array.from({length:CAP},(_,i)=>
+    `<div style="width:40px;height:8px;border-radius:4px;background:${i<booked?'var(--accent)':'var(--border)'}"></div>`
+  ).join('');
+
+  // Attendees
+  const atEl = document.getElementById('sdp-attendees');
+  const emEl = document.getElementById('sdp-empty-att');
+  if(attendees.length === 0){
+    atEl.innerHTML = '';
+    emEl.style.display = 'block';
+    emEl.textContent = adminLang==='el'?'Κανείς δεν έχει κάνει κράτηση':adminLang==='en'?'No bookings yet':'Никто не записался';
+  } else {
+    emEl.style.display = 'none';
+    atEl.innerHTML = attendees.map((name,i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:9px">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:9px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">${name.charAt(0)}</div>
+        <span style="font-size:12px;font-weight:500;color:var(--text);flex:1">${name}</span>
+        <button onclick="removeFromSlot('${slotKey}',${i})" style="font-size:10px;padding:2px 7px;border:0.5px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--text3)">✕</button>
+      </div>`).join('');
+  }
+
+  const cancelled = isSlotCancelled(di, time, new Date(dateStr));
+  const btnCancel = document.getElementById('sdp-btn-cancel');
+  const btnBook = document.getElementById('sdp-btn-book');
+  btnBook.textContent = adminLang==='el'?'+ Προσθήκη κράτησης':adminLang==='en'?'+ Add booking':'+ Записать клиента';
+  
+  if(cancelled){
+    btnCancel.textContent = adminLang==='el'?'Αναίρεση ακύρωσης':adminLang==='en'?'Restore class':'Восстановить занятие';
+    btnCancel.className = 'btn success';
+    btnCancel.style.width='100%'; btnCancel.style.justifyContent='center';
+  } else {
+    btnCancel.textContent = adminLang==='el'?'Ακύρωση αυτού του μαθήματος':adminLang==='en'?'Cancel this class':'Отменить это занятие';
+    btnCancel.className = 'btn danger';
+    btnCancel.style.width='100%'; btnCancel.style.justifyContent='center';
+  }
+
+  document.getElementById('slot-detail-panel').style.display = 'flex';
+}
+
+function closeSlotDetail(){
+  document.getElementById('slot-detail-panel').style.display = 'none';
+  currentSlot = null;
+}
+
+function removeFromSlot(slotKey, idx){
+  if(SLOT_BOOKINGS[slotKey]) SLOT_BOOKINGS[slotKey].splice(idx,1);
+  if(currentSlot) openSlotDetail(currentSlot.di, currentSlot.time, currentSlot.dateStr);
+  toast(AL().toastReminderSent || 'Удалено');
+}
+
+function openBookFromSlot(){
+  if(!currentSlot) return;
+  const t = AL();
+  const DAYS = adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  openBookModal(currentSlot.di, currentSlot.time);
+}
+
+function cancelSlotFromDetail(){
+  if(!currentSlot) return;
+  const {di, time, dateStr} = currentSlot;
+  const cancelled = isSlotCancelled(di, time, new Date(dateStr));
+  if(cancelled){
+    // restore - remove from cancellations
+    cancellations = cancellations.filter(c=>!(c.date===dateStr&&c.slot===time&&c.type==='slot'));
+    toast(adminLang==='ru'?'Занятие восстановлено!':adminLang==='en'?'Class restored!':'Αποκαταστάθηκε!');
+  } else {
+    // cancel - check if holiday-type (transfer classes)
+    const reason = prompt(
+      adminLang==='ru'?'Причина отмены (праздник — перенесём занятия клиентам):':
+      adminLang==='en'?'Reason (holiday = classes will be transferred):':
+      'Αιτιολογία (αργία = τα μαθήματα θα μεταφερθούν):', ''
+    );
+    if(reason === null) return;
+    const isHoliday = reason.toLowerCase().includes('праздник') || reason.toLowerCase().includes('holiday') || reason.toLowerCase().includes('αργία') || reason.toLowerCase().includes('αργια');
+    cancellations.push({type:'slot', date:dateStr, endDate:dateStr, slot:time, reason, name:reason||time});
+    if(isHoliday){
+      // Transfer: extend expiry for enrolled clients
+      const slotKey = di + '_' + time;
+      const enrolled = SLOT_BOOKINGS[slotKey] || [];
+      enrolled.forEach(name => {
+        const c = CLIENTS.find(x=>x.name===name||x.initials===name.slice(0,2));
+        if(c && c.expiresDate){
+          const d = new Date(c.expiresDate);
+          d.setDate(d.getDate()+7); // extend by 1 week per cancelled class
+          c.expiresDate = d.toISOString().split('T')[0];
+          c.nextPayment = d.getDate() + ' ' + ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'][d.getMonth()];
+        }
+      });
+      toast('✅ Занятие отменено. Абонементы записанных клиентов продлены на 7 дней!');
+    } else {
+      toast(adminLang==='ru'?'Занятие отменено':adminLang==='en'?'Class cancelled':'Ακυρώθηκε');
+    }
+  }
+  renderSchedule();
+  openSlotDetail(currentSlot.di, currentSlot.time, currentSlot.dateStr);
+}
+
+// ─── ADD SLOT MODAL ────────────────────────────────────────────
+function openAddSlotModal(){
+  document.getElementById('asm-action').value = 'add';
+  document.getElementById('asm-holiday-row').style.display = 'none';
+  document.getElementById('add-slot-modal').classList.add('open');
+}
+
+function saveSlotAction(){
+  const action = document.getElementById('asm-action').value;
+  const di = parseInt(document.getElementById('asm-day').value);
+  const time = document.getElementById('asm-time').value.split('–')[0];
+  const reason = document.getElementById('asm-reason').value;
+  const dates = getWeekDates();
+  const date = dates[di];
+  const dateStr = date.toISOString().split('T')[0];
+
+  if(action==='add'){
+    if(!extraSlots[weekOffset+'_'+di]) extraSlots[weekOffset+'_'+di]=[];
+    extraSlots[weekOffset+'_'+di].push({t:time, e:time, reason});
+    toast('✅ Дополнительное занятие добавлено!');
+  } else if(action==='cancel'||action==='holiday'){
+    const isHol = action==='holiday';
+    cancellations.push({type:isHol?'holiday':'slot', date:dateStr, endDate:dateStr, slot:time, reason, name:reason||dateStr});
+    if(isHol){
+      toast('✅ Праздник добавлен. Занятия перенесены клиентам.');
+    } else {
+      toast('Занятие отменено');
+    }
+  }
+  closeModal('add-slot-modal');
+  renderSchedule();
+}
+
+// Show holiday transfer warning
+document.getElementById('asm-action')?.addEventListener('change', function(){
+  document.getElementById('asm-holiday-row').style.display = 
+    this.value==='holiday'?'block':'none';
+});
+
+
+// ── SUPABASE ─────────────────────────────────────────────────
+const SUPABASE_URL='https://aiynojqislduodmaorix.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpeW5vanFpc2xkdW9kbWFvcml4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxODAwNjMsImV4cCI6MjA5Mzc1NjA2M30.BhDCyZWkc1DV8mzu1aQBQqRqMtrGoUQN2G8HYhtFoC8';
+const STUDIO_ID='a0000000-0000-0000-0000-000000000001';
+let sb=null;
+try{ if(typeof supabase!=='undefined') sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
+
+async function testConnection(){
+  const btn=document.getElementById('db-test-btn');
+  if(btn){btn.textContent='...';btn.disabled=true;}
+  try{
+    if(!sb) throw new Error('Supabase not loaded');
+    const {data,error}=await sb.from('studios').select('id,name').limit(1);
+    if(error) alert('❌ '+error.message);
+    else alert(data?.length ? '✅ studios: '+JSON.stringify(data[0]) : '✅ Connected · run schema_v2.sql to create tables');
+  }catch(e){ alert('❌ '+e.message); }
+  if(btn){btn.textContent='🔌 Test DB';btn.disabled=false;}
+}
+
+async function dbLoad(){
+  if(!sb) return;
+  try{
+    const {data,error}=await sb.from('clients')
+      .select('*,subscriptions(*)')
+      .eq('studio_id',STUDIO_ID)
+      .order('created_at',{ascending:false});
+    if(error||!data||!data.length) return;
+    CLIENTS.length=0;
+    data.forEach((c,i)=>{
+      const sub=c.subscriptions?.find(s=>s.is_active)||c.subscriptions?.[0];
+      const left=sub?(sub.total_classes-sub.used_classes):0;
+      const total=sub?.total_classes||8;
+      CLIENTS.push({
+        id:i+1,_uuid:c.id,
+        name:c.full_name,
+        initials:c.full_name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+        phone:c.phone||'',lang:(c.language||'el').toUpperCase(),
+        type:sub?.type||'8',left,total,
+        start:sub?.starts_at?isoFmt(sub.starts_at):'—',
+        paid:sub?.paid_at?isoFmt(sub.paid_at.split('T')[0]):'—',
+        nextPayment:sub?.expires_at?isoFmt(sub.expires_at):'—',
+        expiresDate:sub?.expires_at||null,
+        paidAmt:sub?'€'+sub.price:'—',
+        status:!c.is_active?'inactive':!sub?'inactive':left<=1?'danger':left<=2?'warn':'ok',
+        history:[]
+      });
+    });
+    renderClients(); renderDashboard();
+  }catch(e){console.error('dbLoad:',e.message);}
+}
+function isoFmt(iso){
+  if(!iso||iso==='—') return '—';
+  const p=iso.split('-');
+  return p.length>=3?p[2].slice(0,2)+'/'+p[1]:iso;
+}
+
+// ── BALANCE ADJUST ────────────────────────────────────────────
+function adjustBalance(id,delta){
+  const c=CLIENTS.find(x=>x.id===id); if(!c) return;
+  const newLeft=Math.max(0,Math.min(c.total,c.left+delta));
+  if(newLeft===c.left) return;
+  c.left=newLeft;
+  c.status=newLeft===0?'inactive':newLeft<=1?'danger':newLeft<=2?'warn':'ok';
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  toast(L(`Υπόλοιπο: ${newLeft}μ`,`Balance: ${newLeft}`,`Баланс: ${newLeft}`));
+  selectClient(id); renderClients();
+}
+
+// ── UPDATE START DATE (end = start+30 auto) ───────────────────
+function updateClientStart(id,isoDate){
+  const c=CLIENTS.find(x=>x.id===id); if(!c||!isoDate) return;
+  const p=isoDate.split('-');
+  c.start=p[2]+'/'+p[1];
+  const end=new Date(isoDate); end.setDate(end.getDate()+30);
+  const ep=end.toISOString().split('T')[0].split('-');
+  c.nextPayment=ep[2]+'/'+ep[1]; c.expiresDate=end.toISOString().split('T')[0];
+  const days=Math.ceil((end-new Date())/(864e5));
+  c.status=!c.left||c.left===0?'inactive':days<=7?'danger':days<=14?'warn':'ok';
+  renderClients(); selectClient(id);
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  toast(L(`${c.start}→${c.nextPayment}`,`${c.start}→${c.nextPayment}`,`${c.start}→${c.nextPayment}`));
+}
+
+// ── SCHEDULE ADDITIONS ────────────────────────────────────────
+let viewMode='week'; let currentDate=new Date(2026,4,4);
+let waitlist={};
+let schedFreq=2;
+
+function setViewMode(m){ viewMode=m; renderSchedule(); }
+function shiftWeek(d){
+  if(viewMode==='week'){ weekOffset+=d; }
+  else { currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+d,1); }
+  renderSchedule();
+}
+function getMonthDates(){
+  const y=currentDate.getFullYear(),m=currentDate.getMonth();
+  const first=new Date(y,m,1);
+  const dow=(first.getDay()+6)%7;
+  const start=new Date(first); start.setDate(1-dow);
+  const dates=[]; let d=new Date(start);
+  while(dates.length<42){ dates.push(new Date(d)); d.setDate(d.getDate()+1); }
+  return dates;
+}
+function renderMonthView(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const grid=document.getElementById('sched-grid'); if(!grid) return;
+  const today=new Date(), curM=currentDate.getMonth(), curY=currentDate.getFullYear();
+  const cells=getMonthDates();
+  const DAYS7=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ','Κυρ']:
+               adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat','Sun']:['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const SCH={0:['16:30','17:30','18:30','19:30'],1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+             2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
+             4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
+  grid.style.display='block';
+  let h=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px">
+    ${DAYS7.map((d,i)=>`<div style="text-align:center;font-size:10px;font-weight:600;padding:4px 0;color:${i>=5?'var(--red)':'var(--text2)'};">${d}</div>`).join('')}
+  </div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">`;
+  cells.forEach(date=>{
+    const isToday=date.toDateString()===today.toDateString();
+    const isCur=date.getMonth()===curM&&date.getFullYear()===curY;
+    const dow=(date.getDay()+6)%7; const isSun=dow===6;
+    const slots=isSun||!isCur?[]:(SCH[dow]||[]);
+    const bks=slots.map(t=>(slotBookingsMap[dow+'_'+t]||[]).length);
+    const full=bks.filter(b=>b>=CAP).length;
+    const canc=!isSun&&isCur&&slots.some(t=>isSlotCancelled(dow,t,date));
+    h+=`<div onclick="${isCur&&!isSun?'openDayView(new Date('+date.getTime()+'))':''}"
+      style="border:${isToday?'2px solid var(--accent)':'0.5px solid var(--border)'};border-radius:8px;
+             padding:4px 5px;min-height:56px;background:${isToday?'var(--accent)10':isCur?'var(--card)':'transparent'};
+             opacity:${isCur?1:.25};cursor:${isCur&&!isSun?'pointer':'default'}">
+      <div style="font-size:11px;font-weight:${isToday?700:400};color:${isToday?'var(--accent)':'var(--text)'}">${date.getDate()}</div>
+      ${isCur&&slots.length?`<div style="margin-top:2px">${canc
+        ?`<div style="font-size:8px;color:var(--red);background:var(--red-bg);border-radius:3px;padding:1px 3px;text-align:center">✕</div>`
+        :`<div style="font-size:9px;color:${full?'var(--red)':'var(--text3)'}">${slots.length}${L('μ','cl','зан')}</div>
+         <div style="display:flex;gap:1px;margin-top:2px">${bks.map(b=>`<div style="flex:1;height:3px;border-radius:1px;background:${b>=CAP?'var(--red)':b>0?'var(--accent)':'var(--border)'}"></div>`).join('')}</div>`
+      }</div>`:''}
+    </div>`;
+  });
+  h+='</div>'; grid.innerHTML=h;
+}
+function openDayView(date){
+  viewMode='week';
+  const base=new Date(2026,4,4);
+  weekOffset=Math.floor((date-base)/(7*864e5));
+  renderSchedule();
+}
+
+// ── ADD CLIENT TO SCHEDULE ────────────────────────────────────
+let scheduleTargetClientId=null;
+function openAddToScheduleModal(clientId){
+  scheduleTargetClientId=clientId;
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  let m=document.getElementById('add-to-sched-modal');
+  if(!m){m=document.createElement('div');m.className='modal-overlay';m.id='add-to-sched-modal';document.body.appendChild(m);}
+  const SCH={0:['16:30','17:30','18:30','19:30'],1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+             2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
+             4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
+  const DSHORT=adminLang==='el'?['Δε','Τρ','Τε','Πε','Πα','Σα']:adminLang==='en'?['Mo','Tu','We','Th','Fr','Sa']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  const slots=[];
+  for(let di=0;di<6;di++) (SCH[di]||[]).forEach(t=>slots.push({di,time:t}));
+  m.innerHTML=`<div class="modal" style="max-width:500px">
+    <div class="modal-title">${L('Προσθήκη στο πρόγραμμα','Add to schedule','Добавить в расписание')} — ${c.name}</div>
+    <div class="modal-sub">${L('Επιλέξτε θέσεις','Select slots','Выбери слоты — ✓ уже записан, красный = занято')}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;max-height:220px;overflow-y:auto" id="slot-checkboxes">
+      ${slots.map(s=>{
+        const key=s.di+'_'+s.time;
+        const booked=(slotBookingsMap[key]||[]).length;
+        const full=booked>=CAP; const isMine=(slotBookingsMap[key]||[]).includes(c.name);
+        return `<label style="display:flex;align-items:center;gap:4px;padding:5px 9px;border:0.5px solid ${isMine?'var(--accent)':full?'var(--red)':'var(--border)'};border-radius:8px;cursor:${full&&!isMine?'not-allowed':'pointer'};font-size:11px;background:${isMine?'var(--accent)':full?'var(--red-bg)':'var(--bg2)'};color:${isMine?'var(--bg)':'var(--text)'}">
+          <input type="checkbox" ${isMine?'checked':''} ${full&&!isMine?'disabled':''} onchange="updateSchedSelCount()" data-di="${s.di}" data-time="${s.time}" style="accent-color:var(--accent)">
+          <span><b>${DSHORT[s.di]}</b> ${s.time}</span>
+          <span style="font-size:9px;opacity:.7">${isMine?'✓':full?L('full','full','полн'):CAP-booked+L('θ','sp','м')}</span>
+        </label>`;
+      }).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--text2);background:var(--bg2);border-radius:8px;padding:7px 10px;margin-bottom:10px">${L('✅ Αλλαγές για επόμενο μήνα','✅ Changes apply for next month','✅ Изменения применяются на следующий месяц')}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('add-to-sched-modal')">${L('Ακύρωση','Cancel','Отмена')}</button>
+      <button class="btn primary" onclick="saveClientSchedule(${clientId})">${L('Αποθήκευση','Save','Сохранить')}</button>
+    </div>
+  </div>`;
+  m.classList.add('open');
+  setTimeout(updateSchedSelCount,50);
+}
+function updateSchedSelCount(){
+  const n=document.querySelectorAll('#slot-checkboxes input:checked').length;
+  // nothing displayed but kept for future use
+}
+function saveClientSchedule(id){
+  const c=CLIENTS.find(x=>x.id===id); if(!c) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const boxes=document.querySelectorAll('#slot-checkboxes input[type=checkbox]');
+  let added=0,removed=0,wl=0;
+  boxes.forEach(cb=>{
+    const key=cb.dataset.di+'_'+cb.dataset.time;
+    if(!slotBookingsMap[key]) slotBookingsMap[key]=[];
+    const idx=slotBookingsMap[key].indexOf(c.name);
+    if(cb.checked&&idx===-1){
+      if(slotBookingsMap[key].length>=CAP){
+        const wk=key+'_wl'; if(!waitlist[wk]) waitlist[wk]=[];
+        if(!waitlist[wk].some(w=>w.name===c.name)){waitlist[wk].push({name:c.name});wl++;}
+      } else { slotBookingsMap[key].push(c.name); added++; }
+    }
+    if(!cb.checked&&idx>-1){ slotBookingsMap[key].splice(idx,1); removed++; }
+  });
+  closeModal('add-to-sched-modal');
+  let msg=L(`+${added}/-${removed}`,`+${added}/-${removed}`,`+${added}/-${removed} слотов`);
+  if(wl) msg+=L(` ·${wl} αναμ.`,` ·${wl} waitlist`,` ·${wl} в очереди`);
+  toast(msg); renderSchedule();
+}
+
+// ── MANAGE BOOKINGS ───────────────────────────────────────────
+function openManageBookingsModal(id){
+  const c=CLIENTS.find(x=>x.id===id); if(!c) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  let m=document.getElementById('manage-bookings-modal');
+  if(!m){m=document.createElement('div');m.className='modal-overlay';m.id='manage-bookings-modal';document.body.appendChild(m);}
+  const mine=Object.entries(slotBookingsMap).filter(([,v])=>v.includes(c.name));
+  const DAYS=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  m.innerHTML=`<div class="modal" style="max-width:420px">
+    <div class="modal-title">${L('Κρατήσεις','Bookings','Записи')} — ${c.name}</div>
+    <div style="max-height:280px;overflow-y:auto;margin-bottom:12px">
+      ${mine.length===0?`<div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">${L('Κανένα','None','Нет записей')}</div>`
+        :mine.map(([k])=>{
+          const parts=k.split('_'); const di=parts[0]; const time=parts.slice(1).join('_');
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px">
+            <span><b>${DAYS[di]}</b> · ${time}</span>
+            <button class="btn sm danger" onclick="removeClientFromSlot(${id},'${k}')">${L('Αφαίρ.','Remove','Удалить')}</button>
+          </div>`;
+        }).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:8px">
+      <button class="btn danger" onclick="removeAllFutureBookings(${id})" style="font-size:11px">${L('✕ Όλες','✕ All future','✕ Все будущие')}</button>
+      <button class="btn primary" onclick="closeModal('manage-bookings-modal')">${L('Κλείσιμο','Close','Закрыть')}</button>
+    </div>
+  </div>`;
+  m.classList.add('open');
+}
+function removeClientFromSlot(id,key){
+  const c=CLIENTS.find(x=>x.id===id); if(!c) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const arr=slotBookingsMap[key]; if(!arr) return;
+  const i=arr.indexOf(c.name); if(i>-1) arr.splice(i,1);
+  toast(L('Αφαιρέθηκε','Removed','Удалено'));
+  openManageBookingsModal(id); renderSchedule();
+}
+function removeAllFutureBookings(id){
+  const c=CLIENTS.find(x=>x.id===id); if(!c) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(!confirm(L('Αφαίρεση από όλα;','Remove from all?','Удалить из всех слотов?'))) return;
+  Object.keys(slotBookingsMap).forEach(k=>{
+    const i=slotBookingsMap[k].indexOf(c.name); if(i>-1) slotBookingsMap[k].splice(i,1);
+  });
+  toast(L('Αφαιρέθηκε από όλα','Removed from all','Удалён из всех слотов'));
+  closeModal('manage-bookings-modal'); renderSchedule();
+}
+
+// ── WAITLIST ──────────────────────────────────────────────────
+function addToWaitlist(di,time,dateStr){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const sel=document.querySelector('#book-modal select'); if(!sel) return;
+  const name=sel.value; if(!name) return;
+  const key=di+'_'+time+'_'+(dateStr||'');
+  if(!waitlist[key]) waitlist[key]=[];
+  if(!waitlist[key].find(w=>w.name===name)){
+    waitlist[key].push({name,addedAt:new Date().toISOString()});
+    toast(L(`${name} → λίστα`,`${name} → waitlist`,`${name} → лист ожидания`));
+  } else { toast(L('Ήδη','Already on list','Уже в очереди')); }
+  closeModal('book-modal');
+}
+
+// ── NEW CLIENT MODAL ──────────────────────────────────────────
+function openNewClientModal(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  let m=document.getElementById('new-client-modal');
+  if(!m){
+    m=document.createElement('div'); m.className='modal-overlay'; m.id='new-client-modal';
+    m.innerHTML=`<div class="modal">
+      <div class="modal-title" id="ncm-title"></div>
+      <div class="form-grid-2" style="margin-bottom:10px">
+        <div class="ff"><label id="ncm-name-lbl"></label><input id="ncm-name" type="text"></div>
+        <div class="ff"><label id="ncm-phone-lbl"></label><input id="ncm-phone" type="tel" placeholder="+357 99..."></div>
+      </div>
+      <div class="form-grid-2" style="margin-bottom:10px">
+        <div class="ff"><label id="ncm-lang-lbl"></label>
+          <select id="ncm-lang"><option value="el">Ελληνικά</option><option value="en">English</option><option value="ru">Русский</option></select>
+        </div>
+        <div class="ff"><label id="ncm-start-lbl"></label><input id="ncm-start" type="date"></div>
+      </div>
+      <div class="form-grid-2" style="margin-bottom:12px">
+        <div class="ff"><label id="ncm-sub-lbl"></label>
+          <select id="ncm-sub"><option value="none">—</option><option value="8">8 × €120</option><option value="12">12 × €160</option><option value="single">1 × €25</option></select>
+        </div>
+        <div class="ff"><label id="ncm-method-lbl"></label>
+          <select id="ncm-method"><option value="revolut">Revolut</option><option value="cash"></option><option value="bank"></option></select>
+        </div>
+      </div>
+      <div id="ncm-err" style="display:none;font-size:11px;color:var(--red);background:var(--red-bg);padding:6px 10px;border-radius:7px;margin-bottom:8px"></div>
+      <div class="modal-actions">
+        <button class="btn" id="ncm-cancel-btn" onclick="closeModal('new-client-modal')"></button>
+        <button class="btn primary" id="ncm-save-btn" onclick="saveNewClient()"></button>
+      </div>
+    </div>`;
+    document.body.appendChild(m);
+  }
+  document.getElementById('ncm-title').textContent=L('Νέος πελάτης','New client','Новый клиент');
+  document.getElementById('ncm-name-lbl').textContent=L('Όνομα','Name','Имя');
+  document.getElementById('ncm-phone-lbl').textContent=L('Τηλέφωνο','Phone','Телефон');
+  document.getElementById('ncm-lang-lbl').textContent=L('Γλώσσα','Language','Язык');
+  document.getElementById('ncm-start-lbl').textContent=L('Ημ. έναρξης','Start date','Дата начала');
+  document.getElementById('ncm-sub-lbl').textContent=L('Συνδρομή','Membership','Абонемент');
+  document.getElementById('ncm-method-lbl').textContent=L('Τρόπος','Method','Способ оплаты');
+  document.getElementById('ncm-cancel-btn').textContent=L('Ακύρωση','Cancel','Отмена');
+  document.getElementById('ncm-save-btn').textContent=L('Αποθήκευση','Save','Сохранить');
+  const msel=document.getElementById('ncm-method');
+  if(msel){msel.options[1].text=L('Μετρητά','Cash','Наличные');msel.options[2].text=L('Τράπεζα','Bank','Банк');}
+  document.getElementById('ncm-name').value='';
+  document.getElementById('ncm-phone').value='';
+  document.getElementById('ncm-start').value=new Date().toISOString().split('T')[0];
+  document.getElementById('ncm-err').style.display='none';
+  m.classList.add('open');
+  setTimeout(()=>document.getElementById('ncm-name').focus(),100);
+}
+
+async function saveNewClient(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const name=document.getElementById('ncm-name').value.trim();
+  const phone=document.getElementById('ncm-phone').value.trim();
+  const lang=document.getElementById('ncm-lang').value;
+  const startDate=document.getElementById('ncm-start').value||new Date().toISOString().split('T')[0];
+  const subType=document.getElementById('ncm-sub').value;
+  const method=document.getElementById('ncm-method').value;
+  const errEl=document.getElementById('ncm-err');
+  const saveBtn=document.getElementById('ncm-save-btn');
+  if(!name){errEl.textContent=L('Εισάγετε όνομα','Enter name','Введите имя');errEl.style.display='block';return;}
+  errEl.style.display='none';
+  saveBtn.disabled=true; saveBtn.textContent=L('...','...','...');
+  try{
+    let uuid=null;
+    if(sb){
+      const {data,error}=await sb.from('clients').insert({
+        studio_id:STUDIO_ID,full_name:name,phone:phone||null,
+        language:lang,is_active:true,gdpr_consent:true,gdpr_consent_at:new Date().toISOString()
+      }).select().single();
+      if(!error&&data){
+        uuid=data.id;
+        if(subType!=='none'){
+          const priceMap={'8':120,'12':160,'single':25};
+          const total={'8':8,'12':12,'single':1}[subType]||8;
+          const end=new Date(startDate); end.setDate(end.getDate()+30);
+          const {data:sub}=await sb.from('subscriptions').insert({
+            studio_id:STUDIO_ID,client_id:uuid,type:subType,total_classes:total,
+            used_classes:0,price:priceMap[subType],paid_at:new Date().toISOString(),
+            starts_at:startDate,expires_at:end.toISOString().split('T')[0],
+            payment_method:method,is_active:true
+          }).select().single();
+          if(sub){
+            await sb.from('payments').insert({
+              studio_id:STUDIO_ID,client_id:uuid,subscription_id:sub.id,
+              amount:priceMap[subType],method,status:'paid',paid_at:new Date().toISOString()
+            });
+          }
+        }
+      }
+    }
+    // Add to local array
+    const sp=startDate.split('-');
+    const endD=new Date(startDate); endD.setDate(endD.getDate()+30);
+    const ep=endD.toISOString().split('T')[0].split('-');
+    const total={'8':8,'12':12,'single':1}[subType]||0;
+    CLIENTS.unshift({
+      id:Date.now()%99999,_uuid:uuid,name,
+      initials:name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+      phone,lang:lang.toUpperCase(),
+      type:subType==='none'?'—':subType,
+      left:total,total:total||0,
+      start:subType==='none'?'—':sp[2]+'/'+sp[1],
+      paid:subType==='none'?'—':sp[2]+'/'+sp[1],
+      nextPayment:subType==='none'?'—':ep[2]+'/'+ep[1],
+      expiresDate:subType==='none'?null:endD.toISOString().split('T')[0],
+      paidAmt:subType==='none'?'—':{8:'€120',12:'€160',single:'€25'}[subType],
+      status:subType==='none'?'inactive':'ok',history:[]
+    });
+    closeModal('new-client-modal');
+    toast(L('Αποθηκεύτηκε!','Saved!','Клиент добавлен!'));
+    renderClients(); renderDashboard();
+  }catch(e){
+    errEl.textContent=L('Σφάλμα: ','Error: ','Ошибка: ')+e.message;
+    errEl.style.display='block';
+  }finally{
+    saveBtn.disabled=false; saveBtn.textContent=L('Αποθήκευση','Save','Сохранить');
+  }
+}
+
+let currentBookSlot=null;
+function confirmBooking(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const name=document.querySelector('#book-modal select')?.value||'';
+  if(!name){toast(L('Επιλέξτε','Select','Выберите клиента'));return;}
+  if(currentBookSlot){
+    const {di,time}=currentBookSlot;
+    const key=di+'_'+time;
+    if(!slotBookingsMap[key]) slotBookingsMap[key]=[];
+    if(slotBookingsMap[key].length>=CAP){
+      addToWaitlist(di,time,currentSlot?.dateStr||''); return;
+    }
+    if(!slotBookingsMap[key].includes(name)) slotBookingsMap[key].push(name);
+  }
+  closeModal('book-modal');
+  toast(L('Κράτηση ✓','Booked ✓','Запись подтверждена!'));
+  renderSchedule();
+  if(currentSlot) openSlotDetail(currentSlot.di,currentSlot.time,currentSlot.dateStr);
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+renderDashboard();
+renderSchedule();
+applyAdminLang();
+selPM('revolut');
+document.querySelector('.nav-item').classList.add('active');
+if(typeof supabase!=='undefined') setTimeout(dbLoad,300);
+</script>
+
+<!-- CANCEL MODAL -->
+<div class="modal-overlay" id="cancel-modal">
+  <div class="modal">
+    <div class="modal-title">Добавить отмену / Праздник</div>
+    <div class="modal-sub">Выберите дату и тип отмены</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div class="ff"><label>Дата</label><input type="date" id="cm-date" value="2026-05-19"></div>
+      <div class="ff"><label>Тип отмены</label>
+        <select id="cm-type" onchange="toggleCancelSlot()">
+          <option value="all">Весь день (все занятия)</option>
+          <option value="slot">Конкретный слот</option>
+          <option value="holiday">Праздничный день</option>
+          <option value="vacation">Отпуск / закрыто</option>
+        </select>
+      </div>
+    </div>
+    <div id="cm-slot-row" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div class="ff"><label>Слот</label>
+        <select id="cm-slot">
+          <option>07:00–08:00</option><option>08:00–09:00</option><option>09:15–10:15</option>
+          <option>16:30–17:30</option><option>17:30–18:30</option><option>18:30–19:30</option><option>19:30–20:30</option>
+          <option>09:30–10:30</option><option>10:30–11:30</option>
+        </select>
+      </div>
+      <div class="ff"><label>Причина</label><input type="text" id="cm-reason" placeholder="Необязательно"></div>
+    </div>
+    <div id="cm-vacation-row" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div class="ff"><label>Дата окончания</label><input type="date" id="cm-vac-end" value="2026-05-25"></div>
+      <div class="ff"><label>Причина</label><input type="text" id="cm-reason2" placeholder="Отпуск, ремонт..."></div>
+    </div>
+    <div style="background:var(--green-bg);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2)">
+      ✅ Занятие НЕ списывается с абонемента клиента. Записанные клиенты получат уведомление.
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('cancel-modal')">Отмена</button>
+      <button class="btn primary" onclick="saveCancellation()">Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ADD SLOT MODAL -->
+<div class="modal-overlay" id="add-slot-modal">
+  <div class="modal">
+    <div class="modal-title" id="asm-title">Добавить / Отменить занятие</div>
+    <div class="modal-sub">Ручное управление расписанием</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div class="ff"><label>День</label>
+        <select id="asm-day">
+          <option value="0">Понедельник</option><option value="1">Вторник</option>
+          <option value="2">Среда</option><option value="3">Четверг</option>
+          <option value="4">Пятница</option><option value="5">Суббота</option>
+        </select>
+      </div>
+      <div class="ff"><label>Тип</label>
+        <select id="asm-action">
+          <option value="add">Добавить доп. занятие</option>
+          <option value="cancel">Отменить занятие</option>
+          <option value="holiday">Праздник / Выходной</option>
+        </select>
+      </div>
+    </div>
+    <div class="ff" style="margin-bottom:10px"><label>Время</label>
+      <select id="asm-time">
+        <option>07:00–08:00</option><option>08:00–09:00</option><option>09:15–10:15</option>
+        <option>09:30–10:30</option><option>10:30–11:30</option>
+        <option>16:30–17:30</option><option>17:30–18:30</option><option>18:30–19:30</option><option>19:30–20:30</option>
+        <option>Другое время...</option>
+      </select>
+    </div>
+    <div class="ff" style="margin-bottom:10px"><label>Причина / Комментарий</label>
+      <input type="text" id="asm-reason" placeholder="Необязательно — праздник, доп. занятие...">
+    </div>
+    <div id="asm-holiday-row" style="display:none;background:var(--wbg);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--warn);margin-bottom:10px">
+      ⚠ При отмене из-за праздника — неиспользованные занятия будут <strong>перенесены</strong> на следующий период автоматически
+    </div>
+    <div style="background:var(--green-bg);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2)" id="asm-info">
+      ✅ Занятие НЕ списывается с абонемента клиента. Записанные клиенты получат уведомление.
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('add-slot-modal')">Отмена</button>
+      <button class="btn primary" onclick="saveSlotAction()">Save</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
