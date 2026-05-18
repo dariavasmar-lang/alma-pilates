@@ -842,7 +842,7 @@ function renderClients(search=''){
       <div class="page-title">${t.clients}</div>
       <div class="page-sub">${CLIENTS.filter(c=>c.status!=='inactive').length} ${L('ενεργοί','active','активных')} · ${CLIENTS.filter(c=>c.status==='warn'||c.status==='danger').length} ${L('προσοχή','need attention','требуют внимания')}</div>
     </div>
-    <button class="btn primary" onclick="openNewClientModal()">+ ${t.newClient||'New client'}</button>`;
+    <button class="btn primary" onclick="openNewClientModal()">${t.newClient||'+ New client'}</button>`;
 
   // Search placeholder
   const si=document.getElementById('client-search');
@@ -852,7 +852,7 @@ function renderClients(search=''){
   const ff=document.getElementById('client-filters');
   if(ff) ff.innerHTML=`
     <button class="fp ${clientFilter==='all'?'active':''}" onclick="setClientFilter('all',this)">${t.allClients||'All'}</button>
-    <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">⚠ ${t.warningClients||'Expiring'}</button>
+    <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">${t.warningClients||'⚠ Expiring'}</button>
     <button class="fp ${clientFilter==='active'?'active':''}" onclick="setClientFilter('active',this)">${t.activeClients||'Active'}</button>
     <button class="fp ${clientFilter==='inactive'?'active':''}" onclick="setClientFilter('inactive',this)">${t.inactiveClients||'Inactive'}</button>`;
 
@@ -2800,7 +2800,7 @@ function openNewClientModal(){
     m.innerHTML=`<div class="modal">
       <div class="modal-title" id="ncm-title"></div>
       <div class="form-grid-2" style="margin-bottom:10px">
-        <div class="ff"><label id="ncm-name-lbl"></label><input id="ncm-name" type="text"></div>
+        <div class="ff"><label id="ncm-name-lbl"></label><input id="ncm-name" type="text" placeholder="First Last" lang="en" oninput="this.value=this.value.replace(/[^a-zA-Z\s\-'.]/g,'')"><div style="font-size:10px;color:var(--text3);margin-top:3px" id="ncm-name-hint"></div></div>
         <div class="ff"><label id="ncm-phone-lbl"></label><input id="ncm-phone" type="tel" placeholder="+357 99..."></div>
       </div>
       <div class="form-grid-2" style="margin-bottom:10px">
@@ -2826,7 +2826,8 @@ function openNewClientModal(){
     document.body.appendChild(m);
   }
   document.getElementById('ncm-title').textContent=L('Νέος πελάτης','New client','Новый клиент');
-  document.getElementById('ncm-name-lbl').textContent=L('Όνομα','Name','Имя');
+  document.getElementById('ncm-name-lbl').textContent=L('Όνομα (Latin)','Name (Latin)','Имя (латиница)');
+  document.getElementById('ncm-name-hint').textContent=L('Μόνο λατινικοί χαρακτήρες','Latin characters only','Только латинские буквы');
   document.getElementById('ncm-phone-lbl').textContent=L('Τηλέφωνο','Phone','Телефон');
   document.getElementById('ncm-lang-lbl').textContent=L('Γλώσσα','Language','Язык');
   document.getElementById('ncm-start-lbl').textContent=L('Ημ. έναρξης','Start date','Дата начала');
