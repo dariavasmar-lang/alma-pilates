@@ -366,37 +366,12 @@ tbody tr.selected{background:#EDE4D8}
 <div id="page-payments" class="page" style="display:none">
   <div class="page-header" id="pay-page-header"></div>
   <div class="metrics" id="pay-metrics"></div>
+  <div id="pay-pending-block"></div>
   <div class="card">
-    <div class="card-head" id="pay-form-head"></div>
-    <div class="pay-method-grid">
-      <div class="pay-method selected rev" id="pm-revolut" onclick="selPM('revolut')"><span class="pm-icon">⚡</span><span class="pm-label">Revolut</span></div>
-      <div class="pay-method" id="pm-cash" onclick="selPM('cash')"><span class="pm-icon">💵</span><span class="pm-label" id="pm-cash-lbl">Cash</span></div>
-      <div class="pay-method" id="pm-bank" onclick="selPM('bank')"><span class="pm-icon">🏦</span><span class="pm-label" id="pm-bank-lbl">Bank transfer</span></div>
-      <div class="pay-method" id="pm-card" onclick="selPM('card')"><span class="pm-icon">💳</span><span class="pm-label" id="pm-card-lbl">Card</span></div>
+    <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
+      <span id="pay-hist-head">История платежей</span>
+      <div class="filter-row" id="pay-filters" style="margin:0"></div>
     </div>
-    <div class="form-grid">
-      <div class="ff"><label id="pay-client-lbl">Client</label><select id="pay-client"></select></div>
-      <div class="ff"><label id="pay-type-lbl">Type</label><select id="pay-type" onchange="updatePayAmt()">
-        <option value="120">8-class membership — €120</option>
-        <option value="160">12-class membership — €160</option>
-        <option value="25">Single class — €25</option>
-        <option value="0">Custom amount</option>
-      </select></div>
-      <div class="ff"><label id="pay-amt-lbl">Amount (€)</label><input type="number" id="pay-amt" value="120"></div>
-    </div>
-    <div class="form-grid">
-      <div class="ff"><label id="pay-date-lbl">Payment date</label><input type="date" id="pay-date" value="2026-05-02"></div>
-      <div class="ff"><label id="pay-start-lbl">Membership start</label><input type="date" id="pay-start" value="2026-05-02"></div>
-      <div class="ff"><label id="pay-note-lbl">Note</label><input type="text" id="pay-note" placeholder="Optional..."></div>
-    </div>
-    <div style="display:flex;justify-content:flex-end;gap:8px">
-      <button class="btn" id="pay-clear-btn" onclick="renderPayments()">Clear</button>
-      <button class="btn primary" id="pay-submit-btn" onclick="submitPayment()">Create Revolut Payment Link ↗</button>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-head" id="pay-hist-head"></div>
-    <div class="filter-row" id="pay-filters"></div>
     <div id="payments-list"></div>
   </div>
 </div>
@@ -1765,83 +1740,225 @@ function setPayFilter(f,btn){
 }
 
 function renderPayments(){
-  const t=AL();
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  const mLabel={revolut:'Revolut',cash:t.pmCash||'Cash',bank:t.pmBank||'Bank',card:t.pmCard||'Card'};
+  const mLabel={revolut:'⚡ Revolut',cash:'💵 Наличные',bank:'🏦 Банк',card:'💳 Карта'};
+  const mColor={revolut:'#7B2FE8',cash:'#1D9E75',bank:'#378ADD',card:'#E24B4A'};
+  const mBg={revolut:'#EDE4FF',cash:'#E6F7F0',bank:'#E6F1FB',card:'#FDE8E8'};
 
-  // Page header
+  // Header
   const ph=document.getElementById('pay-page-header');
-  if(ph) ph.innerHTML=`<div><div class="page-title">${t.payTitle||'Payments'}</div><div class="page-sub">May 2026 · Alma Pilates</div></div>`;
+  if(ph) ph.innerHTML=`
+    <div><div class="page-title">Платежи</div><div class="page-sub">Май 2026 · Alma Pilates</div></div>
+    <button class="btn primary" onclick="openPayModal()">+ Добавить платёж</button>`;
 
   // Metrics
+  const paid=PAYMENTS.filter(p=>p.status==='paid');
+  const pending=PAYMENTS.filter(p=>p.status==='pending');
+  const income=paid.reduce((s,p)=>s+p.amt,0);
+  const pendingAmt=pending.reduce((s,p)=>s+p.amt,0);
   const pm=document.getElementById('pay-metrics');
-  if(pm){
-    const paid=PAYMENTS.filter(p=>p.status==='paid');
-    const pending=PAYMENTS.filter(p=>p.status==='pending');
-    const revPct=Math.round(paid.filter(p=>p.method==='revolut').length/Math.max(paid.length,1)*100);
-    pm.innerHTML=`
-      <div class="metric"><div class="metric-label">${L('Έσοδα','Income','Доход')}, May</div><div class="metric-val" style="color:var(--green)">€${paid.reduce((s,p)=>s+p.amt,0).toLocaleString()}</div><div class="metric-sub up">+12% vs April</div></div>
-      <div class="metric"><div class="metric-label">${L('Συναλλαγές','Transactions','Транзакций')}</div><div class="metric-val">${paid.length||19}</div><div class="metric-sub">this month</div></div>
-      <div class="metric"><div class="metric-label">${L('Εκκρεμείς','Pending','Ожидают')}</div><div class="metric-val">${pending.length||2}</div><div class="metric-sub warn">${pending.reduce((s,p)=>s+p.amt,0)||280} pending</div></div>
-      <div class="metric"><div class="metric-label">Revolut</div><div class="metric-val">${revPct||84}%</div><div class="metric-sub">${100-(revPct||84)}% ${L('μετρητά','cash','наличными')}</div></div>`;
-    pm.style.gridTemplateColumns='repeat(4,1fr)';
+  if(pm) pm.innerHTML=`
+    <div class="metric">
+      <div class="metric-label">Доход за май</div>
+      <div class="metric-val" style="color:var(--green)">€${income.toLocaleString()}</div>
+      <div class="metric-sub up">+12% vs апрель</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Транзакций</div>
+      <div class="metric-val">${paid.length}</div>
+      <div class="metric-sub">в этом месяце</div>
+    </div>
+    <div class="metric" style="cursor:${pending.length?'pointer':'default'}" onclick="${pending.length?'document.getElementById(\'pay-pending-block\').scrollIntoView({behavior:\'smooth\'})':''}">
+      <div class="metric-label">Ожидают оплаты</div>
+      <div class="metric-val" style="color:${pending.length?'var(--warn)':'var(--text)'}">${pending.length}</div>
+      <div class="metric-sub${pending.length?' warn':''}">${pending.length?'€'+pendingAmt+' не оплачено':'все оплачено'}</div>
+    </div>`;
+
+  // Pending block
+  const pb=document.getElementById('pay-pending-block');
+  if(pb){
+    if(!pending.length){pb.innerHTML='';} else {
+      pb.innerHTML=`<div style="background:#FFFBEB;border:1px solid #F59E0B33;border-radius:14px;padding:16px 18px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <span style="font-size:16px">⏳</span>
+          <div style="font-size:13px;font-weight:600;color:#92400E">Ожидают оплаты · €${pendingAmt}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          ${pending.map((p,i)=>`
+            <div style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:10px;padding:10px 12px;border:0.5px solid #F59E0B44">
+              <div style="width:36px;height:36px;border-radius:50%;background:#FEF3C7;color:#92400E;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.init}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:500;color:var(--text)">${p.name}</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:1px">${p.detail}</div>
+              </div>
+              <div style="font-size:14px;font-weight:600;color:#92400E;flex-shrink:0">€${p.amt}</div>
+              <div style="display:flex;gap:6px;flex-shrink:0">
+                <button onclick="markPendingPaid(${i})" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--green);border-radius:7px;background:transparent;cursor:pointer;color:var(--green);font-weight:500">✓ Оплачено</button>
+                <button onclick="sendRevolutLink('${p.name}')" style="font-size:11px;padding:4px 10px;border:0.5px solid #7B2FE8;border-radius:7px;background:transparent;cursor:pointer;color:#7B2FE8">⚡ Revolut</button>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    }
   }
-
-  // Form head
-  const fh=document.getElementById('pay-form-head');
-  if(fh) fh.textContent=t.newPayment||'New payment';
-
-  // Update pay method labels
-  const pmCashLbl=document.getElementById('pm-cash-lbl'); if(pmCashLbl) pmCashLbl.textContent=t.pmCash||'Cash';
-  const pmBankLbl=document.getElementById('pm-bank-lbl'); if(pmBankLbl) pmBankLbl.textContent=t.pmBank||'Bank';
-  const pmCardLbl=document.getElementById('pm-card-lbl'); if(pmCardLbl) pmCardLbl.textContent=t.pmCard||'Card';
-
-  // Populate client select
-  const cs=document.getElementById('pay-client');
-  if(cs) cs.innerHTML=CLIENTS.filter(c=>c.status!=='inactive').map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
-
-  // Labels
-  const labels={
-    'pay-client-lbl':L('Πελάτης','Client','Клиент'),
-    'pay-type-lbl':L('Τύπος','Type','Тип'),
-    'pay-amt-lbl':L('Ποσό (€)','Amount (€)','Сумма (€)'),
-    'pay-date-lbl':L('Ημ. πληρωμής','Payment date','Дата оплаты'),
-    'pay-start-lbl':L('Έναρξη','Start date','Начало абонемента'),
-    'pay-note-lbl':L('Σχόλιο','Note','Комментарий'),
-    'pay-hist-head':L('Ιστορικό πληρωμών','Payment history','История платежей'),
-  };
-  Object.entries(labels).forEach(([id,txt])=>{const el=document.getElementById(id);if(el)el.textContent=txt;});
-
-  // Submit btn
-  const sb=document.getElementById('pay-submit-btn');
-  if(sb) sb.textContent=currentPM==='revolut'?'Create Revolut Payment Link ↗':L('Αποθήκευση','Save payment','Сохранить платёж');
 
   // Filters
   const pf=document.getElementById('pay-filters');
   if(pf) pf.innerHTML=`
-    <button class="fp ${payFilter==='all'?'active':''}" onclick="setPayFilter('all',this)">${t.filterAll||'All'}</button>
+    <button class="fp ${payFilter==='all'?'active':''}" onclick="setPayFilter('all',this)">Все</button>
     <button class="fp ${payFilter==='revolut'?'active':''}" onclick="setPayFilter('revolut',this)">⚡ Revolut</button>
-    <button class="fp ${payFilter==='cash'?'active':''}" onclick="setPayFilter('cash',this)">💵 ${t.pmCash||'Cash'}</button>
-    <button class="fp ${payFilter==='bank'?'active':''}" onclick="setPayFilter('bank',this)">🏦 ${t.pmBank||'Bank'}</button>`;
+    <button class="fp ${payFilter==='cash'?'active':''}" onclick="setPayFilter('cash',this)">💵 Наличные</button>
+    <button class="fp ${payFilter==='bank'?'active':''}" onclick="setPayFilter('bank',this)">🏦 Банк</button>
+    <button class="fp ${payFilter==='card'?'active':''}" onclick="setPayFilter('card',this)">💳 Карта</button>`;
 
-  // List
+  // History list
   const list=document.getElementById('payments-list');
-  if(list){
-    const filtered=payFilter==='all'?PAYMENTS:PAYMENTS.filter(p=>p.method===payFilter);
-    list.innerHTML=filtered.map(p=>`
-      <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:0.5px solid var(--border)">
-        <div style="width:6px;height:6px;border-radius:50%;background:${p.status==='paid'?'var(--green)':'#D4A017'};flex-shrink:0"></div>
-        <div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);color:var(--accent);font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.init}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:500;color:var(--text)">${p.name}</div>
-          <div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:5px">${p.detail} <span class="badge ${p.method}">${mLabel[p.method]||p.method}</span></div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:13px;font-weight:500;color:${p.status==='paid'?'var(--green)':'var(--warn)'}">${p.status==='paid'?'+':''}€${p.amt}</div>
-          <div style="font-size:10px;color:var(--text3)">${p.date}</div>
-        </div>
-      </div>`).join('');
+  if(!list) return;
+  const paidOnly=PAYMENTS.filter(p=>p.status==='paid');
+  const filtered=payFilter==='all'?paidOnly:paidOnly.filter(p=>p.method===payFilter);
+  if(!filtered.length){
+    list.innerHTML=`<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px 0">Платежей нет</div>`;
+    return;
   }
+  list.innerHTML=filtered.map((p,i)=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:0.5px solid var(--border)">
+      <div style="width:38px;height:38px;border-radius:50%;background:var(--bg3);color:var(--accent);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.init}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;color:var(--text)">${p.name}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${p.detail}</div>
+      </div>
+      <span style="font-size:10px;font-weight:500;padding:3px 9px;border-radius:20px;background:${mBg[p.method]||'var(--bg2)'};color:${mColor[p.method]||'var(--text2)'};flex-shrink:0">${mLabel[p.method]||p.method}</span>
+      <div style="text-align:right;flex-shrink:0;min-width:60px">
+        <div style="font-size:14px;font-weight:600;color:var(--green)">+€${p.amt}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:1px">${p.date}</div>
+      </div>
+      <button onclick="deletePayment(${i})" style="font-size:10px;padding:3px 7px;border:0.5px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--text3);flex-shrink:0">✕</button>
+    </div>`).join('');
+}
+
+function markPendingPaid(idx){
+  const pending=PAYMENTS.filter(p=>p.status==='pending');
+  const p=pending[idx];
+  if(!p) return;
+  p.status='paid';
+  p.date=localDateStr(new Date());
+  renderPayments();
+  toast(p.name+' — платёж подтверждён');
+}
+
+function sendRevolutLink(name){
+  toast('Ссылка Revolut отправлена → '+name);
+}
+
+function deletePayment(visIdx){
+  const paidOnly=PAYMENTS.filter(p=>p.status==='paid');
+  const filtered=payFilter==='all'?paidOnly:paidOnly.filter(p=>p.method===payFilter);
+  const target=filtered[visIdx];
+  if(!target) return;
+  const i=PAYMENTS.indexOf(target);
+  if(i>-1) PAYMENTS.splice(i,1);
+  renderPayments();
+}
+
+function openPayModal(){
+  const clientOpts=CLIENTS.filter(c=>c.status!=='inactive').map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  const today=localDateStr(new Date());
+  let m=document.getElementById('pay-add-modal');
+  if(!m){m=document.createElement('div');m.className='modal-overlay';m.id='pay-add-modal';document.body.appendChild(m);}
+  m.innerHTML=`<div class="modal" style="width:520px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-family:var(--serif);font-size:17px;color:var(--text)">Новый платёж</div>
+      <button onclick="closeModal('pay-add-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      ${[['revolut','⚡','Revolut'],['cash','💵','Наличные'],['bank','🏦','Банк'],['card','💳','Карта']].map(([val,icon,lbl])=>`
+        <div onclick="pamSelMethod('${val}')" id="pam-m-${val}" style="padding:10px;border-radius:10px;border:1.5px solid ${val==='revolut'?'var(--accent)':'var(--border)'};background:${val==='revolut'?'var(--accent-bg)':'var(--bg2)'};cursor:pointer;text-align:center">
+          <div style="font-size:18px;margin-bottom:3px">${icon}</div>
+          <div style="font-size:11px;font-weight:500;color:var(--text)">${lbl}</div>
+        </div>`).join('')}
+    </div>
+    <div class="form-grid" style="gap:10px">
+      <div class="ff">
+        <label style="font-size:11px;color:var(--text2);font-weight:500">Клиент</label>
+        <select id="pam-client" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px">${clientOpts}</select>
+      </div>
+      <div class="ff">
+        <label style="font-size:11px;color:var(--text2);font-weight:500">Абонемент</label>
+        <select id="pam-type" onchange="pamUpdateAmt()" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px">
+          <option value="8|120">8 занятий — €120</option>
+          <option value="12|160">12 занятий — €160</option>
+          <option value="1|25">Разовое — €25</option>
+          <option value="0|0">Другая сумма</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid" style="gap:10px;margin-top:10px">
+      <div class="ff">
+        <label style="font-size:11px;color:var(--text2);font-weight:500">Сумма €</label>
+        <input type="number" id="pam-amt" value="120" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
+      </div>
+      <div class="ff">
+        <label style="font-size:11px;color:var(--text2);font-weight:500">Дата платежа</label>
+        <input type="date" id="pam-date" value="${today}" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
+      </div>
+    </div>
+    <div class="ff" style="margin-top:10px">
+      <label style="font-size:11px;color:var(--text2);font-weight:500">Комментарий</label>
+      <input type="text" id="pam-note" placeholder="Опционально..." style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('pay-add-modal')">Отмена</button>
+      <button class="btn primary" id="pam-submit" onclick="submitPayModal()">Сохранить платёж</button>
+    </div>
+  </div>`;
+  m.classList.add('open');
+  window._pamMethod='revolut';
+}
+
+function pamSelMethod(val){
+  window._pamMethod=val;
+  ['revolut','cash','bank','card'].forEach(k=>{
+    const el=document.getElementById('pam-m-'+k);
+    if(!el) return;
+    if(k===val){el.style.borderColor='var(--accent)';el.style.background='var(--accent-bg)';}
+    else{el.style.borderColor='var(--border)';el.style.background='var(--bg2)';}
+  });
+  const btn=document.getElementById('pam-submit');
+  if(btn) btn.textContent=val==='revolut'?'Создать ссылку Revolut ↗':'Сохранить платёж';
+}
+
+function pamUpdateAmt(){
+  const sel=document.getElementById('pam-type');
+  const amt=document.getElementById('pam-amt');
+  if(!sel||!amt) return;
+  const val=sel.value.split('|')[1];
+  if(val&&val!=='0') amt.value=val;
+}
+
+function submitPayModal(){
+  const client=document.getElementById('pam-client')?.value||'';
+  const typeVal=document.getElementById('pam-type')?.value||'8|120';
+  const amt=parseFloat(document.getElementById('pam-amt')?.value||'0');
+  const date=document.getElementById('pam-date')?.value||localDateStr(new Date());
+  const note=document.getElementById('pam-note')?.value.trim()||'';
+  if(!client||!amt) return toast('Заполни клиента и сумму');
+  const classes=typeVal.split('|')[0];
+  const detailMap={'8':'8 занятий','12':'12 занятий','1':'Разовое','0':'Другое'};
+  const init=client.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const ruMo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  const d=new Date(date);
+  const dateLabel=d.getDate()+' '+ruMo[d.getMonth()];
+  const detail=(detailMap[classes]||'Другое')+(note?' · '+note:'');
+  const isRevolut=window._pamMethod==='revolut';
+  PAYMENTS.unshift({
+    name:client, init, detail,
+    method:window._pamMethod||'cash',
+    amt, date:dateLabel,
+    status:isRevolut?'pending':'paid'
+  });
+  closeModal('pay-add-modal');
+  renderPayments();
+  toast(isRevolut?'Ссылка Revolut создана':'Платёж записан');
 }
 
 // ── EXPENSES ─────────────────────────────────────────────────
