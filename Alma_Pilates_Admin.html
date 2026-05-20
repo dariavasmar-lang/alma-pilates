@@ -91,6 +91,7 @@ tbody tr.selected{background:#EDE4D8}
 .badge.cash{background:var(--green-bg);color:var(--green)}
 .badge.bank{background:#E6F1FB;color:#0C447C}
 .badge.card{background:#EEEDFE;color:#3C3489}
+.badge.new-client{background:#EDE4FF;color:#7B2FE8;font-size:9px;padding:1px 6px;vertical-align:middle;margin-left:5px}
 
 /* DETAIL PANEL */
 .detail-panel{width:520px;border-left:0.5px solid var(--border);background:var(--card);padding:20px;display:none;flex-direction:column;gap:14px;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0}
@@ -345,6 +346,13 @@ tbody tr.selected{background:#EDE4D8}
     <div id="sdp-empty-att" style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center;display:none">Никто не записался</div>
   </div>
 
+  <!-- Waitlist -->
+  <div id="sdp-waitlist" style="display:none">
+    <div style="height:0.5px;background:var(--border);margin:10px 0"></div>
+    <div style="font-size:11px;font-weight:500;color:var(--warn);margin-bottom:7px;text-transform:uppercase;letter-spacing:.04em" id="sdp-wl-label">Лист ожидания</div>
+    <div id="sdp-wl-list" style="display:flex;flex-direction:column;gap:4px"></div>
+  </div>
+
   <div style="margin-top:auto;display:flex;flex-direction:column;gap:7px;padding-top:12px;border-top:0.5px solid var(--border)">
     <button class="btn primary" style="width:100%;justify-content:center" id="sdp-btn-book" onclick="openBookFromSlot()">+ Записать клиента</button>
     <button class="btn" style="width:100%;justify-content:center" id="sdp-btn-cancel" onclick="cancelSlotFromDetail()">Отменить занятие</button>
@@ -556,20 +564,7 @@ tbody tr.selected{background:#EDE4D8}
 <div class="toast" id="toast"></div>
 
 <!-- BOOK MODAL -->
-<div class="modal-overlay" id="book-modal">
-  <div class="modal">
-    <div class="modal-title">Записать клиента</div>
-    <div class="modal-sub" id="book-slot-info">Выберите занятие</div>
-    <div class="form-grid-2">
-      <div class="ff"><label>Клиент</label><select><option>Мария Константину</option><option>Анна Николаиду</option><option>Елена Папаиоанну</option><option>Ирина Смирнова</option><option>Наталья Кузнецова</option></select></div>
-      <div class="ff"><label>Тип записи</label><select><option>Записать (−1 из абонемента)</option><option>Пробное занятие</option></select></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal('book-modal')">Отмена</button>
-      <button class="btn primary" onclick="closeModal('book-modal');toast('Клиент записан!')">Подтвердить</button>
-    </div>
-  </div>
-</div>
+<div class="modal-overlay" id="book-modal"></div>
 
 <script>
 // ── DATA ──────────────────────────────────────────────────────
@@ -878,7 +873,7 @@ function renderClients(search=''){
     const typeLabel=c.type+(adminLang==='el'?' μαθ.':adminLang==='en'?' cl.':' зан.');
     const isSoon=isActive&&c.expiresDate&&new Date(c.expiresDate)<=new Date('2026-05-20');
     return `<tr onclick="selectClient(${c.id})" id="row-${c.id}">
-      <td><span style="width:26px;height:26px;border-radius:50%;background:var(--bg3);color:var(--accent);font-size:9px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;margin-right:7px;vertical-align:middle">${c.initials}</span><span style="font-size:12px;font-weight:500">${c.name}</span></td>
+      <td><span style="width:26px;height:26px;border-radius:50%;background:var(--bg3);color:var(--accent);font-size:9px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;margin-right:7px;vertical-align:middle">${c.initials}</span><span style="font-size:12px;font-weight:500">${c.name}</span>${c.isNew?`<span class="badge new-client">NEW</span>`:''}</td>
       <td style="color:var(--text2)">${typeLabel}</td>
       <td><span style="font-weight:500">${c.left}</span><span style="color:var(--text3)"> / ${c.total}</span><div class="progress" style="min-width:50px"><div class="progress-fill" style="width:${pct}%;background:${BAR_COLOR[c.status]}"></div></div></td>
       <td style="font-size:11px"><span style="color:${isSoon?'var(--warn)':'var(--text2)'}">${fmtDate(c.nextPayment)}</span>${isSoon?`<span style="font-size:9px;display:block;color:var(--warn)">soon</span>`:''}</td>
@@ -2257,26 +2252,101 @@ function applyAdminLang(){
 
 function getMonthNames(){ return AL().months||['Jan','Feb','Mar','Apr','May']; }
 
+let _bmTab='existing';
+
 function openBookModal(di, time){
   currentBookSlot=(di!==null&&di!==undefined)?{di,time}:null;
+  _bmTab='existing';
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const DAYS=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
-  const info=di!==null&&di!==undefined?DAYS[di]+' '+time:L('Επιλέξτε','Select','Выберите занятие');
-  const bsi=document.getElementById('book-slot-info');
-  if(bsi) bsi.textContent=info;
-  // Populate client dropdown
-  const sel=document.querySelector('#book-modal select');
-  if(sel) sel.innerHTML=CLIENTS.filter(c=>c.status!=='inactive').map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
-  // Show/hide waitlist button
-  const wlBtn=document.getElementById('bm-waitlist-btn');
-  const confBtn=document.getElementById('bm-confirm-btn');
-  if(di!==null&&di!==undefined){
-    const key=di+'_'+time;
-    const full=(slotBookingsMap[key]||[]).length>=CAP;
-    if(wlBtn) wlBtn.style.display=full?'block':'none';
-    if(confBtn) confBtn.style.display=full?'none':'block';
+  const info=di!==null&&di!==undefined?DAYS[di]+', '+time:L('Επιλέξτε','Select slot','Выберите занятие');
+  const key=di!==null&&di!==undefined?di+'_'+time:null;
+  const booked=key?(slotBookingsMap[key]||[]):[];
+  const isFull=booked.length>=CAP;
+  const dateStr=currentSlot?.dateStr||'any';
+  const wl=isFull?(waitlist[wlKey(di,time,dateStr)]||[]):[];
+
+  const activeClients=CLIENTS.filter(c=>c.status!=='inactive'&&!booked.includes(c.name));
+  const clientItems=activeClients.length
+    ?activeClients.map(c=>`
+      <label class="bm-client-row" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:0.5px solid var(--border);border-radius:10px;cursor:pointer;background:var(--bg2)">
+        <input type="radio" name="bm-client" value="${c.name}" style="accent-color:var(--accent);width:14px;height:14px;flex-shrink:0">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500;color:var(--text)">${c.name}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:1px">${c.left>0?c.left+' '+L('μαθ.','classes','зан. осталось'):L('Χωρίς συνδρομή','No subscription','Без абонемента')}</div>
+        </div>
+      </label>`).join('')
+    :`<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px 0">${L('Κανένας','No clients available','Нет доступных клиентов')}</div>`;
+
+  const m=document.getElementById('book-modal');
+  m.innerHTML=`<div class="modal" style="max-width:480px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <div>
+        <div style="font-family:var(--serif);font-size:17px;color:var(--text)">${L('Κράτηση','Book client','Записать клиента')}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">${info}</div>
+      </div>
+      <button onclick="closeModal('book-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;line-height:1">✕</button>
+    </div>
+    ${isFull?`<div style="padding:8px 12px;background:var(--red-bg);border:0.5px solid #E8A0A0;border-radius:10px;font-size:12px;color:var(--red);font-weight:500;margin-bottom:12px">
+      🔴 ${L('Πλήρες','Slot full','Слот заполнен')} · ${booked.length}/${CAP} — ${L('Λίστα αναμ.','Adding to waitlist','Добавление в лист ожидания')}
+      ${wl.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">${wl.map((w,i)=>`<div style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px"><span style="color:var(--warn);font-weight:600">${i+1}.</span>${w.name}</div>`).join('')}</div>`:''}
+    </div>`:''}
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button id="bm-tab-existing" onclick="bookModalTab('existing')"
+        style="flex:1;padding:7px;border-radius:8px;border:0.5px solid var(--accent);background:var(--accent);color:var(--bg);font-size:12px;font-weight:500;cursor:pointer">
+        ${L('Επιλογή','Choose client','Выбрать из списка')}</button>
+      <button id="bm-tab-new" onclick="bookModalTab('new')"
+        style="flex:1;padding:7px;border-radius:8px;border:0.5px solid var(--border);background:transparent;color:var(--text2);font-size:12px;font-weight:500;cursor:pointer">
+        + ${L('Νέος','New client','Новый клиент')}</button>
+    </div>
+    <div id="bm-existing-tab">
+      <input type="text" placeholder="🔍 ${L('Αναζήτηση...','Search...','Поиск...')}" oninput="filterBookClients(this.value)"
+        style="width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box;margin-bottom:8px">
+      <div id="bm-client-list" style="display:flex;flex-direction:column;gap:5px;max-height:260px;overflow-y:auto">${clientItems}</div>
+    </div>
+    <div id="bm-new-tab" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div><label style="font-size:11px;color:var(--text2);font-weight:500">${L('Όνομα (Latin)','Name (Latin)','Имя (латиница)')}</label>
+          <input id="bm-new-name" type="text" placeholder="First Last" oninput="this.value=this.value.replace(/[^a-zA-Z\\s\\-'.]/g,'')"
+            style="width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box;margin-top:4px"></div>
+        <div><label style="font-size:11px;color:var(--text2);font-weight:500">${L('Τηλέφωνο','Phone','Телефон')}</label>
+          <input id="bm-new-phone" type="tel" placeholder="+357 99..."
+            style="width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box;margin-top:4px"></div>
+      </div>
+      <div><label style="font-size:11px;color:var(--text2);font-weight:500">${L('Γλώσσα','Language','Язык')}</label>
+        <select id="bm-new-lang" style="width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;margin-top:4px">
+          <option value="el">Ελληνικά</option><option value="en">English</option><option value="ru">Русский</option>
+        </select>
+      </div>
+      <div id="bm-new-err" style="display:none;font-size:11px;color:var(--red);background:var(--red-bg);padding:6px 10px;border-radius:7px;margin-top:8px"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:12px;border-top:0.5px solid var(--border)">
+      <button class="btn" onclick="closeModal('book-modal')">${L('Ακύρωση','Cancel','Отмена')}</button>
+      <button class="btn primary" id="bm-confirm-btn" onclick="confirmBooking()" style="${isFull?'background:var(--warn);border-color:var(--warn)':''}">${isFull?'⏳ '+L('Λίστα','Add to waitlist','В лист ожидания'):L('Κράτηση','Book','Записать')}</button>
+    </div>
+  </div>`;
+  m.classList.add('open');
+}
+
+function bookModalTab(tab){
+  _bmTab=tab;
+  document.getElementById('bm-existing-tab').style.display=tab==='existing'?'block':'none';
+  document.getElementById('bm-new-tab').style.display=tab==='new'?'block':'none';
+  const ae=document.getElementById('bm-tab-existing'), an=document.getElementById('bm-tab-new');
+  if(tab==='existing'){
+    ae.style.cssText+=';background:var(--accent);color:var(--bg);border-color:var(--accent)';
+    an.style.cssText+=';background:transparent;color:var(--text2);border-color:var(--border)';
+  } else {
+    an.style.cssText+=';background:var(--accent);color:var(--bg);border-color:var(--accent)';
+    ae.style.cssText+=';background:transparent;color:var(--text2);border-color:var(--border)';
+    setTimeout(()=>document.getElementById('bm-new-name')?.focus(),50);
   }
-  document.getElementById('book-modal').classList.add('open');
+}
+
+function filterBookClients(q){
+  Array.from(document.querySelectorAll('#bm-client-list .bm-client-row')).forEach(row=>{
+    row.style.display=row.textContent.toLowerCase().includes(q.toLowerCase())?'':'none';
+  });
 }
 
 
@@ -2425,6 +2495,22 @@ function openSlotDetail(di, time, dateStr){
     btnCancel.style.width='100%'; btnCancel.style.justifyContent='center';
   }
 
+  // Waitlist section
+  const wlEl=document.getElementById('sdp-waitlist');
+  const wlList=document.getElementById('sdp-wl-list');
+  const wlLbl=document.getElementById('sdp-wl-label');
+  const key=wlKey(di,time,dateStr);
+  const wl=waitlist[key]||[];
+  if(wlEl) wlEl.style.display=wl.length?'block':'none';
+  if(wlLbl) wlLbl.textContent=(adminLang==='ru'?'Лист ожидания':adminLang==='en'?'Waitlist':'Λίστα αναμονής')+' ('+wl.length+')';
+  if(wlList) wlList.innerHTML=wl.map((w,i)=>`
+    <div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--warn-bg);border-radius:9px">
+      <div style="width:18px;height:18px;border-radius:50%;background:var(--warn);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
+      <span style="font-size:12px;font-weight:500;color:var(--text);flex:1">${w.name}</span>
+      ${w.phone?`<button onclick="notifyWaitlistFirst(${di},'${time}','${dateStr}')" title="WhatsApp" style="font-size:11px;padding:2px 6px;border:0.5px solid #25D366;border-radius:6px;background:transparent;cursor:pointer;color:#25D366">📱</button>`:''}
+      <button onclick="removeWaitlistEntry(${di},'${time}','${dateStr}',${i})" style="font-size:10px;padding:2px 6px;border:0.5px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--text3)">✕</button>
+    </div>`).join('');
+
   document.getElementById('slot-detail-panel').style.display = 'flex';
 }
 
@@ -2434,9 +2520,13 @@ function closeSlotDetail(){
 }
 
 function removeFromSlot(slotKey, idx){
-  if(SLOT_BOOKINGS[slotKey]) SLOT_BOOKINGS[slotKey].splice(idx,1);
-  if(currentSlot) openSlotDetail(currentSlot.di, currentSlot.time, currentSlot.dateStr);
-  toast(AL().toastReminderSent || 'Удалено');
+  if(slotBookingsMap[slotKey]) slotBookingsMap[slotKey].splice(idx,1);
+  renderSchedule();
+  if(currentSlot){
+    notifyWaitlistFirst(currentSlot.di, currentSlot.time, currentSlot.dateStr);
+    openSlotDetail(currentSlot.di, currentSlot.time, currentSlot.dateStr);
+  }
+  toast(adminLang==='ru'?'Запись удалена':adminLang==='en'?'Removed':'Αφαιρέθηκε');
 }
 
 function openBookFromSlot(){
@@ -2965,17 +3055,67 @@ function removeAllFutureBookings(id){
 }
 
 // ── WAITLIST ──────────────────────────────────────────────────
-function addToWaitlist(di,time,dateStr){
+function wlKey(di,time,dateStr){ return (dateStr||'any')+'|'+di+'|'+time; }
+
+function addToWaitlist(name,phone,di,time,dateStr){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  const sel=document.querySelector('#book-modal select'); if(!sel) return;
-  const name=sel.value; if(!name) return;
-  const key=di+'_'+time+'_'+(dateStr||'');
+  const key=wlKey(di,time,dateStr);
   if(!waitlist[key]) waitlist[key]=[];
-  if(!waitlist[key].find(w=>w.name===name)){
-    waitlist[key].push({name,addedAt:new Date().toISOString()});
-    toast(L(`${name} → λίστα`,`${name} → waitlist`,`${name} → лист ожидания`));
-  } else { toast(L('Ήδη','Already on list','Уже в очереди')); }
+  if(waitlist[key].find(w=>w.name===name)){
+    toast(L('Ήδη','Already on waitlist','Уже в листе ожидания')); return;
+  }
+  waitlist[key].push({name,phone:phone||'',addedAt:new Date().toISOString()});
   closeModal('book-modal');
+  toast(L(`${name} → λίστα`,`${name} → waitlist`,`${name} → лист ожидания`));
+  if(currentSlot) openSlotDetail(currentSlot.di,currentSlot.time,currentSlot.dateStr);
+}
+
+function removeWaitlistEntry(di,time,dateStr,idx){
+  const key=wlKey(di,time,dateStr);
+  if(waitlist[key]) waitlist[key].splice(idx,1);
+  openSlotDetail(di,time,dateStr);
+}
+
+function notifyWaitlistFirst(di,time,dateStr){
+  const key=wlKey(di,time,dateStr);
+  const wl=waitlist[key];
+  if(!wl||!wl.length) return;
+  const first=wl[0];
+  const DAYS=adminLang==='ru'?['Пн','Вт','Ср','Чт','Пт','Сб']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ'];
+  const msg=adminLang==='ru'
+    ?`Привет${first.name?' '+first.name.split(' ')[0]:''}! Место освободилось на занятии в ${DAYS[di]} ${time}. Напишите нам чтобы подтвердить запись!`
+    :`Hi${first.name?' '+first.name.split(' ')[0]:''}! A spot opened up for ${DAYS[di]} ${time}. Reply to confirm your booking!`;
+  showWaitlistNotif(first,di,time,dateStr,key,msg);
+}
+
+function showWaitlistNotif(person,di,time,dateStr,key,msg){
+  let n=document.getElementById('wl-notif');
+  if(!n){n=document.createElement('div');n.id='wl-notif';document.body.appendChild(n);}
+  const phone=(person.phone||'').replace(/\D/g,'');
+  const waUrl=phone?`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`:'';
+  n.innerHTML=`<div style="position:fixed;bottom:80px;right:24px;z-index:9999;background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,.18);max-width:300px">
+    <div style="font-size:10px;font-weight:600;color:var(--warn);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">⏳ ${adminLang==='ru'?'Лист ожидания':'Waitlist'}</div>
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px">${person.name}</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${adminLang==='ru'?'Первый в очереди':'First in queue'} · ${time}</div>
+    <div style="display:flex;gap:6px">
+      ${waUrl?`<button onclick="window.open('${waUrl}','_blank');dismissWLNotif()" style="flex:1;padding:7px;border-radius:8px;border:none;background:#25D366;color:#fff;font-size:11px;font-weight:600;cursor:pointer">📱 WhatsApp</button>`:''}
+      <button onclick="bookFromWaitlist('${key}',0,'${person.name}','${di}','${time}','${dateStr}')" style="flex:1;padding:7px;border-radius:8px;border:none;background:var(--accent);color:var(--bg);font-size:11px;font-weight:600;cursor:pointer">${adminLang==='ru'?'Записать':'Book'}</button>
+      <button onclick="dismissWLNotif()" style="padding:7px 10px;border-radius:8px;border:0.5px solid var(--border);background:transparent;font-size:12px;cursor:pointer;color:var(--text3)">✕</button>
+    </div>
+  </div>`;
+}
+
+function dismissWLNotif(){ const n=document.getElementById('wl-notif'); if(n) n.innerHTML=''; }
+
+function bookFromWaitlist(key,idx,name,di,time,dateStr){
+  if(waitlist[key]) waitlist[key].splice(idx,1);
+  const slotKey=di+'_'+time;
+  if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
+  if(!slotBookingsMap[slotKey].includes(name)) slotBookingsMap[slotKey].push(name);
+  dismissWLNotif();
+  toast(`✅ ${name} ${adminLang==='ru'?'записан!':'booked!'}`);
+  renderSchedule();
+  if(currentSlot) openSlotDetail(currentSlot.di,currentSlot.time,currentSlot.dateStr);
 }
 
 // ── NEW CLIENT MODAL ──────────────────────────────────────────
@@ -3089,7 +3229,7 @@ async function saveNewClient(){
       nextPayment:subType==='none'?'—':ep[2]+'/'+ep[1],
       expiresDate:subType==='none'?null:endD.toISOString().split('T')[0],
       paidAmt:subType==='none'?'—':{8:'€120',12:'€160',single:'€25'}[subType],
-      status:subType==='none'?'inactive':'ok',history:[]
+      status:subType==='none'?'inactive':'ok',history:[],isNew:true
     });
     closeModal('new-client-modal');
     toast(L('Αποθηκεύτηκε!','Saved!','Клиент добавлен!'));
@@ -3105,19 +3245,46 @@ async function saveNewClient(){
 let currentBookSlot=null;
 function confirmBooking(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  const name=document.querySelector('#book-modal select')?.value||'';
-  if(!name){toast(L('Επιλέξτε','Select','Выберите клиента'));return;}
+  if(_bmTab==='new'){
+    const name=(document.getElementById('bm-new-name')?.value||'').trim();
+    const phone=(document.getElementById('bm-new-phone')?.value||'').trim();
+    const lang=document.getElementById('bm-new-lang')?.value||'ru';
+    const errEl=document.getElementById('bm-new-err');
+    if(!name){errEl.textContent=L('Εισάγετε όνομα','Enter name','Введите имя');errEl.style.display='block';return;}
+    errEl.style.display='none';
+    CLIENTS.unshift({
+      id:Date.now()%99999, name,
+      initials:name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+      phone, lang:lang.toUpperCase(),
+      type:'—', left:0, total:0,
+      start:'—', paid:'—', nextPayment:'—', expiresDate:null,
+      status:'inactive', history:[], attendedMonth:0, upcoming:0, isNew:true
+    });
+    renderClients(); renderDashboard();
+    bookClientByName(name);
+    return;
+  }
+  const selected=document.querySelector('#bm-client-list input[name="bm-client"]:checked');
+  if(!selected){toast(L('Επιλέξτε','Select a client','Выберите клиента'));return;}
+  bookClientByName(selected.value);
+}
+
+function bookClientByName(name){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   if(currentBookSlot){
     const {di,time}=currentBookSlot;
-    const key=di+'_'+time;
-    if(!slotBookingsMap[key]) slotBookingsMap[key]=[];
-    if(slotBookingsMap[key].length>=CAP){
-      addToWaitlist(di,time,currentSlot?.dateStr||''); return;
+    const slotKey=di+'_'+time;
+    const dateStr=currentSlot?.dateStr||'any';
+    if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
+    if(slotBookingsMap[slotKey].length>=CAP){
+      const client=CLIENTS.find(c=>c.name===name);
+      addToWaitlist(name,client?.phone||'',di,time,dateStr);
+      return;
     }
-    if(!slotBookingsMap[key].includes(name)) slotBookingsMap[key].push(name);
+    if(!slotBookingsMap[slotKey].includes(name)) slotBookingsMap[slotKey].push(name);
   }
   closeModal('book-modal');
-  toast(L('Κράτηση ✓','Booked ✓','Запись подтверждена!'));
+  toast(L('Κράτηση ✓','Booked ✓','Записан!'));
   renderSchedule();
   if(currentSlot) openSlotDetail(currentSlot.di,currentSlot.time,currentSlot.dateStr);
 }
