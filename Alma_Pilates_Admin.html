@@ -2937,7 +2937,7 @@ function renderMonthView(){
     (SCH[dow]||[]).forEach(t=>{ mTotSlots++; mTotBooked+=(slotBookingsMap[dow+'_'+t]||[]).length; });
   });
   const smW=document.getElementById('sm-week');
-  if(smW) smW.textContent=L('Μαθήματα μήνα','Classes/month',L('','','Занятий/мес.'));
+  if(smW) smW.textContent=L('Μαθήματα μήνα','Classes/month','Занятий/мес.');
   const sTot=document.getElementById('s-tot'); if(sTot) sTot.textContent=mTotSlots;
   const sCap=document.getElementById('s-cap'); if(sCap) sCap.textContent=mTotSlots*CAP;
   const sBk=document.getElementById('s-bk'); if(sBk) sBk.textContent=mTotBooked;
@@ -2969,7 +2969,7 @@ function renderMonthView(){
       });
       const pct=totalCap>0?Math.round(totalBooked/totalCap*100):0;
       const barColor=pct>=100?'var(--red)':pct>=60?'var(--accent)':pct>0?'var(--green)':'var(--bg3)';
-      const lbl=totalBooked>0?`${totalBooked} зап.`:`${slots.length} зан.`;
+      const lbl=`${slots.length} ${L('μαθ.','classes','зан.')}`;
       middleHtml=`
         <div style="height:3px;border-radius:2px;background:var(--bg3);margin-top:7px;overflow:hidden">
           <div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px"></div>
@@ -2979,7 +2979,7 @@ function renderMonthView(){
       const hol=cancellations.find(c=>c.type!=='slot'&&dateStr>=c.date&&dateStr<=(c.endDate||c.date));
       const icon=hol?.type==='holiday'?'🎉':hol?.type==='vacation'?'🏖️':'✕';
       middleHtml=`<div style="font-size:13px;margin-top:5px">${icon}</div>
-        <div style="font-size:9px;color:var(--text3);margin-top:2px">выходной</div>`;
+        <div style="font-size:9px;color:var(--text3);margin-top:2px">${L('κλειστό','day off','выходной')}</div>`;
     }
 
     const cellBg=dayOff&&isCur?'#F5EEF8':isToday?'#FBF7F2':isCur?'var(--card)':'transparent';
