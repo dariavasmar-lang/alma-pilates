@@ -131,6 +131,10 @@ tbody tr.selected{background:#EDE4D8}
 .ph{height:46px}
 
 /* FINANCIALS */
+.chart-bar-wrap{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;position:relative;cursor:default}
+.chart-bar-wrap:hover .chart-tip{opacity:1;transform:translateY(0)}
+.chart-tip{position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%) translateY(4px);background:var(--text);color:var(--bg);font-size:10px;font-weight:600;padding:3px 7px;border-radius:6px;white-space:nowrap;opacity:0;transition:opacity .15s,transform .15s;pointer-events:none;z-index:10}
+.chart-tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:var(--text)}
 .tax-block{background:var(--bg2);border-radius:10px;padding:10px 13px}
 .tax-row{display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:var(--text2)}
 .tax-row.total{font-weight:500;color:var(--text);border-top:0.5px solid var(--border);margin-top:5px;padding-top:7px}
@@ -206,10 +210,6 @@ tbody tr.selected{background:#EDE4D8}
     Расписание
   </div>
   <div class="nav-section">Финансы</div>
-  <div class="nav-item" onclick="showPage('finance')">
-    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><path d="M2 12L6 8l3 3 5-6"/><path d="M1 15h14"/></svg>
-    <span id="nav-finance">Финансовый обзор</span>
-  </div>
   <div class="nav-item" onclick="showPage('payments')">
     <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><rect x="1" y="4" width="14" height="9" rx="1.5"/><path d="M1 7h14"/><circle cx="4.5" cy="10.5" r="1"/></svg>
     Платежи
@@ -237,10 +237,7 @@ tbody tr.selected{background:#EDE4D8}
 <div id="page-dashboard" class="page active">
   <div id="dash-page-header" class="page-header"></div>
   <div id="dash-metrics-row" class="metrics"></div>
-  <div id="dash-alert-banner" style="display:none;background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:12px;padding:10px 14px;align-items:center;gap:10px;margin-bottom:14px;cursor:pointer" onclick="showPage('clients')">
-    <div style="width:20px;height:20px;border-radius:50%;background:#D4B870;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--warn);font-weight:500;flex-shrink:0">!</div>
-    <span style="font-size:12px;color:var(--warn)" id="dash-alert-text"></span>
-  </div>
+  <div id="dash-pending"></div>
   <div class="two-col">
     <div class="card">
       <div class="card-head" id="dash-chart-head"></div>
@@ -251,6 +248,13 @@ tbody tr.selected{background:#EDE4D8}
       <div class="card-head" id="dash-alert-card-head"></div>
       <div id="alert-clients"></div>
     </div>
+  </div>
+  <div class="card">
+    <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Расходы по категориям</span>
+      <button onclick="showPage('expenses')" style="font-size:11px;padding:2px 8px;border:0.5px solid var(--border);border-radius:7px;background:transparent;cursor:pointer;color:var(--text3)">Подробнее →</button>
+    </div>
+    <div id="dash-exp-breakdown"></div>
   </div>
 </div>
 
@@ -430,59 +434,6 @@ tbody tr.selected{background:#EDE4D8}
     </div>
   </div>
 </div>
-
-
-<!-- FINANCE OVERVIEW -->
-<div id="page-finance" class="page" style="display:none">
-  <div class="page-header">
-    <div><div class="page-title" id="pg-fin-title">Финансовый обзор</div><div class="page-sub">Доходы и расходы · Alma Pilates</div></div>
-    <select id="fin-month-sel" style="font-size:12px;padding:6px 10px;border:0.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--text)">
-      <option value="5">Май 2026</option><option value="4">Апрель 2026</option><option value="3">Март 2026</option>
-    </select>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
-    <div class="metric" style="cursor:pointer" onclick="showPage('payments')"><div class="metric-label">Total Income</div><div class="metric-val" style="color:var(--green)">€2 840</div><div class="metric-sub up">+12% vs April</div></div>
-    <div class="metric" style="cursor:pointer" onclick="showPage('expenses')"><div class="metric-label">Total Expenses</div><div class="metric-val" style="color:var(--red)">€1 820</div><div class="metric-sub">this month</div></div>
-    <div class="metric"><div class="metric-label">Net Profit</div><div class="metric-val">€1 020</div><div class="metric-sub">this month</div></div>
-  </div>
-  <div class="two-col">
-    <div class="card">
-      <div class="card-head">Expenses by category</div>
-      <div id="fin-exp-breakdown"></div>
-    </div>
-    <div class="card">
-      <div class="card-head">Payment methods</div>
-      <div id="fin-methods"></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-head">Cash flow — 6 months
-      <div style="display:flex;gap:10px;font-size:11px;color:var(--text2)">
-        <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:2px;background:var(--green);display:inline-block"></span>Income</span>
-        <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:2px;background:var(--red);display:inline-block"></span>Expenses</span>
-      </div>
-    </div>
-    <div id="fin-cashflow"></div>
-  </div>
-</div>
-
-  <div class="card" style="margin-bottom:14px">
-    <div class="card-head">Праздники Кипра 2026 <span class="card-head-r">нажмите для быстрого добавления</span></div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px" id="cy-holidays-list"></div>
-  </div>
-
-  <div class="card" style="margin-bottom:14px">
-    <div class="card-head">Запланированные отмены <span class="card-head-r" id="cancel-count"></span></div>
-    <div id="cancel-list-items">
-      <div style="font-size:12px;color:var(--text3);text-align:center;padding:20px 0" id="cancel-empty-msg">Нет запланированных отмен</div>
-    </div>
-  </div>
-
-  <div style="background:var(--green-bg);border:0.5px solid #9FD8BE;border-radius:12px;padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.7">
-    ✅ <strong>Как это работает:</strong> При отмене занятие НЕ списывается с абонемента клиента — занятие просто пропускается. 
-    Клиенты, записанные на отменённое занятие, получат уведомление автоматически. 
-    Отменённые слоты отображаются красным в расписании.
-  </div>
 </div>
 
 </div><!-- /main -->
@@ -631,7 +582,7 @@ function showPage(id){
   if(id==='expenses') renderExpenses();
   if(id==='taxes') renderTaxChart();
   if(id==='settings') renderSettings();
-  if(id==='finance') renderFinancePage();
+
   if(id==='cancellations'){ renderHolidayChips(); renderCancelList(); }
   if(id==='dashboard') renderDashboard();
 }
@@ -640,9 +591,15 @@ function showPage(id){
 function renderDashboard(){
   const t=AL();
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  const income=PAYMENTS.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amt,0)||2840;
-  const expenses=EXPENSES.reduce((s,e)=>s+e.amt,0)||1820;
+  const paid=PAYMENTS.filter(p=>p.status==='paid');
+  const pending=PAYMENTS.filter(p=>p.status==='pending');
+  const income=paid.reduce((s,p)=>s+p.amt,0);
+  const pendingAmt=pending.reduce((s,p)=>s+p.amt,0);
+  const expenses=EXPENSES.reduce((s,e)=>s+e.amt,0);
   const profit=income-expenses;
+  const expectedProfit=income+pendingAmt-expenses;
+  const catTotals={};
+  EXPENSES.forEach(e=>catTotals[e.cat]=(catTotals[e.cat]||0)+e.amt);
   const warnClients=CLIENTS.filter(c=>c.status==='warn'||c.status==='danger');
   const activeClients=CLIENTS.filter(c=>c.status!=='inactive');
 
@@ -655,8 +612,8 @@ function renderDashboard(){
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn" id="db-test-btn" onclick="testConnection()" style="font-size:11px">🔌 Test DB</button>
-      <button class="btn" onclick="showPage('expenses')">+ ${t.addExpense}</button>
-      <button class="btn primary" onclick="showPage('payments')">+ ${t.newPayment}</button>
+      <button class="btn" onclick="showPage('expenses')">${t.addExpense}</button>
+      <button class="btn primary" onclick="showPage('payments')">${t.newPayment}</button>
     </div>`;
 
   // Metrics
@@ -674,8 +631,8 @@ function renderDashboard(){
     </div>
     <div class="metric">
       <div class="metric-label">${t.profit}</div>
-      <div class="metric-val">€${profit.toLocaleString()}</div>
-      <div class="metric-sub">${t.profSub}</div>
+      <div class="metric-val" style="color:${profit>=0?'var(--green)':'var(--red)'}">€${profit>=0?'+':''}${profit.toLocaleString()}</div>
+      <div class="metric-sub" style="color:var(--text3)">с ожид. Revolut: <span style="color:${expectedProfit>=0?'var(--green)':'var(--warn)'};font-weight:500">€${expectedProfit>=0?'+':''}${expectedProfit.toLocaleString()}</span></div>
     </div>
     <div class="metric" onclick="showPage('clients')" style="cursor:pointer">
       <div class="metric-label">${t.clientsLabel}</div>
@@ -683,17 +640,6 @@ function renderDashboard(){
       <div class="metric-sub warn">${warnClients.length} ${t.clientsSub}</div>
     </div>`;
 
-  // Alert banner
-  const ab=document.getElementById('dash-alert-banner');
-  const at=document.getElementById('dash-alert-text');
-  if(ab&&at){
-    if(warnClients.length>0){
-      ab.style.display='flex';
-      at.textContent=`${warnClients.length} ${t.alertText||'clients need attention →'}`;
-    } else {
-      ab.style.display='none';
-    }
-  }
 
   // Chart card head
   const ch=document.getElementById('dash-chart-head');
@@ -706,7 +652,10 @@ function renderDashboard(){
   const dc=document.getElementById('dash-chart');
   if(dc) dc.innerHTML=`
     <div style="display:flex;gap:3px;align-items:flex-end;height:70px;margin-bottom:5px">
-      ${cfI.map((v,i)=>`<div style="flex:1;background:${i===5?'var(--accent)':'#D8CEBE'};border-radius:2px 2px 0 0;height:${Math.round(v/maxV*100)}%"></div>`).join('')}
+      ${cfI.map((v,i)=>`<div class="chart-bar-wrap">
+        <div class="chart-tip">€${v.toLocaleString()}</div>
+        <div style="width:100%;background:${i===5?'var(--accent)':'#D8CEBE'};border-radius:2px 2px 0 0;height:${Math.round(v/maxV*100)}%"></div>
+      </div>`).join('')}
     </div>
     <div style="display:flex;gap:3px">
       ${cfM.map((m,i)=>`<div style="flex:1;font-size:9px;color:${i===5?'var(--accent)':'var(--text3)'};text-align:center;font-weight:${i===5?600:400}">${m}</div>`).join('')}
@@ -738,6 +687,52 @@ function renderDashboard(){
         </div>
         <span class="badge ${c.status==='danger'?'danger':'warn'}">${c.left}</span>
       </div>`).join('');
+
+  // Pending payments block
+  const dp=document.getElementById('dash-pending');
+  if(dp){
+    if(pending.length){
+      dp.innerHTML=`<div onclick="showPage('payments')" style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:12px;padding:12px 16px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:12px">
+        <div style="width:32px;height:32px;border-radius:50%;background:#D4B870;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:600;flex-shrink:0">${pending.length}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:var(--warn)">Ожидают оплаты · €${pendingAmt}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${pending.map(p=>p.name).join(', ')}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">Перейти →</div>
+      </div>`;
+    } else {
+      dp.innerHTML='';
+    }
+  }
+
+  // Expense categories with budget
+  const deb=document.getElementById('dash-exp-breakdown');
+  if(deb){
+    const cards=Object.entries(CATS).map(([key,cat])=>{
+      const spent=catTotals[key]||0;
+      const budget=cat.budget||0;
+      const pct=budget>0?Math.min(Math.round(spent/budget*100),100):0;
+      const barColor=budget===0?'var(--accent)':pct>=100?'var(--red)':pct>=75?'var(--warn)':'var(--green)';
+      const statusText=budget===0?'':pct>=100?'⚠ Превышен':pct>=75?`Осталось €${budget-spent}`:`€${budget-spent} свободно`;
+      const statusColor=pct>=100?'var(--red)':pct>=75?'var(--warn)':'var(--text3)';
+      const count=EXPENSES.filter(e=>e.cat===key).length;
+      return `<div onclick="showPage('expenses')" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px;cursor:pointer">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div style="width:32px;height:32px;border-radius:9px;background:${cat.color}20;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${cat.icon}</div>
+          <div style="min-width:0">
+            <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cat.name}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px">${count} ${count===1?'запись':count<5?'записи':'записей'}</div>
+          </div>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:${pct>=100?'var(--red)':'var(--text)'};line-height:1;margin-bottom:3px">€${spent}</div>
+        ${budget?`<div style="font-size:10px;color:${statusColor};margin-bottom:6px">${statusText} из €${budget}</div>
+        <div style="height:4px;border-radius:3px;background:var(--bg3);overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px"></div>
+        </div>`:`<div style="font-size:10px;color:var(--text3)">Бюджет не задан</div>`}
+      </div>`;
+    });
+    deb.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">${cards.join('')}</div>`;
+  }
 }
 
 // ── CLIENTS ───────────────────────────────────────────────────
@@ -2455,8 +2450,7 @@ function applyAdminLang(){
   });
   // Section labels
   // new nav
-  const navFin=document.getElementById('nav-finance');
-  if(navFin) navFin.textContent=adminLang==='el'?'Οικ. Επισκόπηση':adminLang==='en'?'Finance Overview':'Финансовый обзор';
+
   const navCan=document.getElementById('nav-cancellations');
   // if(navCan) navCan.textContent=adminLang==='el'?'Ακυρώσεις':adminLang==='en'?'Cancellations':'Отмены / Праздники';
   const sections=document.querySelectorAll('.nav-section');
@@ -2613,59 +2607,6 @@ function saveCancellation(){
   renderCancelList();
   renderSchedule();
 }
-
-// ─── FINANCE PAGE ─────────────────────────────────────────────
-function renderFinancePage(){
-  const EXPENSES_DATA=[
-    {cat:'rent',color:'#E24B4A',icon:'🏢',name:'Rent',amt:650},
-    {cat:'salary',color:'#EF9F27',icon:'👤',name:'Salary',amt:800},
-    {cat:'util',color:'#1D9E75',icon:'💡',name:'Utilities',amt:95},
-    {cat:'market',color:'#7B6EF6',icon:'📣',name:'Marketing',amt:130},
-    {cat:'equip',color:'#378ADD',icon:'🏋️',name:'Equipment',amt:120},
-    {cat:'other',color:'#8E8E93',icon:'📦',name:'Other',amt:25},
-  ];
-  const maxE=Math.max(...EXPENSES_DATA.map(e=>e.amt));
-  const eb=document.getElementById('fin-exp-breakdown');
-  if(eb) eb.innerHTML='<div style="display:flex;flex-direction:column;gap:7px">'+EXPENSES_DATA.map(e=>`
-    <div style="display:flex;align-items:center;gap:8px">
-      <div style="width:90px;font-size:11px;color:var(--text2);flex-shrink:0">${e.icon} ${e.name}</div>
-      <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Math.round(e.amt/maxE*100)}%;background:${e.color};border-radius:4px"></div></div>
-      <div style="width:44px;font-size:11px;font-weight:500;color:var(--text);text-align:right">€${e.amt}</div>
-    </div>`).join('')+'</div>';
-
-  const cfMonths=['Dec','Jan','Feb','Mar','Apr','May'];
-  const cfI=[2100,1800,2300,2650,2500,2840]; const cfE=[1600,1500,1700,1750,1650,1820];
-  const maxCF=Math.max(...cfI,...cfE);
-  const cf=document.getElementById('fin-cashflow');
-  if(cf) cf.innerHTML='<div style="display:flex;flex-direction:column;gap:6px">'+cfMonths.map((m,i)=>{
-    const net=cfI[i]-cfE[i];
-    return `<div style="display:flex;align-items:center;gap:8px">
-      <div style="width:30px;font-size:11px;color:var(--text2)">${m}</div>
-      <div style="flex:1;position:relative;height:20px;background:var(--bg2);border-radius:4px;overflow:hidden">
-        <div style="position:absolute;left:0;top:2px;height:8px;width:${Math.round(cfI[i]/maxCF*100)}%;background:var(--green);opacity:.8;border-radius:2px"></div>
-        <div style="position:absolute;left:0;top:11px;height:8px;width:${Math.round(cfE[i]/maxCF*100)}%;background:var(--red);opacity:.7;border-radius:2px"></div>
-      </div>
-      <div style="width:48px;font-size:11px;font-weight:500;color:${net>0?'var(--green)':'var(--red)'};text-align:right">€${net}</div>
-    </div>`;
-  }).join('')+'</div>';
-
-  const fm=document.getElementById('fin-methods');
-  if(fm) fm.innerHTML=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-    <div style="display:flex;width:200px;height:14px;border-radius:7px;overflow:hidden;flex-shrink:0">
-      <div style="width:63%;background:#191C1F;opacity:.9"></div>
-      <div style="width:21%;background:var(--green);opacity:.8"></div>
-      <div style="width:11%;background:#378ADD;opacity:.8"></div>
-      <div style="width:5%;background:#7B6EF6;opacity:.8"></div>
-    </div>
-  </div>
-  <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--text2)">
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#191C1F;display:inline-block"></span>Revolut 63%</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--green);display:inline-block"></span>Cash 21%</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#378ADD;display:inline-block"></span>Bank 11%</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#7B6EF6;display:inline-block"></span>Card 5%</span>
-  </div>`;
-}
-
 
 // ─── SLOT DETAIL PANEL ────────────────────────────────────────
 function openSlotDetail(di, time, dateStr){
