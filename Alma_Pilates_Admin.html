@@ -251,8 +251,8 @@ tbody tr.selected{background:#EDE4D8}
   </div>
   <div class="card">
     <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
-      <span>Расходы по категориям</span>
-      <button onclick="showPage('expenses')" style="font-size:11px;padding:2px 8px;border:0.5px solid var(--border);border-radius:7px;background:transparent;cursor:pointer;color:var(--text3)">Подробнее →</button>
+      <span id="dash-exp-head">Расходы по категориям</span>
+      <button id="dash-exp-more" onclick="showPage('expenses')" style="font-size:11px;padding:2px 8px;border:0.5px solid var(--border);border-radius:7px;background:transparent;cursor:pointer;color:var(--text3)">Подробнее →</button>
     </div>
     <div id="dash-exp-breakdown"></div>
   </div>
@@ -316,7 +316,7 @@ tbody tr.selected{background:#EDE4D8}
   <div style="margin-top:16px" id="cancel-section">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div style="font-size:13px;font-weight:600;color:var(--text)" id="cancel-list-title">Отмены и праздники</div>
-      <button class="btn" style="font-size:11px;padding:4px 10px" onclick="openHolidayModal()">🎉 Праздники Кипра</button>
+      <button class="btn" id="holiday-btn" style="font-size:11px;padding:4px 10px" onclick="openHolidayModal()">🎉 Праздники Кипра</button>
     </div>
     <div id="cancel-inline-list">
       <div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center" id="cancel-empty-inline">Нет запланированных отмен</div>
@@ -412,7 +412,7 @@ tbody tr.selected{background:#EDE4D8}
           <div class="ff"><label>Class capacity</label><input type="number" value="4"></div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:6px">
-          <button class="btn primary" onclick="toast('Настройки сохранены!')">Save</button>
+          <button class="btn primary" onclick="toast(AL().toastSaved)">Save</button>
         </div>
       </div>
       <div class="card">
@@ -421,14 +421,14 @@ tbody tr.selected{background:#EDE4D8}
           <div>
             <div style="font-size:12px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:6px">
               ⚡ Revolut Business
-              <span style="font-size:9px;padding:2px 7px;border-radius:10px;background:var(--green-bg);color:var(--green);font-weight:500">● Подключён</span>
+              <span id="rev-conn-badge" style="font-size:9px;padding:2px 7px;border-radius:10px;background:var(--green-bg);color:var(--green);font-weight:500">● Connected</span>
             </div>
-            <div style="font-size:11px;color:var(--text3);margin-top:3px">Баланс: €3 412.50 · Синхронизация: сегодня</div>
+            <div id="rev-bal-info" style="font-size:11px;color:var(--text3);margin-top:3px">Balance: €3 412.50 · Sync: today</div>
           </div>
         </div>
         <div class="ff"><label>API Key</label><input type="password" value="sk_sandbox_••••••••••••••••" placeholder="Revolut API key"></div>
         <div style="display:flex;justify-content:flex-end;margin-top:8px">
-          <button class="btn primary" onclick="toast('Revolut подключён!')">Save key</button>
+          <button class="btn primary" onclick="toast(AL().toastSaved)">Save key</button>
         </div>
       </div>
     </div>
@@ -632,7 +632,7 @@ function renderDashboard(){
     <div class="metric">
       <div class="metric-label">${t.profit}</div>
       <div class="metric-val" style="color:${profit>=0?'var(--green)':'var(--red)'}">€${profit>=0?'+':''}${profit.toLocaleString()}</div>
-      <div class="metric-sub" style="color:var(--text3)">с ожид. Revolut: <span style="color:${expectedProfit>=0?'var(--green)':'var(--warn)'};font-weight:500">€${expectedProfit>=0?'+':''}${expectedProfit.toLocaleString()}</span></div>
+      <div class="metric-sub" style="color:var(--text3)">${L('με αναμ. Revolut:','with pend. Revolut:','с ожид. Revolut:')} <span style="color:${expectedProfit>=0?'var(--green)':'var(--warn)'};font-weight:500">€${expectedProfit>=0?'+':''}${expectedProfit.toLocaleString()}</span></div>
     </div>
     <div class="metric" onclick="showPage('clients')" style="cursor:pointer">
       <div class="metric-label">${t.clientsLabel}</div>
@@ -695,15 +695,21 @@ function renderDashboard(){
       dp.innerHTML=`<div onclick="showPage('payments')" style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:12px;padding:12px 16px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:12px">
         <div style="width:32px;height:32px;border-radius:50%;background:#D4B870;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:600;flex-shrink:0">${pending.length}</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;color:var(--warn)">Ожидают оплаты · €${pendingAmt}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--warn)">${L('Εκκρεμεί','Pending payment','Ожидают оплаты')} · €${pendingAmt}</div>
           <div style="font-size:11px;color:var(--text2);margin-top:2px">${pending.map(p=>p.name).join(', ')}</div>
         </div>
-        <div style="font-size:11px;color:var(--text3)">Перейти →</div>
+        <div style="font-size:11px;color:var(--text3)">${L('Μεταβείτε →','Go →','Перейти →')}</div>
       </div>`;
     } else {
       dp.innerHTML='';
     }
   }
+
+  // Update static dashboard text
+  const deh=document.getElementById('dash-exp-head');
+  if(deh) deh.textContent=L('Έξοδα ανά κατηγορία','Expenses by category','Расходы по категориям');
+  const dem=document.getElementById('dash-exp-more');
+  if(dem) dem.textContent=L('Λεπτομέρειες →','Details →','Подробнее →');
 
   // Expense categories with budget
   const deb=document.getElementById('dash-exp-breakdown');
@@ -713,22 +719,23 @@ function renderDashboard(){
       const budget=cat.budget||0;
       const pct=budget>0?Math.min(Math.round(spent/budget*100),100):0;
       const barColor=budget===0?'var(--accent)':pct>=100?'var(--red)':pct>=75?'var(--warn)':'var(--green)';
-      const statusText=budget===0?'':pct>=100?'⚠ Превышен':pct>=75?`Осталось €${budget-spent}`:`€${budget-spent} свободно`;
+      const statusText=budget===0?'':pct>=100?L('⚠ Υπέρβαση','⚠ Over budget','⚠ Превышен'):pct>=75?L(`Υπόλοιπο €${budget-spent}`,`€${budget-spent} left`,`Осталось €${budget-spent}`):L(`€${budget-spent} ελεύθ.`,`€${budget-spent} free`,`€${budget-spent} свободно`);
       const statusColor=pct>=100?'var(--red)':pct>=75?'var(--warn)':'var(--text3)';
       const count=EXPENSES.filter(e=>e.cat===key).length;
+      const entryC=n=>adminLang==='en'?n+(n===1?' entry':' entries'):adminLang==='el'?n+' εγγρ.':n+' '+(n===1?'запись':n<5?'записи':'записей');
       return `<div onclick="showPage('expenses')" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px;cursor:pointer">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <div style="width:32px;height:32px;border-radius:9px;background:${cat.color}20;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${cat.icon}</div>
           <div style="min-width:0">
             <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cat.name}</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:1px">${count} ${count===1?'запись':count<5?'записи':'записей'}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px">${entryC(count)}</div>
           </div>
         </div>
         <div style="font-size:16px;font-weight:700;color:${pct>=100?'var(--red)':'var(--text)'};line-height:1;margin-bottom:3px">€${spent}</div>
-        ${budget?`<div style="font-size:10px;color:${statusColor};margin-bottom:6px">${statusText} из €${budget}</div>
+        ${budget?`<div style="font-size:10px;color:${statusColor};margin-bottom:6px">${statusText} ${L('από','of','из')} €${budget}</div>
         <div style="height:4px;border-radius:3px;background:var(--bg3);overflow:hidden">
           <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px"></div>
-        </div>`:`<div style="font-size:10px;color:var(--text3)">Бюджет не задан</div>`}
+        </div>`:`<div style="font-size:10px;color:var(--text3)">${L('Δεν ορίστηκε','No budget set','Бюджет не задан')}</div>`}
       </div>`;
     });
     deb.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">${cards.join('')}</div>`;
@@ -1317,6 +1324,8 @@ function renderSchedule(){
   // header text
   // View toggle buttons
   const pt=document.getElementById('sched-page-title');
+  const ps=document.getElementById('sched-page-sub');
+  if(ps) ps.textContent=t.schedSub;
   if(pt) pt.innerHTML=`${L('Πρόγραμμα','Schedule','Расписание')} <span style="display:inline-flex;gap:4px;margin-left:8px;vertical-align:middle">
     <button onclick="setViewMode('week')" class="btn sm" style="font-size:10px;padding:2px 8px;${viewMode==='week'?'background:var(--accent);color:var(--bg);border-color:var(--accent)':''}">${L('Εβδ.','Week','Нед.')}</button>
     <button onclick="setViewMode('month')" class="btn sm" style="font-size:10px;padding:2px 8px;${viewMode==='month'?'background:var(--accent);color:var(--bg);border-color:var(--accent)':''}">${L('Μήνας','Month','Месяц')}</button>
@@ -1352,6 +1361,8 @@ function renderSchedule(){
   const bookBtn=document.getElementById('btn-book-slot');
   if(addBtn) addBtn.textContent=adminLang==='el'?'+ Προσθήκη / Ακύρωση':adminLang==='en'?'+ Add / Cancel slot':'+ Доп. занятие / Отмена';
   if(bookBtn) bookBtn.textContent=adminLang==='el'?'+ Κράτηση':adminLang==='en'?'+ Book client':'+ Записать клиента';
+  const hBtn=document.getElementById('holiday-btn');
+  if(hBtn) hBtn.textContent=L('🎉 Αργίες Κύπρου','🎉 Cyprus Holidays','🎉 Праздники Кипра');
 
   const today=new Date();
   const DAYS_LOC=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
@@ -1617,28 +1628,32 @@ function openHolidayModal(){
 
 function renderHolidayModalContent(){
   const m=document.getElementById('holiday-modal'); if(!m) return;
-  const MO=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const MO=adminLang==='el'?['Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ']:
+           adminLang==='en'?['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']:
+           ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
   const rows=CY_HOLIDAYS.map(h=>{
     const active=cancellations.some(c=>c.date===h.date&&c.type==='holiday');
     const [y,mo,d]=h.date.split('-');
     const dateLabel=`${parseInt(d)} ${MO[parseInt(mo)-1]} ${y}`;
-    const ruName=h.name.split(' / ')[2]||h.name.split(' / ')[1]||h.name.split(' / ')[0];
+    const parts=h.name.split(' / ');
+    const localName=adminLang==='el'?parts[0]:adminLang==='en'?(parts[1]||parts[0]):(parts[2]||parts[1]||parts[0]);
     return `<label onclick="toggleHolidayInModal('${h.date}','${h.name.replace(/'/g,"\\'")}')"
       style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:0.5px solid ${active?'var(--green)':'var(--border)'};border-radius:10px;cursor:pointer;background:${active?'var(--green-bg)':'var(--bg2)'};user-select:none">
       <span style="width:16px;height:16px;border-radius:4px;border:1.5px solid ${active?'var(--green)':'var(--border)'};background:${active?'var(--green)':'transparent'};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:#fff">${active?'✓':''}</span>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:500;color:var(--text)">${ruName}</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text)">${localName}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:1px">${dateLabel}</div>
       </div>
-      ${active?`<span style="font-size:10px;color:var(--green);font-weight:500">закрыто</span>`:''}
+      ${active?`<span style="font-size:10px;color:var(--green);font-weight:500">${L('κλειστό','closed','закрыто')}</span>`:''}
     </label>`;
   }).join('');
   m.innerHTML=`<div class="modal" style="max-width:480px">
-    <div class="modal-title">🎉 Праздники Кипра</div>
-    <div class="modal-sub" style="margin-bottom:14px">Отмеченные дни закрывают студию полностью</div>
+    <div class="modal-title">${L('🎉 Αργίες Κύπρου','🎉 Cyprus Holidays','🎉 Праздники Кипра')}</div>
+    <div class="modal-sub" style="margin-bottom:14px">${L('Επιλεγμένες μέρες κλείνουν το studio','Checked days close the studio completely','Отмеченные дни закрывают студию полностью')}</div>
     <div style="display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto;margin-bottom:16px">${rows}</div>
     <div style="display:flex;justify-content:flex-end">
-      <button class="btn primary" onclick="closeModal('holiday-modal');renderSchedule()">Готово</button>
+      <button class="btn primary" onclick="closeModal('holiday-modal');renderSchedule()">${L('Τέλος','Done','Готово')}</button>
     </div>
   </div>`;
 }
@@ -1736,15 +1751,15 @@ function setPayFilter(f,btn){
 
 function renderPayments(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  const mLabel={revolut:'⚡ Revolut',cash:'💵 Наличные',bank:'🏦 Банк',card:'💳 Карта'};
+  const mLabel={revolut:'⚡ Revolut',cash:L('💵 Μετρητά','💵 Cash','💵 Наличные'),bank:L('🏦 Τράπεζα','🏦 Bank','🏦 Банк'),card:L('💳 Κάρτα','💳 Card','💳 Карта')};
   const mColor={revolut:'#7B2FE8',cash:'#1D9E75',bank:'#378ADD',card:'#E24B4A'};
   const mBg={revolut:'#EDE4FF',cash:'#E6F7F0',bank:'#E6F1FB',card:'#FDE8E8'};
 
   // Header
   const ph=document.getElementById('pay-page-header');
   if(ph) ph.innerHTML=`
-    <div><div class="page-title">Платежи</div><div class="page-sub">Май 2026 · Alma Pilates</div></div>
-    <button class="btn primary" onclick="openPayModal()">+ Добавить платёж</button>`;
+    <div><div class="page-title">${L('Πληρωμές','Payments','Платежи')}</div><div class="page-sub">May 2026 · Alma Pilates</div></div>
+    <button class="btn primary" onclick="openPayModal()">+ ${L('Προσθήκη πληρ.','Add payment','Добавить платёж')}</button>`;
 
   // Metrics
   const paid=PAYMENTS.filter(p=>p.status==='paid');
@@ -1754,19 +1769,19 @@ function renderPayments(){
   const pm=document.getElementById('pay-metrics');
   if(pm) pm.innerHTML=`
     <div class="metric">
-      <div class="metric-label">Доход за май</div>
+      <div class="metric-label">${L('Έσοδα Μαΐου','Income, May','Доход за май')}</div>
       <div class="metric-val" style="color:var(--green)">€${income.toLocaleString()}</div>
-      <div class="metric-sub up">+12% vs апрель</div>
+      <div class="metric-sub up">${L('+12% vs Απρ','+12% vs April','+12% vs апрель')}</div>
     </div>
     <div class="metric">
-      <div class="metric-label">Транзакций</div>
+      <div class="metric-label">${L('Συναλλαγές','Transactions','Транзакций')}</div>
       <div class="metric-val">${paid.length}</div>
-      <div class="metric-sub">в этом месяце</div>
+      <div class="metric-sub">${L('αυτόν τον μήνα','this month','в этом месяце')}</div>
     </div>
     <div class="metric" style="cursor:${pending.length?'pointer':'default'}" onclick="${pending.length?'document.getElementById(\'pay-pending-block\').scrollIntoView({behavior:\'smooth\'})':''}">
-      <div class="metric-label">Ожидают оплаты</div>
+      <div class="metric-label">${L('Εκκρεμεί','Pending','Ожидают оплаты')}</div>
       <div class="metric-val" style="color:${pending.length?'var(--warn)':'var(--text)'}">${pending.length}</div>
-      <div class="metric-sub${pending.length?' warn':''}">${pending.length?'€'+pendingAmt+' не оплачено':'все оплачено'}</div>
+      <div class="metric-sub${pending.length?' warn':''}">${pending.length?'€'+pendingAmt+' '+L('ανεξόφλητα','unpaid','не оплачено'):L('όλα εξοφλημένα','all paid','все оплачено')}</div>
     </div>`;
 
   // Pending block
@@ -1776,7 +1791,7 @@ function renderPayments(){
       pb.innerHTML=`<div style="background:#FFFBEB;border:1px solid #F59E0B33;border-radius:14px;padding:16px 18px;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
           <span style="font-size:16px">⏳</span>
-          <div style="font-size:13px;font-weight:600;color:#92400E">Ожидают оплаты · €${pendingAmt}</div>
+          <div style="font-size:13px;font-weight:600;color:#92400E">${L('Εκκρεμεί','Pending payment','Ожидают оплаты')} · €${pendingAmt}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:9px">
           ${pending.map((p,i)=>`
@@ -1788,7 +1803,7 @@ function renderPayments(){
               </div>
               <div style="font-size:14px;font-weight:600;color:#92400E;flex-shrink:0">€${p.amt}</div>
               <div style="display:flex;gap:6px;flex-shrink:0">
-                <button onclick="markPendingPaid(${i})" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--green);border-radius:7px;background:transparent;cursor:pointer;color:var(--green);font-weight:500">✓ Оплачено</button>
+                <button onclick="markPendingPaid(${i})" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--green);border-radius:7px;background:transparent;cursor:pointer;color:var(--green);font-weight:500">✓ ${L('Πληρώθηκε','Mark paid','Оплачено')}</button>
                 <button onclick="sendRevolutLink('${p.name}')" style="font-size:11px;padding:4px 10px;border:0.5px solid #7B2FE8;border-radius:7px;background:transparent;cursor:pointer;color:#7B2FE8">⚡ Revolut</button>
               </div>
             </div>`).join('')}
@@ -1800,11 +1815,15 @@ function renderPayments(){
   // Filters
   const pf=document.getElementById('pay-filters');
   if(pf) pf.innerHTML=`
-    <button class="fp ${payFilter==='all'?'active':''}" onclick="setPayFilter('all',this)">Все</button>
+    <button class="fp ${payFilter==='all'?'active':''}" onclick="setPayFilter('all',this)">${L('Όλα','All','Все')}</button>
     <button class="fp ${payFilter==='revolut'?'active':''}" onclick="setPayFilter('revolut',this)">⚡ Revolut</button>
-    <button class="fp ${payFilter==='cash'?'active':''}" onclick="setPayFilter('cash',this)">💵 Наличные</button>
-    <button class="fp ${payFilter==='bank'?'active':''}" onclick="setPayFilter('bank',this)">🏦 Банк</button>
-    <button class="fp ${payFilter==='card'?'active':''}" onclick="setPayFilter('card',this)">💳 Карта</button>`;
+    <button class="fp ${payFilter==='cash'?'active':''}" onclick="setPayFilter('cash',this)">💵 ${L('Μετρητά','Cash','Наличные')}</button>
+    <button class="fp ${payFilter==='bank'?'active':''}" onclick="setPayFilter('bank',this)">🏦 ${L('Τράπεζα','Bank','Банк')}</button>
+    <button class="fp ${payFilter==='card'?'active':''}" onclick="setPayFilter('card',this)">💳 ${L('Κάρτα','Card','Карта')}</button>`;
+
+  // History head
+  const hh=document.getElementById('pay-hist-head');
+  if(hh) hh.textContent=L('Ιστορικό πληρωμών','Payment history','История платежей');
 
   // History list
   const list=document.getElementById('payments-list');
@@ -1812,7 +1831,7 @@ function renderPayments(){
   const paidOnly=PAYMENTS.filter(p=>p.status==='paid');
   const filtered=payFilter==='all'?paidOnly:paidOnly.filter(p=>p.method===payFilter);
   if(!filtered.length){
-    list.innerHTML=`<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px 0">Платежей нет</div>`;
+    list.innerHTML=`<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px 0">${L('Δεν υπάρχουν πληρωμές','No payments','Платежей нет')}</div>`;
     return;
   }
   list.innerHTML=filtered.map((p,i)=>`
@@ -1838,11 +1857,13 @@ function markPendingPaid(idx){
   p.status='paid';
   p.date=localDateStr(new Date());
   renderPayments();
-  toast(p.name+' — платёж подтверждён');
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  toast(p.name+' — '+L('πληρωμή επιβεβαιώθηκε','payment confirmed','платёж подтверждён'));
 }
 
 function sendRevolutLink(name){
-  toast('Ссылка Revolut отправлена → '+name);
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  toast(L('Ο σύνδεσμος Revolut στάλθηκε →','Revolut link sent →','Ссылка Revolut отправлена →')+' '+name);
 }
 
 function deletePayment(visIdx){
@@ -1856,17 +1877,18 @@ function deletePayment(visIdx){
 }
 
 function openPayModal(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const clientOpts=CLIENTS.filter(c=>c.status!=='inactive').map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
   const today=localDateStr(new Date());
   let m=document.getElementById('pay-add-modal');
   if(!m){m=document.createElement('div');m.className='modal-overlay';m.id='pay-add-modal';document.body.appendChild(m);}
   m.innerHTML=`<div class="modal" style="width:520px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-family:var(--serif);font-size:17px;color:var(--text)">Новый платёж</div>
+      <div style="font-family:var(--serif);font-size:17px;color:var(--text)">${L('Νέα πληρωμή','New payment','Новый платёж')}</div>
       <button onclick="closeModal('pay-add-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-      ${[['revolut','⚡','Revolut'],['cash','💵','Наличные'],['bank','🏦','Банк'],['card','💳','Карта']].map(([val,icon,lbl])=>`
+      ${[['revolut','⚡','Revolut'],['cash','💵',L('Μετρητά','Cash','Наличные')],['bank','🏦',L('Τράπεζα','Bank','Банк')],['card','💳',L('Κάρτα','Card','Карта')]].map(([val,icon,lbl])=>`
         <div onclick="pamSelMethod('${val}')" id="pam-m-${val}" style="padding:10px;border-radius:10px;border:1.5px solid ${val==='revolut'?'var(--accent)':'var(--border)'};background:${val==='revolut'?'var(--accent-bg)':'var(--bg2)'};cursor:pointer;text-align:center">
           <div style="font-size:18px;margin-bottom:3px">${icon}</div>
           <div style="font-size:11px;font-weight:500;color:var(--text)">${lbl}</div>
@@ -1874,36 +1896,36 @@ function openPayModal(){
     </div>
     <div class="form-grid" style="gap:10px">
       <div class="ff">
-        <label style="font-size:11px;color:var(--text2);font-weight:500">Клиент</label>
+        <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Πελάτης','Client','Клиент')}</label>
         <select id="pam-client" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px">${clientOpts}</select>
       </div>
       <div class="ff">
-        <label style="font-size:11px;color:var(--text2);font-weight:500">Абонемент</label>
+        <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Πακέτο','Membership','Абонемент')}</label>
         <select id="pam-type" onchange="pamUpdateAmt()" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px">
-          <option value="8|120">8 занятий — €120</option>
-          <option value="12|160">12 занятий — €160</option>
-          <option value="1|25">Разовое — €25</option>
-          <option value="0|0">Другая сумма</option>
+          <option value="8|120">${L('8 μαθ. — €120','8 classes — €120','8 занятий — €120')}</option>
+          <option value="12|160">${L('12 μαθ. — €160','12 classes — €160','12 занятий — €160')}</option>
+          <option value="1|25">${L('Μεμονωμένο — €25','Single class — €25','Разовое — €25')}</option>
+          <option value="0|0">${L('Άλλο','Custom amount','Другая сумма')}</option>
         </select>
       </div>
     </div>
     <div class="form-grid" style="gap:10px;margin-top:10px">
       <div class="ff">
-        <label style="font-size:11px;color:var(--text2);font-weight:500">Сумма €</label>
+        <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Ποσό €','Amount €','Сумма €')}</label>
         <input type="number" id="pam-amt" value="120" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
       </div>
       <div class="ff">
-        <label style="font-size:11px;color:var(--text2);font-weight:500">Дата платежа</label>
+        <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Ημ/νία πληρωμής','Payment date','Дата платежа')}</label>
         <input type="date" id="pam-date" value="${today}" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
       </div>
     </div>
     <div class="ff" style="margin-top:10px">
-      <label style="font-size:11px;color:var(--text2);font-weight:500">Комментарий</label>
-      <input type="text" id="pam-note" placeholder="Опционально..." style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
+      <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Σχόλιο','Note','Комментарий')}</label>
+      <input type="text" id="pam-note" placeholder="${L('Προαιρετικό...','Optional...','Опционально...')}" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
     </div>
     <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
-      <button class="btn" onclick="closeModal('pay-add-modal')">Отмена</button>
-      <button class="btn primary" id="pam-submit" onclick="submitPayModal()">Сохранить платёж</button>
+      <button class="btn" onclick="closeModal('pay-add-modal')">${L('Ακύρωση','Cancel','Отмена')}</button>
+      <button class="btn primary" id="pam-submit" onclick="submitPayModal()">${L('Αποθήκευση','Save payment','Сохранить платёж')}</button>
     </div>
   </div>`;
   m.classList.add('open');
@@ -1919,7 +1941,8 @@ function pamSelMethod(val){
     else{el.style.borderColor='var(--border)';el.style.background='var(--bg2)';}
   });
   const btn=document.getElementById('pam-submit');
-  if(btn) btn.textContent=val==='revolut'?'Создать ссылку Revolut ↗':'Сохранить платёж';
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(btn) btn.textContent=val==='revolut'?L('Δημ. συνδέσμου Revolut ↗','Create Revolut link ↗','Создать ссылку Revolut ↗'):L('Αποθήκευση','Save payment','Сохранить платёж');
 }
 
 function pamUpdateAmt(){
@@ -1936,9 +1959,10 @@ function submitPayModal(){
   const amt=parseFloat(document.getElementById('pam-amt')?.value||'0');
   const date=document.getElementById('pam-date')?.value||localDateStr(new Date());
   const note=document.getElementById('pam-note')?.value.trim()||'';
-  if(!client||!amt) return toast('Заполни клиента и сумму');
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(!client||!amt) return toast(L('Συμπλήρωσε πελάτη και ποσό','Fill in client and amount','Заполни клиента и сумму'));
   const classes=typeVal.split('|')[0];
-  const detailMap={'8':'8 занятий','12':'12 занятий','1':'Разовое','0':'Другое'};
+  const detailMap={'8':L('8 μαθ.','8-class membership','8 занятий'),'12':L('12 μαθ.','12-class membership','12 занятий'),'1':L('Μεμονωμένο','Single class','Разовое'),'0':L('Άλλο','Custom','Другое')};
   const init=client.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const ruMo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
   const d=new Date(date);
@@ -1959,16 +1983,19 @@ function submitPayModal(){
 // ── EXPENSES ─────────────────────────────────────────────────
 function renderExpenses(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  const ruMo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-  const fmtISO=d=>{const p=d.split('-');return parseInt(p[2],10)+' '+ruMo[parseInt(p[1],10)-1];};
+  const moRu=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  const moEn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const moEl=['Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+  const fmtISO=d=>{const p=d.split('-');const mo=adminLang==='el'?moEl:adminLang==='en'?moEn:moRu;return parseInt(p[2],10)+' '+mo[parseInt(p[1],10)-1];};
+  const entryCount=n=>adminLang==='en'?n+(n===1?' entry':' entries'):adminLang==='el'?n+' εγγρ.':n+' '+(n===1?'запись':n<5?'записи':'записей');
 
   // Header
   const ph=document.getElementById('exp-page-header');
   if(ph) ph.innerHTML=`
-    <div><div class="page-title">${L('Έξοδα','Expenses','Расходы')}</div><div class="page-sub">Май 2026</div></div>
+    <div><div class="page-title">${L('Έξοδα','Expenses','Расходы')}</div><div class="page-sub">May 2026</div></div>
     <div style="display:flex;gap:8px">
-      <button class="btn" onclick="openCatsEditor()">Категории</button>
-      <button class="btn primary" onclick="openExpModal()">+ Добавить расход</button>
+      <button class="btn" onclick="openCatsEditor()">${L('Κατηγορίες','Categories','Категории')}</button>
+      <button class="btn primary" onclick="openExpModal()">+ ${L('Προσθήκη εξόδου','Add expense','Добавить расход')}</button>
     </div>`;
 
   // Compute totals
@@ -1986,18 +2013,18 @@ function renderExpenses(){
     <div class="card" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px">
         <div>
-          <div style="font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Потрачено в мае</div>
-          <div style="font-size:24px;font-weight:700;color:var(--text);line-height:1">€${totalSpent.toLocaleString()} <span style="font-size:14px;color:var(--text3);font-weight:400">из €${totalBudget.toLocaleString()}</span></div>
+          <div style="font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${L('Δαπανήθηκε Μάιο','Spent in May','Потрачено в мае')}</div>
+          <div style="font-size:24px;font-weight:700;color:var(--text);line-height:1">€${totalSpent.toLocaleString()} <span style="font-size:14px;color:var(--text3);font-weight:400">${L('από','of','из')} €${totalBudget.toLocaleString()}</span></div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Осталось</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px">${L('Υπόλοιπο','Remaining','Осталось')}</div>
           <div style="font-size:20px;font-weight:600;color:${remaining>=0?'var(--green)':'var(--red)'}">${remaining>=0?'':'−'}€${Math.abs(remaining)}</div>
         </div>
       </div>
       <div style="height:8px;border-radius:4px;background:var(--bg3);overflow:hidden">
         <div style="height:100%;width:${overallPct}%;background:${overallColor};border-radius:4px"></div>
       </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:6px">${overallPct}% бюджета использовано · ${EXPENSES.length} записей</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">${overallPct}% ${L('προϋπολογισμού χρησιμοποιήθηκε','of budget used','бюджета использовано')} · ${entryCount(EXPENSES.length)}</div>
     </div>`;
 
   // Category cards
@@ -2008,7 +2035,7 @@ function renderExpenses(){
       const budget=cat.budget||0;
       const pct=budget>0?Math.min(Math.round(spent/budget*100),100):0;
       const barColor=budget===0?'var(--accent)':pct>=100?'var(--red)':pct>=75?'var(--warn)':'var(--green)';
-      const statusText=budget===0?'':pct>=100?'⚠ Превышен':pct>=75?`Осталось €${budget-spent}`:`€${budget-spent} свободно`;
+      const statusText=budget===0?'':pct>=100?L('⚠ Υπέρβαση','⚠ Over budget','⚠ Превышен'):pct>=75?L(`Υπόλοιπο €${budget-spent}`,`€${budget-spent} left`,`Осталось €${budget-spent}`):L(`€${budget-spent} ελεύθ.`,`€${budget-spent} free`,`€${budget-spent} свободно`);
       const statusColor=pct>=100?'var(--red)':pct>=75?'var(--warn)':'var(--text3)';
       const active=expCatFilter===key;
       const count=EXPENSES.filter(e=>e.cat===key).length;
@@ -2017,21 +2044,21 @@ function renderExpenses(){
           <div style="width:36px;height:36px;border-radius:10px;background:${cat.color}20;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">${cat.icon}</div>
           <div style="min-width:0">
             <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cat.name}</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:1px">${count} ${count===1?'запись':count<5?'записи':'записей'}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px">${entryCount(count)}</div>
           </div>
         </div>
         <div style="font-size:18px;font-weight:700;color:${pct>=100?'var(--red)':'var(--text)'};line-height:1;margin-bottom:3px">€${spent}</div>
-        ${budget?`<div style="font-size:10px;color:${statusColor};margin-bottom:8px">${statusText} ${budget?'из €'+budget:''}</div>
+        ${budget?`<div style="font-size:10px;color:${statusColor};margin-bottom:8px">${statusText} ${L('από','of','из')} €${budget}</div>
         <div style="height:5px;border-radius:3px;background:var(--bg3);overflow:hidden">
           <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px"></div>
-        </div>`:`<div style="font-size:10px;color:var(--text3);margin-bottom:8px">Бюджет не задан</div>`}
+        </div>`:`<div style="font-size:10px;color:var(--text3);margin-bottom:8px">${L('Δεν ορίστηκε','No budget set','Бюджет не задан')}</div>`}
       </div>`;
     });
     // "All" card
     const allActive=expCatFilter==='all';
     cards.push(`<div onclick="filterExpCat('all')" style="background:${allActive?'var(--text)':'var(--bg2)'};border:1.5px solid ${allActive?'var(--text)':'var(--border)'};border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px">
       <div style="font-size:22px">📋</div>
-      <div style="font-size:12px;font-weight:600;color:${allActive?'var(--bg)':'var(--text2)'};margin-top:2px">Все расходы</div>
+      <div style="font-size:12px;font-weight:600;color:${allActive?'var(--bg)':'var(--text2)'};margin-top:2px">${L('Όλα τα έξοδα','All expenses','Все расходы')}</div>
       <div style="font-size:11px;color:${allActive?'rgba(255,255,255,0.5)':'var(--text3)'}">€${totalSpent}</div>
     </div>`);
     gridEl.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px">${cards.join('')}</div>`;
@@ -2042,13 +2069,13 @@ function renderExpenses(){
   filtered.sort((a,b)=>b.date.localeCompare(a.date));
   const lh=document.getElementById('exp-list-head');
   if(lh){
-    const label=expCatFilter==='all'?'Все транзакции':(CATS[expCatFilter]?.icon+' '+CATS[expCatFilter]?.name)||expCatFilter;
-    lh.innerHTML=`<span>${label}</span><span style="font-size:11px;font-weight:400;color:var(--text3)">${filtered.length} ${filtered.length===1?'запись':filtered.length<5?'записи':'записей'}</span>`;
+    const label=expCatFilter==='all'?L('Όλες οι συναλλαγές','All transactions','Все транзакции'):(CATS[expCatFilter]?.icon+' '+CATS[expCatFilter]?.name)||expCatFilter;
+    lh.innerHTML=`<span>${label}</span><span style="font-size:11px;font-weight:400;color:var(--text3)">${entryCount(filtered.length)}</span>`;
   }
   const listEl=document.getElementById('exp-list');
   if(!listEl) return;
   if(!filtered.length){
-    listEl.innerHTML=`<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px 0">Расходов пока нет</div>`;
+    listEl.innerHTML=`<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px 0">${L('Δεν υπάρχουν έξοδα','No expenses yet','Расходов пока нет')}</div>`;
     return;
   }
   listEl.innerHTML=filtered.map(e=>{
@@ -2259,17 +2286,16 @@ function renderTaxChart(){
 
 function renderSettings(){
   const t=AL();
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   // Update section labels
   const settCards=document.querySelectorAll('#page-settings .card-head');
-  if(settCards[0])settCards[0].childNodes[0].textContent=t.settCats;
-  if(settCards[1])settCards[1].childNodes[0].textContent=t.settStudio;
-  if(settCards[2])settCards[2].childNodes[0].textContent=t.settRevTitle;
-  // Add cat button
-  const addCatBtn=document.querySelector('#page-settings .card .btn:not(.primary)');
-  if(addCatBtn)addCatBtn.textContent=t.settAddCat;
+  if(settCards[0])settCards[0].childNodes[0].textContent=t.settStudio;
+  if(settCards[1])settCards[1].childNodes[0].textContent=t.settRevTitle;
   // Revolut status
-  const revConn=document.querySelector('#page-settings .card:last-child span[style*="green"]');
+  const revConn=document.getElementById('rev-conn-badge');
   if(revConn)revConn.textContent=t.settRevConnected;
+  const revBal=document.getElementById('rev-bal-info');
+  if(revBal)revBal.textContent=L('Υπόλοιπο: €3 412.50 · Συγχρ.: σήμερα','Balance: €3 412.50 · Sync: today','Баланс: €3 412.50 · Синхронизация: сегодня');
 
 // cat-list removed — categories managed in Expenses
 }
