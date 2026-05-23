@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Alma Pilates</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{
   --bg:#F5F0E8;--bg2:#EDE7DA;--bg3:#E4DCCC;
@@ -680,6 +681,21 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 
 <script>
 // ═══════════════════════════════════════════════════════════════
+// SUPABASE
+// ═══════════════════════════════════════════════════════════════
+const SUPA_URL='https://oaaplxktimcoxgziibzb.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hYXBseGt0aW1jb3hnemlpYnpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzYyNTQsImV4cCI6MjA5NTExMjI1NH0.AA3t8_Vm5nWPxeKm72PC319P5zv1n48ft3kfvQVW9R0';
+const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+let sbUser=null, sbPhone='', isNewUser=false;
+let bookingByKey=new Map(); // "dow_time" → {id,class_id,date}
+
+function normPhone(p){
+  p=p.replace(/[\s\-()]/g,'');
+  if(!p.startsWith('+')) p='+357'+p.replace(/^0/,'');
+  return p;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // TRANSLATIONS
 // ═══════════════════════════════════════════════════════════════
 const TR = {
@@ -940,6 +956,59 @@ let lang='el', curTab='home', wkOff=0, monthOff=0, schView='week', selOpt=null, 
 let bkCounts={};
 
 // ═══════════════════════════════════════════════════════════════
+// DB LOADERS
+// ═══════════════════════════════════════════════════════════════
+async function loadClasses(){
+  const {data}=await sb.from('classes').select('*').order('dow').order('time');
+  if(!data) return;
+  Object.keys(SCH).forEach(k=>delete SCH[k]);
+  data.forEach(c=>{
+    if(!SCH[c.dow]) SCH[c.dow]=[];
+    SCH[c.dow].push({id:c.id,t:c.time,tp:c.type});
+  });
+}
+
+async function loadWeekBookings(){
+  if(!sbUser||sbUser.id==='demo') return;
+  const dates=getWeekDates().map(d=>d.toISOString().split('T')[0]);
+
+  // My bookings
+  const {data:myBks}=await sb.from('bookings').select('id,class_id,date,status').in('date',dates).eq('status','active');
+  MINE_SET.clear(); bookingByKey.clear();
+  (myBks||[]).forEach(b=>{
+    for(const [dow,slots] of Object.entries(SCH)){
+      const slot=slots.find(s=>s.id===b.class_id);
+      if(slot){ const key=dow+'_'+slot.t; MINE_SET.add(key); bookingByKey.set(key,b); break; }
+    }
+  });
+
+  // All booking counts via RPC
+  const {data:counts}=await sb.rpc('get_booking_counts',{p_dates:dates});
+  bkCounts={};
+  (counts||[]).forEach(c=>{
+    for(const [dow,slots] of Object.entries(SCH)){
+      const slot=slots.find(s=>s.id===c.class_id);
+      if(slot){ bkCounts[wkOff+'_'+dow+'_'+slot.t]=parseInt(c.booking_count); break; }
+    }
+  });
+
+  // My waitlist
+  const {data:myWl}=await sb.from('waitlist').select('id,class_id,date').in('date',dates);
+  WAITLIST_SET.clear();
+  (myWl||[]).forEach(w=>{
+    for(const [dow,slots] of Object.entries(SCH)){
+      const slot=slots.find(s=>s.id===w.class_id);
+      if(slot){ WAITLIST_SET.add(dow+'_'+slot.t); break; }
+    }
+  });
+}
+
+async function refreshSchedule(){
+  await loadWeekBookings();
+  if(schView==='month') buildMonthView(); else buildSchedule();
+}
+
+// ═══════════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
 const t=()=>TR[lang];
@@ -1090,45 +1159,42 @@ function go(name){
 // ═══════════════════════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════════════════════
-function doRegister(){
+async function doRegister(){
   const T=t();
-  const phone=$('r-phone').value.trim();
-  const termsOk=$('cb-terms').checked;
-  const gdprOk=$('cb-gdpr').checked;
-  const errEl=$('r-err');
-  const phoneErr=$('r-phone-err');
-
-  // reset
-  errEl.style.display='none';
-  phoneErr.style.display='none';
+  const name=$('r-name').value.trim();
+  const rawPhone=$('r-phone').value.trim();
+  const termsOk=$('cb-terms').checked, gdprOk=$('cb-gdpr').checked;
+  $('r-err').style.display='none'; $('r-phone-err').style.display='none';
   $('r-phone').classList.remove('err');
-
-  if(!termsOk||!gdprOk){
-    errEl.textContent=T.termsErr;
-    errEl.style.display='block';
-    return;
+  if(!termsOk||!gdprOk){ $('r-err').textContent=T.termsErr; $('r-err').style.display='block'; return; }
+  if(!rawPhone||rawPhone.replace(/\D/g,'').length<8){
+    $('r-phone-err').textContent=T.phoneErr; $('r-phone-err').style.display='block';
+    $('r-phone').classList.add('err'); return;
   }
-  if(!phone||phone.replace(/\D/g,'').length<8){
-    phoneErr.textContent=T.phoneErr;
-    phoneErr.style.display='block';
-    $('r-phone').classList.add('err');
-    return;
-  }
-  $('otp-phone').textContent=phone;
-  go('otp');
-  setTimeout(()=>$('o1')&&$('o1').focus(),200);
+  sbPhone=normPhone(rawPhone); isNewUser=true; window._regName=name;
+  const btn=$('r-btn'); btn.disabled=true;
+  const {error}=await sb.auth.signInWithOtp({phone:sbPhone});
+  btn.disabled=false;
+  if(error){ $('r-err').textContent=error.message; $('r-err').style.display='block'; return; }
+  $('otp-phone').textContent=sbPhone;
+  go('otp'); setTimeout(()=>$('o1')&&$('o1').focus(),200);
 }
 
-function doLogin(){
-  const phone=$('l-phone').value.trim();
-  if(!phone){ $('l-phone').classList.add('err'); return; }
+async function doLogin(){
+  const rawPhone=$('l-phone').value.trim();
+  if(!rawPhone){ $('l-phone').classList.add('err'); return; }
   $('l-phone').classList.remove('err');
-  $('otp-phone').textContent=phone;
-  go('otp');
-  setTimeout(()=>$('o1')&&$('o1').focus(),200);
+  sbPhone=normPhone(rawPhone); isNewUser=false;
+  const btn=$('l-btn'); btn.disabled=true;
+  const {error}=await sb.auth.signInWithOtp({phone:sbPhone});
+  btn.disabled=false;
+  if(error){ toast2(error.message); return; }
+  $('otp-phone').textContent=sbPhone;
+  go('otp'); setTimeout(()=>$('o1')&&$('o1').focus(),200);
 }
 
 function demoLogin(){
+  sbUser={id:'demo',phone:'+35700000000'};
   startApp();
 }
 
@@ -1150,17 +1216,18 @@ function onOtp(el,idx){
   if(code.length===6) doOtp();
 }
 
-function doOtp(){
+async function doOtp(){
   let code='';
-  for(let i=1;i<=6;i++){
-    const oi=$('o'+i);
-    code+=oi?oi.value:'';
+  for(let i=1;i<=6;i++){ const oi=$('o'+i); code+=oi?oi.value:''; }
+  if(code.length<6){ toast2('Εισάγετε όλα τα ψηφία / Enter all digits / Введите код'); return; }
+  const btn=$('otp-btn'); btn.disabled=true;
+  const {data,error}=await sb.auth.verifyOtp({phone:sbPhone,token:code,type:'sms'});
+  btn.disabled=false;
+  if(error){ toast2('Λανθασμένος κωδικός / Wrong code / Неверный код'); return; }
+  sbUser=data.user;
+  if(isNewUser){
+    await sb.from('profiles').upsert({id:sbUser.id,name:window._regName||'',phone:sbPhone,lang},{onConflict:'id'});
   }
-  if(code.length<6){
-    toast2('Εισάγετε όλα τα ψηφία / Enter all digits / Введите код');
-    return;
-  }
-  // In real app: verify with Supabase
   startApp();
 }
 
@@ -1184,8 +1251,12 @@ function finishOb(){
 // ═══════════════════════════════════════════════════════════════
 // APP START
 // ═══════════════════════════════════════════════════════════════
-function startApp(){
+async function startApp(){
   $('hdr').style.display='flex';
+  if(sbUser&&sbUser.id!=='demo'){
+    await loadClasses();
+    await loadWeekBookings();
+  }
   obStep=0;
   go('onboard');
   $('ob0').classList.add('on');
@@ -1204,7 +1275,8 @@ function goTab(tab){
     if(n) n.classList.toggle('on',id===tab);
   });
   const sc=$('scroll'); if(sc) sc.scrollTop=0;
-  if(tab==='schedule') buildSchedule();
+  if(tab==='home') buildUpcomingAsync();
+  if(tab==='schedule') loadWeekBookings().then(buildSchedule);
   if(tab==='pay') buildPayOpts();
   if(tab==='profile') buildProfileRows();
 }
@@ -1218,9 +1290,9 @@ function getWeekDates(){
   return Array.from({length:6},(_,i)=>{ const d=new Date(base); d.setDate(d.getDate()+i); return d; });
 }
 
-function shiftW(d){
+async function shiftW(d){
   if(schView==='month'){ monthOff+=d; buildMonthView(); }
-  else { wkOff+=d; buildSchedule(); }
+  else { wkOff+=d; await loadWeekBookings(); buildSchedule(); }
 }
 
 function setSchView(mode){
@@ -1347,16 +1419,27 @@ function openBookSheet(di,time,free,dateMs){
   openSheet('sh-book');
 }
 
-function confirmBook(){
-  if(selSlot){
+async function confirmBook(){
+  if(!selSlot) return;
+  closeSheet('sh-book');
+  if(sbUser&&sbUser.id!=='demo'){
+    const date=selSlot.dateMs?new Date(selSlot.dateMs):getWeekDates()[selSlot.di];
+    const dateStr=date.toISOString().split('T')[0];
+    const slot=SCH[selSlot.di]?.find(s=>s.t===selSlot.time);
+    if(slot){
+      const {error}=await sb.from('bookings').insert({user_id:sbUser.id,class_id:slot.id,date:dateStr,status:'active'});
+      if(error){ toast2('Error: '+error.message); return; }
+    }
+    toast2(t().bookOk);
+    await refreshSchedule();
+  } else {
     const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
     bkCounts[key]=(bkCounts[key]||0)+1;
     MINE_SET.add(selSlot.di+'_'+selSlot.time);
     WAITLIST_SET.delete(selSlot.di+'_'+selSlot.time);
+    toast2(t().bookOk);
+    if(schView==='month') buildMonthView(); else buildSchedule();
   }
-  closeSheet('sh-book');
-  toast2(t().bookOk);
-  if(schView==='month') buildMonthView(); else buildSchedule();
 }
 
 function isLateCancellation(date,time){
@@ -1387,20 +1470,32 @@ function openCancelSheet(di,time,dateMs){
   openSheet('sh-cancel');
 }
 
-function confirmCancel(){
+async function confirmCancel(){
   const T=t();
-  if(selSlot){
-    const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
-    if(!selSlot.late && bkCounts[key]>0) bkCounts[key]--;
-    MINE_SET.delete(selSlot.di+'_'+selSlot.time);
-  }
+  if(!selSlot) return;
   closeSheet('sh-cancel');
-  toast2(selSlot&&selSlot.late?T.cancelLateOk:T.cancelOk);
-  if(schView==='month') buildMonthView(); else buildSchedule();
+  if(sbUser&&sbUser.id!=='demo'){
+    const bk=bookingByKey.get(selSlot.di+'_'+selSlot.time);
+    if(bk) await sb.from('bookings').update({status:'cancelled'}).eq('id',bk.id);
+    toast2(selSlot.late?T.cancelLateOk:T.cancelOk);
+    await refreshSchedule();
+  } else {
+    const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
+    if(!selSlot.late&&bkCounts[key]>0) bkCounts[key]--;
+    MINE_SET.delete(selSlot.di+'_'+selSlot.time);
+    toast2(selSlot.late?T.cancelLateOk:T.cancelOk);
+    if(schView==='month') buildMonthView(); else buildSchedule();
+  }
 }
 
-function joinWaitlist(di,time){
+async function joinWaitlist(di,time){
   const key=di+'_'+time;
+  if(sbUser&&sbUser.id!=='demo'){
+    const date=getWeekDates()[di];
+    const dateStr=date.toISOString().split('T')[0];
+    const slot=SCH[di]?.find(s=>s.t===time);
+    if(slot) await sb.from('waitlist').upsert({user_id:sbUser.id,class_id:slot.id,date:dateStr},{onConflict:'user_id,class_id,date'});
+  }
   WAITLIST_SET.add(key);
   toast2(t().waitlistOk);
   if(schView==='month') buildMonthView(); else buildSchedule();
@@ -1481,17 +1576,36 @@ function buildUpcoming(){
   el.innerHTML=upcoming.map(({dow,time,date})=>{
     const dayStr=T.days[dow]+', '+date.getDate()+' '+T.months[date.getMonth()];
     const slot=SCH[dow]?.find(s=>s.t===time);
-    const tp=slot?slot.tp:'ev';
-    const color=tp==='mo'?'var(--accent2)':'var(--green)';
+    const color=slot?.tp==='mo'?'var(--accent2)':'var(--green)';
     return `<div class="hrow" onclick="goTab('schedule')" style="cursor:pointer">
       <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${color}"></div>
-      <div style="flex:1">
-        <div style="font-size:12px;color:var(--text)">${time}–${nh(time)}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:1px">${dayStr}</div>
-      </div>
+      <div style="flex:1"><div style="font-size:12px;color:var(--text)">${time}–${nh(time)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:1px">${dayStr}</div></div>
       <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--text3)" stroke-width="1.5"><path d="M7 5l5 5-5 5"/></svg>
     </div>`;
   }).join('');
+}
+
+async function buildUpcomingAsync(){
+  if(!sbUser||sbUser.id==='demo'){ buildUpcoming(); return; }
+  const T=t(); const el=$('h-upcoming'); if(!el) return;
+  const today=new Date().toISOString().split('T')[0];
+  const {data}=await sb.from('bookings').select('class_id,date').eq('user_id',sbUser.id).eq('status','active').gte('date',today).order('date').limit(3);
+  if(!data?.length){ el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0">${T.hNoUpcoming}</div>`; return; }
+  el.innerHTML=data.map(b=>{
+    const date=new Date(b.date+'T12:00:00');
+    const dow=(date.getDay()+6)%7;
+    const slot=SCH[dow]?.find(s=>s.id===b.class_id);
+    if(!slot) return '';
+    const dayStr=T.days[dow]+', '+date.getDate()+' '+T.months[date.getMonth()];
+    const color=slot.tp==='mo'?'var(--accent2)':'var(--green)';
+    return `<div class="hrow" onclick="goTab('schedule')" style="cursor:pointer">
+      <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${color}"></div>
+      <div style="flex:1"><div style="font-size:12px;color:var(--text)">${slot.t}–${nh(slot.t)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:1px">${dayStr}</div></div>
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--text3)" stroke-width="1.5"><path d="M7 5l5 5-5 5"/></svg>
+    </div>`;
+  }).filter(Boolean).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1505,21 +1619,38 @@ function setPfTab(tab){
   $('pf-tab-hist').classList.toggle('on',tab==='hist');
   $('pf-panel-info').style.display=tab==='info'?'':'none';
   $('pf-panel-hist').style.display=tab==='hist'?'':'none';
-  if(tab==='hist') buildHistPanel();
+  if(tab==='hist') buildHistPanelAsync();
 }
 
 function buildHistPanel(){
-  const T=t();
-  const el=$('pf-hist');
-  if(!el) return;
+  const T=t(); const el=$('pf-hist'); if(!el) return;
   el.innerHTML=HIST.map(h=>`<div class="hrow">
     <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${h.s==='att'?'var(--green)':'var(--red)'}"></div>
-    <div style="flex:1">
-      <div style="font-size:12px;color:var(--text)">${h.t} · ${T.days[h.di]}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:1px">${h.date.split('/')[lang==='el'?1:lang==='ru'?0:2].trim()}</div>
-    </div>
+    <div style="flex:1"><div style="font-size:12px;color:var(--text)">${h.t} · ${T.days[h.di]}</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:1px">${h.date.split('/')[lang==='el'?1:lang==='ru'?0:2].trim()}</div></div>
     <span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;background:${h.s==='att'?'var(--gbg)':'var(--rbg)'};color:${h.s==='att'?'var(--green)':'var(--red)'}">${h.s==='att'?T.att:T.mis}</span>
   </div>`).join('');
+}
+
+async function buildHistPanelAsync(){
+  if(!sbUser||sbUser.id==='demo'){ buildHistPanel(); return; }
+  const T=t(); const el=$('pf-hist'); if(!el) return;
+  const today=new Date().toISOString().split('T')[0];
+  const {data}=await sb.from('bookings').select('class_id,date,status').eq('user_id',sbUser.id).lt('date',today).order('date',{ascending:false}).limit(10);
+  if(!data?.length){ el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0">${T.hNoUpcoming}</div>`; return; }
+  el.innerHTML=data.map(b=>{
+    const date=new Date(b.date+'T12:00:00');
+    const dow=(date.getDay()+6)%7;
+    const slot=SCH[dow]?.find(s=>s.id===b.class_id);
+    if(!slot) return '';
+    const att=b.status==='active';
+    return `<div class="hrow">
+      <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${att?'var(--green)':'var(--red)'}"></div>
+      <div style="flex:1"><div style="font-size:12px;color:var(--text)">${slot.t}–${nh(slot.t)} · ${T.days[dow]}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:1px">${date.getDate()+' '+T.months[date.getMonth()]}</div></div>
+      <span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;background:${att?'var(--gbg)':'var(--rbg)'};color:${att?'var(--green)':'var(--red)'}">${att?T.att:T.mis}</span>
+    </div>`;
+  }).filter(Boolean).join('');
 }
 
 function buildProfileRows(){
@@ -1561,7 +1692,24 @@ window.onOtp=function(el,idx){
   if(code.length===6) doOtp();
 };
 
-applyLang();
+// ═══════════════════════════════════════════════════════════════
+// INIT — check existing session
+// ═══════════════════════════════════════════════════════════════
+(async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){
+    sbUser=session.user;
+    await loadClasses();
+    await loadWeekBookings();
+    $('hdr').style.display='flex';
+    $('bnav').style.display='flex';
+    applyLang();
+    goTab('home');
+  } else {
+    applyLang();
+    go('welcome');
+  }
+})();
 </script>
 </body>
 </html>
