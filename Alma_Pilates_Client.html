@@ -28,9 +28,10 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 .scroll{flex:1;overflow-y:auto}
 
 /* screens */
-.scr{display:none;flex-direction:column;gap:13px;padding:18px}
+.scr{display:none;flex-direction:column;gap:10px;padding:14px 16px}
 .scr.on{display:flex}
 .scr.center{justify-content:center;align-items:center;min-height:600px}
+#scr-schedule,#scr-profile{gap:8px;padding:12px 14px}
 
 /* bottom nav */
 .bnav{border-top:0.5px solid var(--border);padding:6px 0 10px;display:flex;background:var(--card);flex-shrink:0}
@@ -101,13 +102,14 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 
 /* slots */
 .dayb{background:var(--card);border:0.5px solid var(--border);border-radius:12px;overflow:hidden}
-.daylbl{font-size:11px;font-weight:500;color:var(--text2);padding:7px 11px 5px;background:var(--bg2);border-bottom:0.5px solid var(--border)}
-.slots{display:flex;flex-wrap:wrap;gap:6px;padding:9px 10px}
-.slot{padding:6px 8px;border-radius:8px;font-size:11px;cursor:pointer;border:0.5px solid transparent;display:flex;flex-direction:column;align-items:center;min-width:62px;transition:all .12s}
+.daylbl{font-size:11px;font-weight:500;color:var(--text2);padding:5px 10px 4px;background:var(--bg2);border-bottom:0.5px solid var(--border)}
+.slots{display:flex;flex-wrap:wrap;gap:5px;padding:7px 9px}
+.slot{padding:5px 7px;border-radius:7px;font-size:11px;cursor:pointer;border:0.5px solid transparent;display:flex;flex-direction:column;align-items:center;min-width:60px;transition:all .12s}
 .slot.mo{background:var(--card);border-color:var(--border);color:var(--text2)}
 .slot.ev{background:var(--card);border-color:var(--border);color:var(--text2)}
-.slot.fu{background:var(--bg2);border-color:var(--border);color:var(--text3);cursor:default;opacity:.6}
+.slot.fu{background:var(--bg2);border-color:var(--border);color:var(--text3);cursor:pointer;opacity:.85}
 .slot.mi{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.slot.wl{background:var(--wbg);border-color:#D4B870;color:var(--warn);cursor:pointer}
 .slot:active:not(.fu):not(.mi){opacity:.8}
 
 /* pay opts */
@@ -117,7 +119,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 .optprice{font-family:var(--serif);font-size:20px;color:var(--accent)}
 
 /* profile rows */
-.prow{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--card);border-radius:10px;border:0.5px solid var(--border)}
+.prow{display:flex;justify-content:space-between;align-items:center;padding:8px 11px;background:var(--card);border-radius:10px;border:0.5px solid var(--border)}
 
 /* sheet */
 .ov{display:none;position:absolute;inset:0;background:rgba(44,35,24,.45);z-index:50;align-items:flex-end}
@@ -326,25 +328,31 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
           </div>
         </div>
       </div>
-      <div><div class="slbl" id="h-hist-lbl" style="margin-bottom:8px"></div>
-        <div style="display:flex;flex-direction:column;gap:6px" id="h-hist"></div>
+      <div><div class="slbl" id="h-upcoming-lbl" style="margin-bottom:8px"></div>
+        <div style="display:flex;flex-direction:column;gap:6px" id="h-upcoming"></div>
       </div>
     </div>
 
     <!-- SCHEDULE -->
     <div class="scr" id="scr-schedule">
-      <div class="slbl" id="sch-lbl" style="margin-bottom:2px"></div>
-      <div class="wnav">
-        <button class="wbtn" onclick="shiftW(-1)">‹</button>
-        <span class="wlbl" id="w-lbl"></span>
-        <button class="wbtn" onclick="shiftW(1)">›</button>
+      <div class="slbl" id="sch-lbl" style="display:none"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="wnav" style="flex:1">
+          <button class="wbtn" onclick="shiftW(-1)">‹</button>
+          <span class="wlbl" id="w-lbl"></span>
+          <button class="wbtn" onclick="shiftW(1)">›</button>
+        </div>
+        <div class="lrow" style="margin-left:8px">
+          <div class="lb on" id="sv-week" onclick="setSchView('week')"></div>
+          <div class="lb" id="sv-month" onclick="setSchView('month')"></div>
+        </div>
       </div>
-      <div style="display:flex;gap:10px;font-size:11px;color:var(--text2);flex-wrap:wrap">
+      <div id="sch-legend" style="display:flex;gap:10px;font-size:11px;color:var(--text2);flex-wrap:wrap">
         <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--card);border:0.5px solid var(--border);display:inline-block"></span><span id="lg-mo"></span></span>
         <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--bg2);border:0.5px solid var(--border);display:inline-block;opacity:.6"></span><span id="lg-ev"></span></span>
         <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent);display:inline-block"></span><span id="lg-mi"></span></span>
       </div>
-      <div id="sch-grid" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div id="sch-grid"></div>
     </div>
 
     <!-- PAY -->
@@ -358,26 +366,38 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 
     <!-- PROFILE -->
     <div class="scr" id="scr-profile">
-      <div style="text-align:center;padding:6px 0 12px">
-        <div style="width:58px;height:58px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:500;margin:0 auto 8px;border:0.5px solid var(--border)" id="pf-av">ΜΚ</div>
+      <div style="text-align:center;padding:2px 0 8px">
+        <div style="width:50px;height:50px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:500;margin:0 auto 6px;border:0.5px solid var(--border)" id="pf-av">ΜΚ</div>
         <div style="font-family:var(--serif);font-size:16px;color:var(--text)" id="pf-name"></div>
         <div style="font-size:12px;color:var(--text3);margin-top:3px">+357 99 111222</div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:5px" id="pf-rows"></div>
-      <div style="padding:10px 12px;background:var(--bg2);border-radius:12px;font-size:11px;color:var(--text2);line-height:1.6;display:flex;gap:7px">
-        <span style="font-size:14px">🔔</span><span id="pf-notif"></span>
+      <!-- sub-tabs -->
+      <div class="lrow" style="gap:4px;margin-bottom:2px">
+        <div class="lb on" id="pf-tab-info" onclick="setPfTab('info')" style="flex:1;text-align:center;padding:5px 0" id="pf-tab-info-lbl"></div>
+        <div class="lb" id="pf-tab-hist" onclick="setPfTab('hist')" style="flex:1;text-align:center;padding:5px 0" id="pf-tab-hist-lbl"></div>
       </div>
-      <button class="btn ol sm" onclick="openSheet('sh-gdpr')" id="pf-gdpr-btn"></button>
-      <button class="btn gh sm" onclick="openSheet('sh-del')" id="pf-del-btn"></button>
+      <!-- info panel -->
+      <div id="pf-panel-info">
+        <div style="display:flex;flex-direction:column;gap:5px" id="pf-rows"></div>
+        <div style="padding:10px 12px;background:var(--bg2);border-radius:12px;font-size:11px;color:var(--text2);line-height:1.6;display:flex;gap:7px">
+          <span style="font-size:14px">🔔</span><span id="pf-notif"></span>
+        </div>
+        <button class="btn ol sm" onclick="openSheet('sh-gdpr')" id="pf-gdpr-btn"></button>
+        <button class="btn gh sm" onclick="openSheet('sh-del')" id="pf-del-btn"></button>
+      </div>
+      <!-- history panel -->
+      <div id="pf-panel-hist" style="display:none">
+        <div style="display:flex;flex-direction:column;gap:6px" id="pf-hist"></div>
+      </div>
 
       <!-- MAP -->
       <div style="margin-top:6px">
         <div style="font-size:11px;font-weight:500;color:var(--text2);margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em" id="pf-map-lbl">Η τοποθεσία μας</div>
         <!-- Static map preview -->
         <div style="border-radius:12px;overflow:hidden;border:0.5px solid var(--border);position:relative;cursor:pointer" onclick="openSheet('sh-map')">
-          <div style="background:#E8E4DC;height:140px;display:flex;align-items:center;justify-content:center;position:relative">
+          <div style="background:#E8E4DC;height:95px;display:flex;align-items:center;justify-content:center;position:relative">
             <!-- Stylized map background -->
-            <svg width="100%" height="140" viewBox="0 0 354 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0">
+            <svg width="100%" height="95" viewBox="0 0 354 95" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0">
               <rect width="354" height="140" fill="#EDE7DA"/>
               <!-- Streets -->
               <line x1="0" y1="70" x2="354" y2="70" stroke="#D8CEBE" stroke-width="8"/>
@@ -630,6 +650,32 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
       <button class="btn pr" onclick="closeSheet('sh-legal')">Close / Κλείσιμο / Закрыть</button>
     </div>
   </div>
+
+  <!-- DAY SLOTS SHEET -->
+  <div class="ov" id="sh-day">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="shd-title"></div>
+      <div id="shd-slots"></div>
+      <button class="btn gh sm" style="margin-top:10px" id="shd-close" onclick="closeSheet('sh-day')"></button>
+    </div>
+  </div>
+
+  <!-- CANCEL BOOKING SHEET -->
+  <div class="ov" id="sh-cancel">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="shc-title" style="color:var(--red)"></div>
+      <div class="ssub" id="shc-info"></div>
+      <div class="warn" style="margin-bottom:14px"><div class="wi">!</div><span id="shc-warn" style="font-size:12px;color:var(--warn)"></span></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn sm" style="flex:1" id="shc-keep" onclick="closeSheet('sh-cancel')"></button>
+        <button class="btn sm" style="flex:1;background:var(--red);color:#fff;border-color:var(--red)" id="shc-confirm" onclick="confirmCancel()"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast-box"></div>
 </div><!-- /phone -->
 
 <script>
@@ -666,7 +712,8 @@ const TR = {
     hWarn:'Λίγα μαθήματα — ανανεώστε τη συνδρομή',
     hBurn:'🔥 Τα μαθήματα που δεν χρησιμοποιούνται λήγουν στις 3 Ιουν. Έχετε 2 μαθήματα να χρησιμοποιήσετε πριν τη λήξη!',
     hQuick:'Γρήγορες ενέργειες',hBook:'Κράτηση',hBookS:'Επιλογή θέσης',
-    hPay:'Πληρωμή',hPayS:'Συνδρομή / μεμ.',hHist:'Ιστορικό',
+    hPay:'Πληρωμή',hPayS:'Συνδρομή / μεμ.',hUpcoming:'Επόμενα μαθήματα',hNoUpcoming:'Δεν υπάρχουν κρατήσεις',
+    pfTabInfo:'Προφίλ',pfTabHist:'Ιστορικό',
     days:['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ'],
     months:['Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'],
     att:'Παρουσία',mis:'Απουσία',
@@ -707,6 +754,12 @@ const TR = {
     delLegal:'Σύμφωνα με ΓΚΠΔ αρ.17 (δικαίωμα διαγραφής). Η επεξεργασία ολοκληρώνεται εντός 30 ημερών.',
     delCancel:'Ακύρωση',delConfirm:'Διαγραφή',
     phoneErr:'Μη έγκυρος αριθμός',termsErr:'Αποδεχτείτε τους όρους και τον ΓΚΠΔ',
+    svWeek:'Εβδ.',svMonth:'Μήνας',shdClose:'Κλείσιμο',noClasses:'Δεν υπάρχουν μαθήματα',
+    shcTitle:'Ακύρωση κράτησης',
+    shcWarnFree:'Ακύρωση εντός 4 ωρών — το μάθημα επιστρέφεται στο υπόλοιπό σας.',
+    shcWarnLate:'Ακύρωση λιγότερο από 4 ώρες πριν — το μάθημα χάνεται.',
+    shcKeep:'Κράτηση',shcConfirm:'Ακύρωση',cancelOk:'Κράτηση ακυρώθηκε',cancelLateOk:'Κράτηση ακυρώθηκε · μάθημα χάθηκε',
+    slWait:'λίστα',waitlistBtn:'Λίστα αναμονής',waitlistOk:'Προστεθήκατε στη λίστα αναμονής!',
   },
   en:{
     wCity:'Limassol, Cyprus',
@@ -736,7 +789,8 @@ const TR = {
     hWarn:'Few classes left — renew your membership',
     hBurn:'🔥 Unused classes expire Jun 3. You have 2 classes to use before your membership ends!',
     hQuick:'Quick actions',hBook:'Book class',hBookS:'Choose a slot',
-    hPay:'Pay',hPayS:'Membership / single',hHist:'History',
+    hPay:'Pay',hPayS:'Membership / single',hUpcoming:'Upcoming classes',hNoUpcoming:'No bookings yet',
+    pfTabInfo:'Profile',pfTabHist:'History',
     days:['Mon','Tue','Wed','Thu','Fri','Sat'],
     months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
     att:'Attended',mis:'Missed',
@@ -777,6 +831,12 @@ const TR = {
     delLegal:'Under GDPR Art.17 (right to erasure). Processed within 30 days.',
     delCancel:'Cancel',delConfirm:'Delete',
     phoneErr:'Invalid phone number',termsErr:'Please accept terms and GDPR consent',
+    svWeek:'Week',svMonth:'Month',shdClose:'Close',noClasses:'No classes today',
+    shcTitle:'Cancel booking',
+    shcWarnFree:'Cancelling with 4+ hours notice — your class will be returned to your balance.',
+    shcWarnLate:'Cancelling less than 4 hours before class — this class will be lost.',
+    shcKeep:'Keep booking',shcConfirm:'Cancel booking',cancelOk:'Booking cancelled',cancelLateOk:'Booking cancelled · class lost',
+    slWait:'waitlist',waitlistBtn:'Join waitlist',waitlistOk:'Added to the waitlist!',
   },
   ru:{
     wCity:'Лимассол, Кипр',
@@ -806,7 +866,8 @@ const TR = {
     hWarn:'Заканчиваются занятия — продлите абонемент',
     hBurn:'🔥 Неиспользованные занятия сгорят 3 июня. У вас ещё 2 занятия — запишитесь до конца абонемента!',
     hQuick:'Быстрые действия',hBook:'Записаться',hBookS:'Выбрать слот',
-    hPay:'Оплатить',hPayS:'Абонемент / разовое',hHist:'История',
+    hPay:'Оплатить',hPayS:'Абонемент / разовое',hUpcoming:'Ближайшие занятия',hNoUpcoming:'Нет записей',
+    pfTabInfo:'Профиль',pfTabHist:'История',
     days:['Пн','Вт','Ср','Чт','Пт','Сб'],
     months:['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'],
     att:'Посещено',mis:'Пропущено',
@@ -847,6 +908,12 @@ const TR = {
     delLegal:'На основании GDPR ст.17 (право на удаление). Обрабатывается в течение 30 дней.',
     delCancel:'Отмена',delConfirm:'Удалить',
     phoneErr:'Неверный номер телефона',termsErr:'Примите условия и дайте согласие GDPR',
+    svWeek:'Нед.',svMonth:'Месяц',shdClose:'Закрыть',noClasses:'Занятий нет',
+    shcTitle:'Отмена записи',
+    shcWarnFree:'Отмена за 4+ часа — занятие вернётся на ваш счёт.',
+    shcWarnLate:'Отмена менее чем за 4 часа — занятие сгорит.',
+    shcKeep:'Оставить',shcConfirm:'Отменить запись',cancelOk:'Запись отменена',cancelLateOk:'Запись отменена · занятие сгорело',
+    slWait:'очередь',waitlistBtn:'В список ожидания',waitlistOk:'Вы в списке ожидания!',
   }
 };
 
@@ -863,12 +930,13 @@ const SCH = {
 };
 const HIST=[{di:1,t:'07:00–08:00',date:'6 мая / 6 Μαΐου / May 6',s:'att'},{di:3,t:'17:30–18:30',date:'1 мая / 1 Μαΐου / May 1',s:'mis'},{di:1,t:'07:00–08:00',date:'29 апр / 29 Απρ / Apr 29',s:'att'}];
 const MINE_SET=new Set(['1_07:00','4_17:30']);
+const WAITLIST_SET=new Set();
 const CAP=4;
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
-let lang='el', curTab='home', wkOff=0, selOpt=null, selSlot=null, obStep=0;
+let lang='el', curTab='home', wkOff=0, monthOff=0, schView='week', selOpt=null, selSlot=null, obStep=0;
 let bkCounts={};
 
 // ═══════════════════════════════════════════════════════════════
@@ -929,7 +997,7 @@ function applyLang(){
   const burnTxt=document.getElementById('h-burn-txt');
   if(burnEl&&burnTxt){burnTxt.textContent=T.hBurn||'';burnEl.style.display='flex';}
   tx('h-book',T.hBook); tx('h-book-s',T.hBookS);
-  tx('h-pay',T.hPay); tx('h-pay-s',T.hPayS); tx('h-hist-lbl',T.hHist);
+  tx('h-pay',T.hPay); tx('h-pay-s',T.hPayS); tx('h-upcoming-lbl',T.hUpcoming);
   // rebuild greeting
   const g=$('h-greet');
   if(g) g.innerHTML=T.hGreet+' <em style="font-style:italic;color:var(--accent2)">'+T.hName+'</em>';
@@ -939,19 +1007,23 @@ function applyLang(){
   if(dots) dots.innerHTML=Array.from({length:sub.total},(_,i)=>`<div class="sd ${i<sub.total-sub.left?'u':'l'}"></div>`).join('');
   tx('h-sub-type','8 '+(lang==='el'?'μαθήματα':lang==='en'?'classes':'занятий')+' · '+T.subSince);
   tx('h-left',sub.left+T.subLeft);
-  // history
-  const hel=$('h-hist');
-  if(hel) hel.innerHTML=HIST.map(h=>`<div class="hrow"><div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${h.s==='att'?'var(--green)':'var(--red)'}"></div><div style="flex:1"><div style="font-size:12px;color:var(--text)">${h.t} · ${T.days[h.di]}</div><div style="font-size:10px;color:var(--text3);margin-top:1px">${h.date.split('/')[lang==='el'?1:lang==='ru'?0:2].trim()}</div></div><span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;background:${h.s==='att'?'var(--gbg)':'var(--rbg)'};color:${h.s==='att'?'var(--green)':'var(--red)'}">${h.s==='att'?T.att:T.mis}</span></div>`).join('');
+  // upcoming classes
+  buildUpcoming();
+  // profile sub-tabs
+  tx('pf-tab-info',T.pfTabInfo); tx('pf-tab-hist',T.pfTabHist);
   // Schedule
   tx('sch-lbl',T.schLbl); tx('lg-mo',T.lgMo); tx('lg-ev',T.lgEv); tx('lg-mi',T.lgMi);
+  tx('sv-week',T.svWeek); tx('sv-month',T.svMonth); tx('shd-close',T.shdClose);
   tx('shb-title',T.shbTitle); tx('shb-ded',T.shbDed);
   tx('shb-cancel',T.shbCancel); tx('shb-confirm',T.shbConfirm);
+  tx('shc-keep',T.shcKeep); tx('shc-confirm',T.shcConfirm);
   // Pay
   tx('p-title',T.pTitle); tx('p-sub',T.pSub); tx('p-pay-btn',T.pBtn);
   tx('shp-title',T.shpTitle); tx('shp-legal',T.shpLegal);
   tx('shp-cancel',T.shpCancel); tx('shp-pay',T.shpPay);
   // Profile
   tx('pf-notif',T.pfNotif); tx('pf-gdpr-btn',T.pfGdpr); tx('pf-del-btn',T.pfDel);
+  tx('pf-tab-info',T.pfTabInfo); tx('pf-tab-hist',T.pfTabHist);
   tx('pf-name',lang==='el'?'Μαρία Κωνσταντίνου':lang==='en'?'Maria Constantinou':'Мария Константину');
   // nav
   tx('nl-home',T.nlHome); tx('nl-sch',T.nlSch); tx('nl-pay',T.nlPay); tx('nl-prof',T.nlProf);
@@ -1146,7 +1218,90 @@ function getWeekDates(){
   return Array.from({length:6},(_,i)=>{ const d=new Date(base); d.setDate(d.getDate()+i); return d; });
 }
 
-function shiftW(d){ wkOff+=d; buildSchedule(); }
+function shiftW(d){
+  if(schView==='month'){ monthOff+=d; buildMonthView(); }
+  else { wkOff+=d; buildSchedule(); }
+}
+
+function setSchView(mode){
+  schView=mode;
+  $('sv-week').classList.toggle('on', mode==='week');
+  $('sv-month').classList.toggle('on', mode==='month');
+  const leg=$('sch-legend');
+  if(leg) leg.style.display=mode==='week'?'flex':'none';
+  if(mode==='week') buildSchedule();
+  else buildMonthView();
+}
+
+function buildMonthView(){
+  const T=t();
+  const base=new Date(2026,4+monthOff,1);
+  const year=base.getFullYear(), month=base.getMonth();
+  const mn=base.toLocaleString(lang==='el'?'el-GR':lang==='en'?'en-GB':'ru-RU',{month:'long',year:'numeric'});
+  tx('w-lbl', mn.charAt(0).toUpperCase()+mn.slice(1));
+  const DAYS7=lang==='el'?['Δ','Τ','Τ','Π','Π','Σ','Κ']:
+              lang==='en'?['M','T','W','T','F','S','S']:
+              ['П','В','С','Ч','П','С','В'];
+  const firstDay=new Date(year,month,1);
+  const startDow=(firstDay.getDay()+6)%7;
+  const cells=Array.from({length:42},(_,i)=>new Date(year,month,1-startDow+i));
+  const today=new Date();
+  const grid=$('sch-grid');
+  if(!grid) return;
+  grid.style.cssText='display:block';
+  let h=`<div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px">
+    ${DAYS7.map((d,i)=>`<div style="text-align:center;font-size:11px;font-weight:500;padding:6px 0 8px;color:${i>=5?'var(--red)':'var(--text3)'}">${d}</div>`).join('')}
+  </div><div style="display:grid;grid-template-columns:repeat(7,1fr);row-gap:2px">`;
+  cells.forEach(date=>{
+    const isCur=date.getMonth()===month;
+    const isToday=date.toDateString()===today.toDateString();
+    const dow=(date.getDay()+6)%7;
+    const isSun=dow===6;
+    const slots=isCur&&!isSun?(SCH[dow]||[]):[];
+    const hasMine=slots.some(s=>MINE_SET.has(dow+'_'+s.t));
+    const hasSlots=slots.length>0;
+    const numColor=isSun?'var(--red)':'var(--text)';
+    const onclick=isCur&&!isSun?`openDaySlots(${dow},new Date(${date.getTime()}))`:'';
+    h+=`<div onclick="${onclick}" style="display:flex;flex-direction:column;align-items:center;gap:5px;
+        padding:4px 2px 8px;cursor:${isCur&&!isSun?'pointer':'default'};opacity:${isCur?1:0.2}">
+      <div style="width:30px;height:30px;border-radius:50%;
+          background:${isToday?'var(--accent)':'transparent'};
+          display:flex;align-items:center;justify-content:center">
+        <span style="font-size:13px;font-weight:${isToday?700:400};color:${isToday?'#fff':numColor}">${date.getDate()}</span>
+      </div>
+      <div style="display:flex;gap:3px;height:5px;align-items:center">
+        ${hasMine?`<div style="width:5px;height:5px;border-radius:50%;background:var(--accent)"></div>`:''}
+        ${hasSlots&&!hasMine?`<div style="width:5px;height:5px;border-radius:50%;background:var(--green)"></div>`:''}
+      </div>
+    </div>`;
+  });
+  h+='</div>';
+  grid.innerHTML=h;
+}
+
+function openDaySlots(dow,date){
+  const T=t();
+  const slots=SCH[dow]||[];
+  const dateLabel=T.days[dow]+', '+date.getDate()+' '+T.months[date.getMonth()];
+  tx('shd-title',dateLabel);
+  const dateMs=date.getTime();
+  const slotsHTML=slots.map(s=>{
+    const key=dow+'_'+s.t;
+    const mine=MINE_SET.has(key);
+    const onWait=WAITLIST_SET.has(key);
+    const bk=bkCounts[wkOff+'_'+key]||0;
+    const free=CAP-bk;
+    const full=free<=0&&!mine;
+    const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
+    const lbl=mine?T.slMine:onWait?T.slWait:full?T.slFull:free+' '+T.slFree;
+    const onclick=mine?`onclick="openCancelSheet(${dow},'${s.t}',${dateMs})"`:
+                  full&&!onWait?`onclick="closeSheet('sh-day');joinWaitlist(${dow},'${s.t}')"`
+                  :!full?`onclick="closeSheet('sh-day');openBookSheet(${dow},'${s.t}',${free},${dateMs})"`:'' ;
+    return `<div class="slot ${cls}" ${onclick}><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
+  }).join('');
+  $('shd-slots').innerHTML=`<div class="slots" style="flex-wrap:wrap">${slotsHTML}</div>`;
+  openSheet('sh-day');
+}
 
 function buildSchedule(){
   const T=t();
@@ -1156,6 +1311,7 @@ function buildSchedule(){
   const today=new Date();
   const grid=$('sch-grid');
   if(!grid) return;
+  grid.style.cssText='display:flex;flex-direction:column;gap:5px';
   grid.innerHTML=dates.map((date,di)=>{
     const daySlots=SCH[di]||[];
     if(!daySlots.length) return '';
@@ -1163,24 +1319,29 @@ function buildSchedule(){
     const slotsHTML=daySlots.map(s=>{
       const key=di+'_'+s.t;
       const mine=MINE_SET.has(key);
+      const onWait=WAITLIST_SET.has(key);
       if(!bkCounts[wkOff+'_'+key]) bkCounts[wkOff+'_'+key]=(di*3+s.t.length+wkOff+1)%4;
       const bk=bkCounts[wkOff+'_'+key];
       const free=CAP-bk;
       const full=free<=0&&!mine;
-      const cls=mine?'mi':full?'fu':s.tp==='mo'?'mo':'ev';
-      const lbl=mine?T.slMine:full?T.slFull:free+' '+T.slFree;
-      const onclick=(!full&&!mine)?`onclick="openBookSheet(${di},'${s.t}',${free})"` :'';
+      const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
+      const lbl=mine?T.slMine:onWait?T.slWait:full?T.slFull:free+' '+T.slFree;
+      const onclick=mine?`onclick="openCancelSheet(${di},'${s.t}',null)"`:
+                    full&&!onWait?`onclick="joinWaitlist(${di},'${s.t}')"`:'';
+      if(!mine&&!full&&!onWait){
+        const o=`onclick="openBookSheet(${di},'${s.t}',${free},null)"`;
+        return `<div class="slot ${cls}" ${o}><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
+      }
       return `<div class="slot ${cls}" ${onclick}><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
     }).join('');
     return `<div class="dayb"><div class="daylbl" style="${isToday?'background:var(--accent);color:var(--bg)':''}">${T.days[di]} · ${date.getDate()} ${T.months[date.getMonth()]}</div><div class="slots">${slotsHTML}</div></div>`;
   }).join('');
 }
 
-function openBookSheet(di,time,free){
-  selSlot={di,time,free};
+function openBookSheet(di,time,free,dateMs){
+  selSlot={di,time,free,dateMs};
   const T=t();
-  const dates=getWeekDates();
-  const date=dates[di];
+  const date=dateMs?new Date(dateMs):getWeekDates()[di];
   tx('shb-title',T.shbTitle);
   tx('shb-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
   openSheet('sh-book');
@@ -1191,10 +1352,58 @@ function confirmBook(){
     const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
     bkCounts[key]=(bkCounts[key]||0)+1;
     MINE_SET.add(selSlot.di+'_'+selSlot.time);
+    WAITLIST_SET.delete(selSlot.di+'_'+selSlot.time);
   }
   closeSheet('sh-book');
   toast2(t().bookOk);
-  buildSchedule();
+  if(schView==='month') buildMonthView(); else buildSchedule();
+}
+
+function isLateCancellation(date,time){
+  const[h,m]=time.split(':').map(Number);
+  const classTime=new Date(date);
+  classTime.setHours(h,m,0,0);
+  return (classTime-new Date())<4*60*60*1000;
+}
+
+function openCancelSheet(di,time,dateMs){
+  const date=dateMs?new Date(dateMs):getWeekDates()[di];
+  const late=isLateCancellation(date,time);
+  selSlot={di,time,dateMs,late};
+  const T=t();
+  tx('shc-title',T.shcTitle);
+  tx('shc-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
+  const warn=$('shc-warn');
+  if(warn){
+    warn.textContent=late?T.shcWarnLate:T.shcWarnFree;
+    warn.parentElement.style.borderColor=late?'var(--red)':'#D4B870';
+    warn.parentElement.style.background=late?'var(--rbg)':'var(--wbg)';
+    const icon=warn.previousElementSibling;
+    if(icon){ icon.style.background=late?'var(--red)':'#D4B870'; icon.style.color=late?'#fff':'var(--warn)'; icon.textContent=late?'✕':'!'; }
+  }
+  tx('shc-keep',T.shcKeep);
+  tx('shc-confirm',T.shcConfirm);
+  closeSheet('sh-day');
+  openSheet('sh-cancel');
+}
+
+function confirmCancel(){
+  const T=t();
+  if(selSlot){
+    const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
+    if(!selSlot.late && bkCounts[key]>0) bkCounts[key]--;
+    MINE_SET.delete(selSlot.di+'_'+selSlot.time);
+  }
+  closeSheet('sh-cancel');
+  toast2(selSlot&&selSlot.late?T.cancelLateOk:T.cancelOk);
+  if(schView==='month') buildMonthView(); else buildSchedule();
+}
+
+function joinWaitlist(di,time){
+  const key=di+'_'+time;
+  WAITLIST_SET.add(key);
+  toast2(t().waitlistOk);
+  if(schView==='month') buildMonthView(); else buildSchedule();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1239,8 +1448,80 @@ function doRevPay(){
 }
 
 // ═══════════════════════════════════════════════════════════════
+// UPCOMING CLASSES (home screen)
+// ═══════════════════════════════════════════════════════════════
+function getUpcomingClasses(){
+  const now=new Date();
+  const todayDow=(now.getDay()+6)%7;
+  const result=[];
+  MINE_SET.forEach(key=>{
+    const parts=key.split('_');
+    const dow=parseInt(parts[0]);
+    const time=parts[1];
+    const[h,m]=time.split(':').map(Number);
+    let daysAhead=dow-todayDow;
+    if(daysAhead<0||(daysAhead===0&&now.getHours()*60+now.getMinutes()>=h*60+m)) daysAhead+=7;
+    const date=new Date(now);
+    date.setDate(date.getDate()+daysAhead);
+    result.push({dow,time,date});
+  });
+  result.sort((a,b)=>a.date-b.date);
+  return result.slice(0,3);
+}
+
+function buildUpcoming(){
+  const T=t();
+  const el=$('h-upcoming');
+  if(!el) return;
+  const upcoming=getUpcomingClasses();
+  if(!upcoming.length){
+    el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0">${T.hNoUpcoming}</div>`;
+    return;
+  }
+  el.innerHTML=upcoming.map(({dow,time,date})=>{
+    const dayStr=T.days[dow]+', '+date.getDate()+' '+T.months[date.getMonth()];
+    const slot=SCH[dow]?.find(s=>s.t===time);
+    const tp=slot?slot.tp:'ev';
+    const color=tp==='mo'?'var(--accent2)':'var(--green)';
+    return `<div class="hrow" onclick="goTab('schedule')" style="cursor:pointer">
+      <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${color}"></div>
+      <div style="flex:1">
+        <div style="font-size:12px;color:var(--text)">${time}–${nh(time)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:1px">${dayStr}</div>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--text3)" stroke-width="1.5"><path d="M7 5l5 5-5 5"/></svg>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
 // PROFILE
 // ═══════════════════════════════════════════════════════════════
+let pfTab='info';
+
+function setPfTab(tab){
+  pfTab=tab;
+  $('pf-tab-info').classList.toggle('on',tab==='info');
+  $('pf-tab-hist').classList.toggle('on',tab==='hist');
+  $('pf-panel-info').style.display=tab==='info'?'':'none';
+  $('pf-panel-hist').style.display=tab==='hist'?'':'none';
+  if(tab==='hist') buildHistPanel();
+}
+
+function buildHistPanel(){
+  const T=t();
+  const el=$('pf-hist');
+  if(!el) return;
+  el.innerHTML=HIST.map(h=>`<div class="hrow">
+    <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${h.s==='att'?'var(--green)':'var(--red)'}"></div>
+    <div style="flex:1">
+      <div style="font-size:12px;color:var(--text)">${h.t} · ${T.days[h.di]}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:1px">${h.date.split('/')[lang==='el'?1:lang==='ru'?0:2].trim()}</div>
+    </div>
+    <span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;background:${h.s==='att'?'var(--gbg)':'var(--rbg)'};color:${h.s==='att'?'var(--green)':'var(--red)'}">${h.s==='att'?T.att:T.mis}</span>
+  </div>`).join('');
+}
+
 function buildProfileRows(){
   const T=t();
   const el=$('pf-rows');
