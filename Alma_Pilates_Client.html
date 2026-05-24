@@ -1025,6 +1025,24 @@ function applyProfileUI(){
   if(g) g.innerHTML=t().hGreet+' <em style="font-style:italic;color:var(--accent2)">'+firstName+'</em>';
 }
 
+async function loadBalance(){
+  if(!sbUser||sbUser.id==='demo') return;
+  const {count}=await sb.from('bookings').select('*',{count:'exact',head:true}).eq('user_id',sbUser.id).eq('status','active');
+  const total=sbProfile?.total_classes||8;
+  const used=count||0;
+  const left=Math.max(0,total-used);
+  const dots=$('h-dots');
+  if(dots) dots.innerHTML=Array.from({length:total},(_,i)=>`<div class="sd ${i<used?'u':'l'}"></div>`).join('');
+  const T=t();
+  tx('h-sub-type',total+' '+(lang==='el'?'μαθήματα':lang==='en'?'classes':'занятий')+(sbProfile?.sub_start?' · '+sbProfile.sub_start:''));
+  tx('h-left',left+T.subLeft);
+  const pfRows=$('pf-rows');
+  if(pfRows){
+    const rows=$('pf-rows').querySelectorAll('.prow span:last-child');
+    if(rows[0]) rows[0].textContent=total+' '+(lang==='el'?'μαθ.':lang==='en'?'cl.':'зан.')+' · '+left+T.subLeft.trim();
+  }
+}
+
 async function refreshSchedule(){
   await loadWeekBookings();
   if(schView==='month') buildMonthView(); else buildSchedule();
@@ -1093,14 +1111,10 @@ function applyLang(){
   const g=$('h-greet');
   const displayName=sbProfile?.name?.trim().split(/\s+/)[0]||T.hName;
   if(g) g.innerHTML=T.hGreet+' <em style="font-style:italic;color:var(--accent2)">'+displayName+'</em>';
-  // sub card
-  const sub={left:2,total:8};
-  const dots=$('h-dots');
-  if(dots) dots.innerHTML=Array.from({length:sub.total},(_,i)=>`<div class="sd ${i<sub.total-sub.left?'u':'l'}"></div>`).join('');
-  tx('h-sub-type','8 '+(lang==='el'?'μαθήματα':lang==='en'?'classes':'занятий')+' · '+T.subSince);
-  tx('h-left',sub.left+T.subLeft);
+  // sub card — updated async by loadBalance()
+  loadBalance();
   // upcoming classes
-  buildUpcoming();
+  buildUpcomingAsync();
   // profile sub-tabs
   tx('pf-tab-info',T.pfTabInfo); tx('pf-tab-hist',T.pfTabHist);
   // Schedule
@@ -1324,8 +1338,11 @@ function goTab(tab){
 // SCHEDULE
 // ═══════════════════════════════════════════════════════════════
 function getWeekDates(){
-  const base=new Date(2026,4,4);
-  base.setDate(base.getDate()+wkOff*7);
+  const today=new Date();
+  const day=today.getDay();
+  const base=new Date(today);
+  base.setDate(today.getDate()-((day+6)%7)+wkOff*7);
+  base.setHours(0,0,0,0);
   return Array.from({length:6},(_,i)=>{ const d=new Date(base); d.setDate(d.getDate()+i); return d; });
 }
 
@@ -1471,6 +1488,7 @@ async function confirmBook(){
     }
     toast2(t().bookOk);
     await refreshSchedule();
+    loadBalance();
   } else {
     const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
     bkCounts[key]=(bkCounts[key]||0)+1;
@@ -1518,6 +1536,7 @@ async function confirmCancel(){
     if(bk) await sb.from('bookings').update({status:'cancelled'}).eq('id',bk.id);
     toast2(selSlot.late?T.cancelLateOk:T.cancelOk);
     await refreshSchedule();
+    loadBalance();
   } else {
     const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
     if(!selSlot.late&&bkCounts[key]>0) bkCounts[key]--;
