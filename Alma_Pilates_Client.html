@@ -384,6 +384,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
           <span style="font-size:14px">🔔</span><span id="pf-notif"></span>
         </div>
         <button class="btn ol sm" onclick="openSheet('sh-gdpr')" id="pf-gdpr-btn"></button>
+        <button class="btn ol sm" onclick="doLogout()" id="pf-logout-btn"></button>
         <button class="btn gh sm" onclick="openSheet('sh-del')" id="pf-del-btn"></button>
       </div>
       <!-- history panel -->
@@ -748,7 +749,7 @@ const TR = {
     payOk:'Μεταφορά στο Revolut...',
     pfSub:'Συνδρομή',pfStart:'Έναρξη',pfAtt:'Παρόντα',pfLang:'Γλώσσα',pfPay:'Πληρωμή',
     pfNotif:'Ειδοποιήσεις: ενεργές · 2 μαθήματα πριν τη λήξη',
-    pfGdpr:'Διαχείριση δεδομένων (ΓΚΠΔ)',pfDel:'Διαγραφή λογαριασμού',
+    pfGdpr:'Διαχείριση δεδομένων (ΓΚΠΔ)',pfLogout:'Αποσύνδεση',pfDel:'Διαγραφή λογαριασμού',
     nlHome:'Αρχική',nlSch:'Κράτηση',nlPay:'Πληρωμή',nlProf:'Προφίλ',
     subLeft:' απομένουν',subSince:'από 3 Μαΐου',
     termsTitle:'Όροι Χρήσης',
@@ -825,7 +826,7 @@ const TR = {
     payOk:'Redirecting to Revolut...',
     pfSub:'Membership',pfStart:'Started',pfAtt:'Attended',pfLang:'Language',pfPay:'Payment',
     pfNotif:'Notifications: on · 2 classes before expiry',
-    pfGdpr:'Manage my data (GDPR)',pfDel:'Delete account',
+    pfGdpr:'Manage my data (GDPR)',pfLogout:'Log out',pfDel:'Delete account',
     nlHome:'Home',nlSch:'Book',nlPay:'Pay',nlProf:'Profile',
     subLeft:' remaining',subSince:'since May 2',
     termsTitle:'Terms of Service',
@@ -902,7 +903,7 @@ const TR = {
     payOk:'Переход в Revolut...',
     pfSub:'Абонемент',pfStart:'Начало',pfAtt:'Посещено',pfLang:'Язык',pfPay:'Оплата',
     pfNotif:'Уведомления: вкл. · за 2 занятия до конца',
-    pfGdpr:'Управление данными (GDPR)',pfDel:'Удалить аккаунт',
+    pfGdpr:'Управление данными (GDPR)',pfLogout:'Выйти',pfDel:'Удалить аккаунт',
     nlHome:'Главная',nlSch:'Запись',nlPay:'Оплата',nlProf:'Профиль',
     subLeft:' осталось',subSince:'с 2 мая',
     termsTitle:'Условия использования',
@@ -1113,7 +1114,7 @@ function applyLang(){
   tx('shp-title',T.shpTitle); tx('shp-legal',T.shpLegal);
   tx('shp-cancel',T.shpCancel); tx('shp-pay',T.shpPay);
   // Profile
-  tx('pf-notif',T.pfNotif); tx('pf-gdpr-btn',T.pfGdpr); tx('pf-del-btn',T.pfDel);
+  tx('pf-notif',T.pfNotif); tx('pf-gdpr-btn',T.pfGdpr); tx('pf-logout-btn',T.pfLogout); tx('pf-del-btn',T.pfDel);
   tx('pf-tab-info',T.pfTabInfo); tx('pf-tab-hist',T.pfTabHist);
   if($('pf-name')&&sbProfile?.name) $('pf-name').textContent=sbProfile.name;
   // nav
@@ -1213,6 +1214,14 @@ async function doLogin(){
   if(error){ toast2(error.message); return; }
   $('otp-phone').textContent=sbPhone;
   go('otp'); setTimeout(()=>$('o1')&&$('o1').focus(),200);
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  sbUser=null; sbProfile=null;
+  $('hdr').style.display='none';
+  $('bnav').style.display='none';
+  go('welcome');
 }
 
 function demoLogin(){
