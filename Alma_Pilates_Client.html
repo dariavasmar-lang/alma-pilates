@@ -1363,7 +1363,7 @@ function setSchView(mode){
 
 function buildMonthView(){
   const T=t();
-  const base=new Date(2026,4+monthOff,1);
+  const now=new Date(); const base=new Date(now.getFullYear(),now.getMonth()+monthOff,1);
   const year=base.getFullYear(), month=base.getMonth();
   const mn=base.toLocaleString(lang==='el'?'el-GR':lang==='en'?'en-GB':'ru-RU',{month:'long',year:'numeric'});
   tx('w-lbl', mn.charAt(0).toUpperCase()+mn.slice(1));
