@@ -173,7 +173,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
   <div class="scroll" id="scroll">
 
     <!-- WELCOME -->
-    <div class="scr center on" id="scr-welcome" style="padding:24px 20px;gap:0;justify-content:space-between">
+    <div class="scr center" id="scr-welcome" style="padding:24px 20px;gap:0;justify-content:space-between">
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center">
         <div style="width:72px;height:72px;border-radius:20px;background:var(--accent);display:flex;align-items:center;justify-content:center">
           <svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="#F5F0E8" stroke-width="1.5"><circle cx="17" cy="11" r="5"/><path d="M8 29c0-5 4-9 9-9s9 4 9 9"/><circle cx="17" cy="17" r="13" stroke-dasharray="4 3"/></svg>
@@ -370,7 +370,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
       <div style="text-align:center;padding:2px 0 8px">
         <div style="width:50px;height:50px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:500;margin:0 auto 6px;border:0.5px solid var(--border)" id="pf-av">ΜΚ</div>
         <div style="font-family:var(--serif);font-size:16px;color:var(--text)" id="pf-name"></div>
-        <div style="font-size:12px;color:var(--text3);margin-top:3px">+357 99 111222</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:3px" id="pf-phone">+357 99 111222</div>
       </div>
       <!-- sub-tabs -->
       <div class="lrow" style="gap:4px;margin-bottom:2px">
@@ -686,7 +686,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 const SUPA_URL='https://oaaplxktimcoxgziibzb.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hYXBseGt0aW1jb3hnemlpYnpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzYyNTQsImV4cCI6MjA5NTExMjI1NH0.AA3t8_Vm5nWPxeKm72PC319P5zv1n48ft3kfvQVW9R0';
 const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
-let sbUser=null, sbPhone='', isNewUser=false;
+let sbUser=null, sbProfile=null, sbPhone='', isNewUser=false;
 let bookingByKey=new Map(); // "dow_time" → {id,class_id,date}
 
 function normPhone(p){
@@ -1003,6 +1003,27 @@ async function loadWeekBookings(){
   });
 }
 
+async function loadProfile(){
+  if(!sbUser||sbUser.id==='demo') return;
+  const {data}=await sb.from('profiles').select('*').eq('id',sbUser.id).single();
+  if(data) sbProfile=data;
+}
+
+function applyProfileUI(){
+  if(!sbProfile) return;
+  const name=sbProfile.name||'';
+  const phone=sbProfile.phone||sbUser?.phone||'';
+  const initials=name.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  if($('pf-name')) $('pf-name').textContent=name;
+  if($('pf-phone')) $('pf-phone').textContent=phone;
+  if($('pf-av')) $('pf-av').textContent=initials||'?';
+  if($('av-init')) $('av-init').textContent=initials||'?';
+  // update home greeting with real first name
+  const firstName=name.trim().split(/\s+/)[0]||name;
+  const g=$('home-greet');
+  if(g) g.innerHTML=t().hGreet+' <em style="font-style:italic;color:var(--accent2)">'+firstName+'</em>';
+}
+
 async function refreshSchedule(){
   await loadWeekBookings();
   if(schView==='month') buildMonthView(); else buildSchedule();
@@ -1069,7 +1090,8 @@ function applyLang(){
   tx('h-pay',T.hPay); tx('h-pay-s',T.hPayS); tx('h-upcoming-lbl',T.hUpcoming);
   // rebuild greeting
   const g=$('h-greet');
-  if(g) g.innerHTML=T.hGreet+' <em style="font-style:italic;color:var(--accent2)">'+T.hName+'</em>';
+  const displayName=sbProfile?.name?.trim().split(/\s+/)[0]||T.hName;
+  if(g) g.innerHTML=T.hGreet+' <em style="font-style:italic;color:var(--accent2)">'+displayName+'</em>';
   // sub card
   const sub={left:2,total:8};
   const dots=$('h-dots');
@@ -1093,7 +1115,7 @@ function applyLang(){
   // Profile
   tx('pf-notif',T.pfNotif); tx('pf-gdpr-btn',T.pfGdpr); tx('pf-del-btn',T.pfDel);
   tx('pf-tab-info',T.pfTabInfo); tx('pf-tab-hist',T.pfTabHist);
-  tx('pf-name',lang==='el'?'Μαρία Κωνσταντίνου':lang==='en'?'Maria Constantinou':'Мария Константину');
+  if($('pf-name')&&sbProfile?.name) $('pf-name').textContent=sbProfile.name;
   // nav
   tx('nl-home',T.nlHome); tx('nl-sch',T.nlSch); tx('nl-pay',T.nlPay); tx('nl-prof',T.nlProf);
   // Terms
@@ -1256,11 +1278,13 @@ async function startApp(){
   if(sbUser&&sbUser.id!=='demo'){
     await loadClasses();
     await loadWeekBookings();
+    await loadProfile();
   }
   obStep=0;
   go('onboard');
   $('ob0').classList.add('on');
   applyLang();
+  applyProfileUI();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1278,7 +1302,7 @@ function goTab(tab){
   if(tab==='home') buildUpcomingAsync();
   if(tab==='schedule') loadWeekBookings().then(buildSchedule);
   if(tab==='pay') buildPayOpts();
-  if(tab==='profile') buildProfileRows();
+  if(tab==='profile'){ applyProfileUI(); buildProfileRows(); }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1701,9 +1725,12 @@ window.onOtp=function(el,idx){
     sbUser=session.user;
     await loadClasses();
     await loadWeekBookings();
+    await loadProfile();
     $('hdr').style.display='flex';
     $('bnav').style.display='flex';
     applyLang();
+    applyProfileUI();
+    go('home');
     goTab('home');
   } else {
     applyLang();
