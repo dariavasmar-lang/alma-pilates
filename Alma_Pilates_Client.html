@@ -960,7 +960,7 @@ let bkCounts={};
 // ═══════════════════════════════════════════════════════════════
 async function loadClasses(){
   const {data}=await sb.from('classes').select('*').order('dow').order('time');
-  if(!data) return;
+  if(!data||!data.length) return;
   Object.keys(SCH).forEach(k=>delete SCH[k]);
   data.forEach(c=>{
     if(!SCH[c.dow]) SCH[c.dow]=[];
@@ -1280,9 +1280,15 @@ async function startApp(){
     await loadWeekBookings();
     await loadProfile();
   }
-  obStep=0;
-  go('onboard');
-  $('ob0').classList.add('on');
+  if(isNewUser){
+    obStep=0;
+    go('onboard');
+    $('ob0').classList.add('on');
+  } else {
+    $('bnav').style.display='flex';
+    go('home');
+    goTab('home');
+  }
   applyLang();
   applyProfileUI();
 }
