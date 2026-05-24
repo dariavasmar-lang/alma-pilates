@@ -1450,8 +1450,7 @@ function buildSchedule(){
       const key=di+'_'+s.t;
       const mine=MINE_SET.has(key);
       const onWait=WAITLIST_SET.has(key);
-      if(!bkCounts[wkOff+'_'+key]) bkCounts[wkOff+'_'+key]=(di*3+s.t.length+wkOff+1)%4;
-      const bk=bkCounts[wkOff+'_'+key];
+      const bk=bkCounts[wkOff+'_'+key]||0;
       const free=CAP-bk;
       const full=free<=0&&!mine;
       const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
