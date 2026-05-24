@@ -971,7 +971,7 @@ async function loadClasses(){
 
 async function loadWeekBookings(){
   if(!sbUser||sbUser.id==='demo') return;
-  const dates=getWeekDates().map(d=>d.toISOString().split('T')[0]);
+  const dates=getWeekDates().map(d=>localDateStr(d));
 
   // My bookings
   const {data:myBks}=await sb.from('bookings').select('id,class_id,date,status').in('date',dates).eq('status','active');
@@ -1337,12 +1337,14 @@ function goTab(tab){
 // ═══════════════════════════════════════════════════════════════
 // SCHEDULE
 // ═══════════════════════════════════════════════════════════════
+function localDateStr(d){ return d.getFullYear()+'-'+(''+(d.getMonth()+1)).padStart(2,'0')+'-'+(''+d.getDate()).padStart(2,'0'); }
+
 function getWeekDates(){
   const today=new Date();
   const day=today.getDay();
   const base=new Date(today);
   base.setDate(today.getDate()-((day+6)%7)+wkOff*7);
-  base.setHours(0,0,0,0);
+  base.setHours(12,0,0,0);
   return Array.from({length:6},(_,i)=>{ const d=new Date(base); d.setDate(d.getDate()+i); return d; });
 }
 
@@ -1480,7 +1482,7 @@ async function confirmBook(){
   closeSheet('sh-book');
   if(sbUser&&sbUser.id!=='demo'){
     const date=selSlot.dateMs?new Date(selSlot.dateMs):getWeekDates()[selSlot.di];
-    const dateStr=date.toISOString().split('T')[0];
+    const dateStr=localDateStr(date);
     const slot=SCH[selSlot.di]?.find(s=>s.t===selSlot.time);
     if(slot){
       const {error}=await sb.from('bookings').insert({user_id:sbUser.id,class_id:slot.id,date:dateStr,status:'active'});
@@ -1550,7 +1552,7 @@ async function joinWaitlist(di,time){
   const key=di+'_'+time;
   if(sbUser&&sbUser.id!=='demo'){
     const date=getWeekDates()[di];
-    const dateStr=date.toISOString().split('T')[0];
+    const dateStr=localDateStr(date);
     const slot=SCH[di]?.find(s=>s.t===time);
     if(slot) await sb.from('waitlist').upsert({user_id:sbUser.id,class_id:slot.id,date:dateStr},{onConflict:'user_id,class_id,date'});
   }
@@ -1647,7 +1649,7 @@ function buildUpcoming(){
 async function buildUpcomingAsync(){
   if(!sbUser||sbUser.id==='demo'){ buildUpcoming(); return; }
   const T=t(); const el=$('h-upcoming'); if(!el) return;
-  const today=new Date().toISOString().split('T')[0];
+  const today=localDateStr(new Date());
   const {data}=await sb.from('bookings').select('class_id,date').eq('user_id',sbUser.id).eq('status','active').gte('date',today).order('date').limit(3);
   if(!data?.length){ el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0">${T.hNoUpcoming}</div>`; return; }
   el.innerHTML=data.map(b=>{
@@ -1693,7 +1695,7 @@ function buildHistPanel(){
 async function buildHistPanelAsync(){
   if(!sbUser||sbUser.id==='demo'){ buildHistPanel(); return; }
   const T=t(); const el=$('pf-hist'); if(!el) return;
-  const today=new Date().toISOString().split('T')[0];
+  const today=localDateStr(new Date());
   const {data}=await sb.from('bookings').select('class_id,date,status').eq('user_id',sbUser.id).lt('date',today).order('date',{ascending:false}).limit(10);
   if(!data?.length){ el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0">${T.hNoUpcoming}</div>`; return; }
   el.innerHTML=data.map(b=>{
