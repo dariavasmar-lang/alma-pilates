@@ -482,8 +482,8 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
       <div class="stitle" id="shb-title"></div>
       <div class="ssub" id="shb-info"></div>
       <div class="card2" style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:5px"><span id="shb-ded"></span><span>1 / 2</span></div>
-        <div class="prog"><div class="progf" style="width:25%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:5px"><span id="shb-ded"></span><span id="shb-bal"></span></div>
+        <div class="prog"><div class="progf" id="shb-prog" style="width:100%"></div></div>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn sm" style="flex:1" id="shb-cancel" onclick="closeSheet('sh-book')"></button>
@@ -688,6 +688,7 @@ const SUPA_URL='https://oaaplxktimcoxgziibzb.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hYXBseGt0aW1jb3hnemlpYnpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzYyNTQsImV4cCI6MjA5NTExMjI1NH0.AA3t8_Vm5nWPxeKm72PC319P5zv1n48ft3kfvQVW9R0';
 const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
 let sbUser=null, sbProfile=null, sbPhone='', isNewUser=false;
+let sbBal={used:0,total:8};
 let bookingByKey=new Map(); // "dow_time" → {id,class_id,date}
 
 function normPhone(p){
@@ -1031,6 +1032,7 @@ async function loadBalance(){
   const total=sbProfile?.total_classes||8;
   const used=count||0;
   const left=Math.max(0,total-used);
+  sbBal={used,total};
   const dots=$('h-dots');
   if(dots) dots.innerHTML=Array.from({length:total},(_,i)=>`<div class="sd ${i<used?'u':'l'}"></div>`).join('');
   const T=t();
@@ -1473,6 +1475,9 @@ function openBookSheet(di,time,free,dateMs){
   const date=dateMs?new Date(dateMs):getWeekDates()[di];
   tx('shb-title',T.shbTitle);
   tx('shb-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
+  const left=Math.max(0,sbBal.total-sbBal.used);
+  if($('shb-bal')) $('shb-bal').textContent=(left-1)+' / '+sbBal.total;
+  if($('shb-prog')) $('shb-prog').style.width=Math.max(0,((left-1)/sbBal.total)*100)+'%';
   openSheet('sh-book');
 }
 
