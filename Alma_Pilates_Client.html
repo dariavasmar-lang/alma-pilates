@@ -1732,26 +1732,27 @@ window.onOtp=function(el,idx){
 };
 
 // ═══════════════════════════════════════════════════════════════
-// INIT — check existing session
+// INIT — restore session on page load
 // ═══════════════════════════════════════════════════════════════
-(async()=>{
-  const {data:{session}}=await sb.auth.getSession();
-  if(session){
-    sbUser=session.user;
-    await loadClasses();
-    await loadWeekBookings();
-    await loadProfile();
-    $('hdr').style.display='flex';
-    $('bnav').style.display='flex';
-    applyLang();
-    applyProfileUI();
-    go('home');
-    goTab('home');
-  } else {
-    applyLang();
-    go('welcome');
+sb.auth.onAuthStateChange(async(event,session)=>{
+  if(event==='INITIAL_SESSION'){
+    if(session){
+      sbUser=session.user;
+      await loadClasses();
+      await loadWeekBookings();
+      await loadProfile();
+      $('hdr').style.display='flex';
+      $('bnav').style.display='flex';
+      applyLang();
+      applyProfileUI();
+      go('home');
+      goTab('home');
+    } else {
+      applyLang();
+      go('welcome');
+    }
   }
-})();
+});
 </script>
 </body>
 </html>
