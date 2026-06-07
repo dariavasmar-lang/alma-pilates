@@ -1276,15 +1276,14 @@ async function doOtp(){
   btn.disabled=false;
   if(error){toast2('Λανθασμένος κωδικός / Wrong code / Неверный код');return;}
   sbUser=data.user;
-  const {data:existing}=await sb.from('clients').select('*').eq('phone',sbPhone).eq('studio_id',STUDIO_ID).single();
-  if(existing){
-    if(!existing.user_id) await sb.from('clients').update({user_id:sbUser.id}).eq('id',existing.id);
-    sbProfile={...existing,user_id:sbUser.id};
-    isNewUser=false;
-  } else if(isNewUser){
-    const {data:newClient}=await sb.from('clients').insert({studio_id:STUDIO_ID,user_id:sbUser.id,full_name:window._regName||'',phone:sbPhone,language:lang,gdpr_consent:true,gdpr_consent_at:new Date().toISOString()}).select().single();
-    sbProfile=newClient;
-  }
+  const {data:clientData,error:linkErr}=await sb.rpc('link_user_to_client',{
+    p_phone:sbPhone,
+    p_user_id:sbUser.id,
+    p_name:window._regName||'',
+    p_lang:lang
+  });
+  if(linkErr){toast2('Error linking profile: '+linkErr.message);return;}
+  if(clientData) sbProfile=clientData;
   startApp();
 }
 
