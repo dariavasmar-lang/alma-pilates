@@ -1799,16 +1799,22 @@ window.onOtp=function(el,idx){
 sb.auth.onAuthStateChange(async(event,session)=>{
   if(event==='INITIAL_SESSION'){
     if(session){
-      sbUser=session.user;
-      await loadClasses();
-      await loadProfile();
-      await Promise.all([loadWeekBookings(), loadBalance()]);
-      $('hdr').style.display='flex';
-      $('bnav').style.display='flex';
-      applyLang();
-      applyProfileUI();
-      go('home');
-      goTab('home');
+      // Only restore session for phone-auth users (not admin email sessions)
+      if(session.user.phone){
+        sbUser=session.user;
+        await loadClasses();
+        await loadProfile();
+        await Promise.all([loadWeekBookings(), loadBalance()]);
+        $('hdr').style.display='flex';
+        $('bnav').style.display='flex';
+        applyLang();
+        applyProfileUI();
+        go('home');
+        goTab('home');
+      } else {
+        applyLang();
+        go('welcome');
+      }
     } else {
       applyLang();
       go('welcome');
