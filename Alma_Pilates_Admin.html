@@ -191,7 +191,7 @@ tbody tr.selected{background:#EDE4D8}
 <body>
 
 <!-- LOGIN SCREEN -->
-<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg3);z-index:9999;display:flex;align-items:center;justify-content:center">
+<div id="login-screen" style="position:fixed;inset:0;background:var(--bg3);z-index:9999;align-items:center;justify-content:center;display:none">
   <div style="background:var(--card);border-radius:16px;padding:36px 32px;width:340px;box-shadow:0 4px 24px rgba(0,0,0,0.10);display:flex;flex-direction:column;gap:16px">
     <div style="font-family:var(--serif);font-size:22px;color:var(--accent);text-align:center">Alma <em>Pilates</em></div>
     <div style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:4px">Вход в систему управления</div>
@@ -2865,17 +2865,15 @@ function adminLogout(){
   document.getElementById('login-screen').style.display='flex';
 }
 
-// Check session on load
-sb.auth.onAuthStateChange((event,session)=>{
-  if(event==='INITIAL_SESSION'){
-    if(session){
-      showApp();
-    } else {
-      document.getElementById('login-screen').style.display='flex';
-      document.getElementById('main-app').style.display='none';
-    }
+// Check session on load — show login or app
+(async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){
+    showApp();
+  } else {
+    document.getElementById('login-screen').style.display='flex';
   }
-});
+})();
 
 async function testConnection(){
   const btn=document.getElementById('db-test-btn');
