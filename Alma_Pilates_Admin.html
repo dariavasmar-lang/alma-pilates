@@ -203,7 +203,7 @@ tbody tr.selected{background:#EDE4D8}
 </div>
 
 <!-- MAIN APP (hidden until logged in) -->
-<div id="main-app" style="display:none;width:100%;min-height:100vh;display:flex">
+<div id="main-app" style="display:none;width:100%;min-height:100vh;flex-direction:row">
 
 <!-- SIDEBAR -->
 <nav class="sidebar">
@@ -2853,7 +2853,9 @@ async function adminLogin(){
 
 function showApp(){
   document.getElementById('login-screen').style.display='none';
-  document.getElementById('main-app').style.display='flex';
+  const app=document.getElementById('main-app');
+  app.style.display='flex';
+  app.style.flexDirection='row';
   dbLoad();
 }
 
