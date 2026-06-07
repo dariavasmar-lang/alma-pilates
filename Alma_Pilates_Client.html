@@ -1311,8 +1311,8 @@ async function startApp(){
   $('hdr').style.display='flex';
   if(sbUser&&sbUser.id!=='demo'){
     await loadClasses();
-    await loadWeekBookings();
     await loadProfile();
+    await Promise.all([loadWeekBookings(), loadBalance()]);
   }
   if(isNewUser){
     obStep=0;
@@ -1515,8 +1515,7 @@ async function confirmBook(){
       await sb.from('subscriptions').update({used_classes:(sbBal.used||0)+1}).eq('id',sbBal.subId);
     }
     toast2(t().bookOk);
-    await refreshSchedule();
-    loadBalance();
+    await Promise.all([refreshSchedule(), loadBalance()]);
   } else {
     const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
     bkCounts[key]=(bkCounts[key]||0)+1;
@@ -1796,8 +1795,8 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     if(session){
       sbUser=session.user;
       await loadClasses();
-      await loadWeekBookings();
       await loadProfile();
+      await Promise.all([loadWeekBookings(), loadBalance()]);
       $('hdr').style.display='flex';
       $('bnav').style.display='flex';
       applyLang();
