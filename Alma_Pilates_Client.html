@@ -1426,6 +1426,7 @@ function openDaySlots(dow,date){
   const dateLabel=T.days[dow]+', '+date.getDate()+' '+T.months[date.getMonth()];
   tx('shd-title',dateLabel);
   const dateMs=date.getTime();
+  const isPastDay=localDateStr(date)<localDateStr(new Date());
   const slotsHTML=slots.map(s=>{
     const key=dow+'_'+s.t;
     const mine=MINE_SET.has(key);
@@ -1433,6 +1434,9 @@ function openDaySlots(dow,date){
     const bk=bkCounts[wkOff+'_'+key]||0;
     const free=CAP-bk;
     const full=free<=0&&!mine;
+    if(isPastDay&&!mine){
+      return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
+    }
     const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
     const lbl=mine?T.slMine:onWait?T.slWait:full?T.slFull:free+' '+T.slFree;
     const onclick=mine?`onclick="openCancelSheet(${dow},'${s.t}',${dateMs})"`:
@@ -1457,6 +1461,7 @@ function buildSchedule(){
     const daySlots=SCH[di]||[];
     if(!daySlots.length) return '';
     const isToday=date.toDateString()===today.toDateString();
+    const isPast=localDateStr(date)<localDateStr(today);
     const slotsHTML=daySlots.map(s=>{
       const key=di+'_'+s.t;
       const mine=MINE_SET.has(key);
@@ -1464,6 +1469,9 @@ function buildSchedule(){
       const bk=bkCounts[wkOff+'_'+key]||0;
       const free=CAP-bk;
       const full=free<=0&&!mine;
+      if(isPast&&!mine){
+        return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
+      }
       const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
       const lbl=mine?T.slMine:onWait?T.slWait:full?T.slFull:free+' '+T.slFree;
       const onclick=mine?`onclick="openCancelSheet(${di},'${s.t}',null)"`:
@@ -1479,9 +1487,10 @@ function buildSchedule(){
 }
 
 async function openBookSheet(di,time,free,dateMs){
+  const date=dateMs?new Date(dateMs):getWeekDates()[di];
+  if(localDateStr(date)<localDateStr(new Date())){return;}
   selSlot={di,time,free,dateMs};
   const T=t();
-  const date=dateMs?new Date(dateMs):getWeekDates()[di];
   tx('shb-title',T.shbTitle);
   tx('shb-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
   openSheet('sh-book');
