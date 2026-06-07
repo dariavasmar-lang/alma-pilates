@@ -2848,6 +2848,9 @@ async function adminLogin(){
   if(!email||!pass){err.textContent='Введите email и пароль';err.style.display='block';return;}
   const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
   if(error){err.textContent='Неверный email или пароль';err.style.display='block';return;}
+  // Check admin_users
+  const {data:admin}=await sb.from('admin_users').select('role').eq('user_id',data.user.id).single();
+  if(!admin){await sb.auth.signOut();err.textContent='Нет доступа к панели управления';err.style.display='block';return;}
   showApp();
 }
 
@@ -2865,15 +2868,23 @@ function adminLogout(){
   document.getElementById('login-screen').style.display='flex';
 }
 
-// Check session on load — show login or app
-(async()=>{
+// Check session on load — must be in admin_users to access
+async function checkAdminSession(){
   const {data:{session}}=await sb.auth.getSession();
-  if(session){
+  if(!session){
+    document.getElementById('login-screen').style.display='flex';
+    return;
+  }
+  // Verify user is an admin
+  const {data}=await sb.from('admin_users').select('role').eq('user_id',session.user.id).single();
+  if(data){
     showApp();
   } else {
+    await sb.auth.signOut();
     document.getElementById('login-screen').style.display='flex';
   }
-})();
+}
+checkAdminSession();
 
 async function testConnection(){
   const btn=document.getElementById('db-test-btn');
