@@ -190,11 +190,26 @@ tbody tr.selected{background:#EDE4D8}
 </head>
 <body>
 
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg3);z-index:9999;display:flex;align-items:center;justify-content:center">
+  <div style="background:var(--card);border-radius:16px;padding:36px 32px;width:340px;box-shadow:0 4px 24px rgba(0,0,0,0.10);display:flex;flex-direction:column;gap:16px">
+    <div style="font-family:var(--serif);font-size:22px;color:var(--accent);text-align:center">Alma <em>Pilates</em></div>
+    <div style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:4px">Вход в систему управления</div>
+    <input id="adm-email" type="email" placeholder="Email" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);outline:none">
+    <input id="adm-pass" type="password" placeholder="Пароль" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);outline:none" onkeydown="if(event.key==='Enter')adminLogin()">
+    <button onclick="adminLogin()" style="padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600">Войти</button>
+    <div id="adm-err" style="font-size:12px;color:var(--red);text-align:center;display:none"></div>
+  </div>
+</div>
+
+<!-- MAIN APP (hidden until logged in) -->
+<div id="main-app" style="display:none;width:100%;min-height:100vh;display:flex">
+
 <!-- SIDEBAR -->
 <nav class="sidebar">
   <div class="logo">
     <div class="logo-title">Alma <em>Pilates</em></div>
-    <div class="logo-sub">Лимассол, Кипр · Demo</div>
+    <div class="logo-sub">Лимассол, Кипр</div>
   </div>
   <div class="nav-section">Основное</div>
   <div class="nav-item active" onclick="showPage('dashboard')">
@@ -227,6 +242,10 @@ tbody tr.selected{background:#EDE4D8}
     <button class="lang-btn" onclick="setLang('el',this)">EL</button>
     <button class="lang-btn active" onclick="setLang('en',this)">EN</button>
     <button class="lang-btn" onclick="setLang('ru',this)">RU</button>
+  </div>
+  <div onclick="adminLogout()" style="margin-top:auto;padding:10px 14px;font-size:12px;color:var(--text3);cursor:pointer;display:flex;align-items:center;gap:8px;border-radius:8px;transition:background .15s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16" width="14" height="14"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6"/></svg>
+    Выйти
   </div>
 </nav>
 
@@ -2821,6 +2840,41 @@ const STUDIO_ID='a0000000-0000-0000-0000-000000000001';
 let sb=null;
 try{ if(typeof supabase!=='undefined') sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
 
+async function adminLogin(){
+  const email=document.getElementById('adm-email').value.trim();
+  const pass=document.getElementById('adm-pass').value;
+  const err=document.getElementById('adm-err');
+  err.style.display='none';
+  if(!email||!pass){err.textContent='Введите email и пароль';err.style.display='block';return;}
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){err.textContent='Неверный email или пароль';err.style.display='block';return;}
+  showApp();
+}
+
+function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-app').style.display='flex';
+  dbLoad();
+}
+
+function adminLogout(){
+  sb.auth.signOut();
+  document.getElementById('main-app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+// Check session on load
+sb.auth.onAuthStateChange((event,session)=>{
+  if(event==='INITIAL_SESSION'){
+    if(session){
+      showApp();
+    } else {
+      document.getElementById('login-screen').style.display='flex';
+      document.getElementById('main-app').style.display='none';
+    }
+  }
+});
+
 async function testConnection(){
   const btn=document.getElementById('db-test-btn');
   if(btn){btn.textContent='...';btn.disabled=true;}
@@ -3493,7 +3547,6 @@ renderSchedule();
 applyAdminLang();
 selPM('revolut');
 document.querySelector('.nav-item').classList.add('active');
-if(typeof supabase!=='undefined') setTimeout(dbLoad,300);
 </script>
 
 <!-- CANCEL MODAL -->
@@ -3539,5 +3592,6 @@ if(typeof supabase!=='undefined') setTimeout(dbLoad,300);
 
 <!-- ADD SLOT MODAL -->
 
+</div><!-- /main-app -->
 </body>
 </html>
