@@ -1338,7 +1338,7 @@ function goTab(tab){
     const n=$('ni-'+id);
     if(n) n.classList.toggle('on',id===tab);
   });
-  const sc=$('scroll'); if(sc) sc.scrollTop=0;
+  const sc=$('scroll'); if(sc&&tab!=='schedule') sc.scrollTop=0;
   if(tab==='home') buildUpcomingAsync();
   if(tab==='schedule') loadWeekBookings().then(buildSchedule);
   if(tab==='pay') buildPayOpts();
@@ -1482,8 +1482,14 @@ function buildSchedule(){
       }
       return `<div class="slot ${cls}" ${onclick}><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
     }).join('');
-    return `<div class="dayb"><div class="daylbl" style="${isToday?'background:var(--accent);color:var(--bg)':''}">${T.days[di]} · ${date.getDate()} ${T.months[date.getMonth()]}</div><div class="slots">${slotsHTML}</div></div>`;
+    return `<div class="dayb"${isToday?' id="sch-today"':''}><div class="daylbl" style="${isToday?'background:var(--accent);color:var(--bg)':''}">${T.days[di]} · ${date.getDate()} ${T.months[date.getMonth()]}</div><div class="slots">${slotsHTML}</div></div>`;
   }).join('');
+  // scroll to today
+  requestAnimationFrame(()=>{
+    const todayEl=document.getElementById('sch-today');
+    const sc=$('scroll');
+    if(todayEl&&sc) sc.scrollTop=Math.max(0,todayEl.offsetTop-80);
+  });
 }
 
 async function openBookSheet(di,time,free,dateMs){
