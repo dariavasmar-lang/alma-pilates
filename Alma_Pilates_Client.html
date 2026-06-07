@@ -1469,16 +1469,17 @@ function buildSchedule(){
   }).join('');
 }
 
-function openBookSheet(di,time,free,dateMs){
+async function openBookSheet(di,time,free,dateMs){
   selSlot={di,time,free,dateMs};
   const T=t();
   const date=dateMs?new Date(dateMs):getWeekDates()[di];
   tx('shb-title',T.shbTitle);
   tx('shb-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
-  const left=Math.max(0,sbBal.total-sbBal.used);
-  if($('shb-bal')) $('shb-bal').textContent=(left-1)+' / '+sbBal.total;
-  if($('shb-prog')) $('shb-prog').style.width=Math.max(0,((left-1)/sbBal.total)*100)+'%';
   openSheet('sh-book');
+  await loadBalance();
+  const left=Math.max(0,sbBal.total-sbBal.used);
+  if($('shb-bal')) $('shb-bal').textContent=left+' → '+(left-1)+' / '+sbBal.total;
+  if($('shb-prog')) $('shb-prog').style.width=Math.max(0,((left-1)/sbBal.total)*100)+'%';
 }
 
 async function confirmBook(){
