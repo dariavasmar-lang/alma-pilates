@@ -2966,9 +2966,11 @@ function removeFromSlot(slotKey, idx){
 }
 
 function openBookFromSlot(){
-  if(!currentSlot) return;
-  const t = AL();
-  const DAYS = adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  if(!currentSlot){
+    const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+    toast(L('Πατήστε πρώτα ένα μάθημα στο πρόγραμμα','Click on a class slot in the schedule first','Сначала нажмите на занятие в расписании'));
+    return;
+  }
   openBookModal(currentSlot.di, currentSlot.time);
 }
 
@@ -3846,9 +3848,13 @@ async function bookClientByName(name){
     if(sb && dateStr){
       const client=CLIENTS.find(c=>c.name===name);
       const slotId=scheduleSlotIds[slotKey];
-      if(client?._uuid && slotId){
+      if(!client?._uuid){
+        console.warn('bookClientByName: client._uuid missing for',name);
+      } else if(!slotId){
+        console.warn('bookClientByName: slotId missing for key',slotKey);
+      } else {
         try{
-          await sb.from('bookings').insert({
+          const {error:insErr}=await sb.from('bookings').insert({
             studio_id:STUDIO_ID,
             client_id:client._uuid,
             slot_id:slotId,
@@ -3856,15 +3862,23 @@ async function bookClientByName(name){
             class_date:dateStr,
             status:'booked'
           });
-          // Decrement subscription balance if exists
-          if(client._subUuid && client.left>0){
-            await sb.from('subscriptions')
-              .update({used_classes:client.total-client.left+1})
-              .eq('id',client._subUuid);
-            client.left=Math.max(0,client.left-1);
-            client.status=client.left===0?'inactive':client.left<=1?'danger':client.left<=2?'warn':'ok';
+          if(insErr){
+            console.error('booking insert error:',insErr.message,insErr.code);
+            toast(L('Σφάλμα αποθήκευσης','DB save error: '+insErr.message,'Ошибка сохранения: '+insErr.message));
+          } else {
+            // Decrement subscription balance if exists
+            if(client._subUuid && client.left>0){
+              await sb.from('subscriptions')
+                .update({used_classes:client.total-client.left+1})
+                .eq('id',client._subUuid);
+              client.left=Math.max(0,client.left-1);
+              client.status=client.left===0?'inactive':client.left<=1?'danger':client.left<=2?'warn':'ok';
+            }
           }
-        }catch(e){console.error('booking insert:',e.message);}
+        }catch(e){
+          console.error('booking insert exception:',e.message);
+          toast(L('Σφάλμα','Error','Ошибка: ')+e.message);
+        }
       }
     }
   }
