@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Alma Pilates — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -521,6 +524,9 @@ const MONTHS_RU = ['янв','фев','мар','апр','мая','июн','июл
 // Per-slot bookings: key = "di_time", value = array of client names
 const SLOT_BOOKINGS = {};
 
+// slot UUID lookup: "dow_time" -> schedule_slots.id (loaded from DB)
+let scheduleSlotIds = {};
+
 // Extra slots added manually by admin (di_time -> {added:true,label:'...'})
 let extraSlots = {};
 // One-time extra classes per date: {'2026-05-19': [{time:'10:00', reason:'...'}]}
@@ -810,19 +816,29 @@ let pendingSelections={};
 
 function renderClientCard(c){
   const panel=document.getElementById('client-detail'); if(!panel) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const upcoming=c.upcoming||0;
   const attendedMonth=c.attendedMonth||0;
   const used=c.total-c.left;
   const available=Math.max(0,c.left-upcoming);
-  const pct=Math.round((used/c.total)*100);
-  const typeLabel={8:'8 занятий',12:'12 занятий',single:'Разовое'}[c.type]||c.type;
+  const pct=c.total>0?Math.round((used/c.total)*100):0;
+  const typeLabel={
+    '8': L('8 μαθήματα','8 classes','8 занятий'),
+    '12': L('12 μαθήματα','12 classes','12 занятий'),
+    'single': L('Μονό','Single','Разовое')
+  }[c.type]||c.type;
   const price={8:'€120',12:'€160',single:'€25'}[c.type]||'';
   const langFlag={RU:'🇷🇺',EL:'🇬🇷',EN:'🇬🇧'}[c.lang]||'';
-  const isExpiringSoon=c.expiresDate&&new Date(c.expiresDate)<=new Date('2026-05-28');
-  const daysLeft=c.expiresDate?Math.ceil((new Date(c.expiresDate)-new Date(2026,4,18))/(864e5)):null;
-  const statusLabel={ok:'Активен',warn:'Скоро истекает',danger:'Истекает',inactive:'Неактивен'}[c.status]||'';
-  const visits=(c.history||[]).filter(h=>h.t.toLowerCase().includes('attend')||h.t.includes('Записан'));
-  const payments=(c.history||[]).filter(h=>h.t.toLowerCase().includes('payment')||h.t.includes('Оплата'));
+  const isExpiringSoon=c.expiresDate&&new Date(c.expiresDate)<=new Date(Date.now()+14*864e5);
+  const daysLeft=c.expiresDate?Math.ceil((new Date(c.expiresDate)-new Date())/(864e5)):null;
+  const statusLabel={
+    ok: L('Ενεργός','Active','Активен'),
+    warn: L('Λήγει σύντομα','Expiring soon','Скоро истекает'),
+    danger: L('Λήγει','Expiring','Истекает'),
+    inactive: L('Ανενεργός','Inactive','Неактивен')
+  }[c.status]||'';
+  const visits=(c.history||[]).filter(h=>h.t.toLowerCase().includes('attend')||h.t.includes('Записан')||h.t.includes('Booked'));
+  const payments=(c.history||[]).filter(h=>h.t.toLowerCase().includes('payment')||h.t.includes('Оплата')||h.t.includes('Paid'));
   const cancels=(c.history||[]).filter(h=>h.t.toLowerCase().includes('cancel')||h.t.includes('Отмен'));
 
   panel.innerHTML=`
@@ -842,40 +858,43 @@ function renderClientCard(c){
   <div>
     <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:10px">${typeLabel} <span style="font-weight:400;color:var(--text2)">${price}</span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
-      <div class="sub-box"><div class="sub-box-val" id="sub-attended-${c.id}">${attendedMonth}</div><div class="sub-box-lbl">этот месяц</div></div>
-      <div class="sub-box" style="background:var(--green-bg)"><div class="sub-box-val" style="color:var(--green)" id="sub-upcoming-${c.id}">${upcoming}</div><div class="sub-box-lbl" style="color:var(--green)">предстоит</div></div>
-      <div class="sub-box"><div class="sub-box-val" id="sub-available-${c.id}">${available}</div><div class="sub-box-lbl">доступно</div></div>
+      <div class="sub-box"><div class="sub-box-val" id="sub-attended-${c.id}">${attendedMonth}</div><div class="sub-box-lbl">${L('αυτόν τον μήνα','this month','этот месяц')}</div></div>
+      <div class="sub-box" style="background:var(--green-bg)"><div class="sub-box-val" style="color:var(--green)" id="sub-upcoming-${c.id}">${upcoming}</div><div class="sub-box-lbl" style="color:var(--green)">${L('επερχόμενα','upcoming','предстоит')}</div></div>
+      <div class="sub-box"><div class="sub-box-val" id="sub-available-${c.id}">${available}</div><div class="sub-box-lbl">${L('διαθέσιμα','available','доступно')}</div></div>
     </div>
     <div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px"><span>Использовано: ${used} / ${c.total}</span><span>${c.left} осталось</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px">
+        <span>${L('Χρησιμοποιήθηκαν','Used','Использовано')}: ${used} / ${c.total}</span>
+        <span>${c.left} ${L('απομένουν','left','осталось')}</span>
+      </div>
       <div class="progress" style="height:5px"><div class="progress-fill" style="width:${pct}%;background:${BAR_COLOR[c.status]}"></div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
       <div style="background:var(--bg2);border-radius:9px;padding:9px 11px">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Начало абонемента</div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${L('Έναρξη συνδρομής','Subscription start','Начало абонемента')}</div>
         <div style="font-size:12px;font-weight:500;color:var(--text)">${c.start}</div>
-        <div style="font-size:9px;color:var(--text3);margin-top:3px">оплачен: ${c.paid}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px">${L('πληρώθηκε','paid','оплачен')}: ${c.paid}</div>
       </div>
       <div style="background:${isExpiringSoon?'var(--warn-bg)':'var(--bg2)'};border-radius:9px;padding:9px 11px;${isExpiringSoon?'border:0.5px solid #D4B870':''}">
-        <div style="font-size:9px;color:${isExpiringSoon?'var(--warn)':'var(--text3)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Следующая оплата</div>
+        <div style="font-size:9px;color:${isExpiringSoon?'var(--warn)':'var(--text3)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${L('Επόμενη πληρωμή','Next payment','Следующая оплата')}</div>
         <div style="font-size:12px;font-weight:500;color:${isExpiringSoon?'var(--warn)':'var(--text)'}">${c.nextPayment}</div>
-        <div style="font-size:9px;color:var(--text3);margin-top:3px">+30 дн. от начала</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px">${L('+30 ημ. από έναρξη','+30 days from start','+30 дн. от начала')}</div>
       </div>
     </div>
-    ${daysLeft!==null&&daysLeft<=14&&c.left>0?`<div style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-bottom:10px">⚠ Истекает через ${daysLeft} дн. Осталось ${c.left} зан.</div>`:''}
-    <button onclick="toggleManualSettings(${c.id})" style="font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px">⚙ Ручные настройки <span id="manual-arrow-${c.id}">▸</span></button>
+    ${daysLeft!==null&&daysLeft<=14&&c.left>0?`<div style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-bottom:10px">⚠ ${L('Λήγει σε','Expires in','Истекает через')} ${daysLeft} ${L('ημ.','days','дн.')} · ${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}</div>`:''}
+    <button onclick="toggleManualSettings(${c.id})" style="font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px">⚙ ${L('Χειροκίνητες ρυθμίσεις','Manual settings','Ручные настройки')} <span id="manual-arrow-${c.id}">▸</span></button>
     <div id="manual-settings-${c.id}" style="display:none;background:var(--bg2);border-radius:10px;padding:11px 13px;margin-top:7px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
-          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Дата начала</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${L('Ημ/νία έναρξης','Start date','Дата начала')}</div>
           <input type="date" value="${c.startIso||''}" onchange="updateClientStart(${c.id},this.value)" style="font-size:12px;border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;background:var(--card);color:var(--text);width:100%">
         </div>
         <div>
-          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Тип абонемента</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${L('Τύπος συνδρομής','Subscription type','Тип абонемента')}</div>
           <select onchange="updateClientSubType(${c.id},this.value)" style="font-size:12px;border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;background:var(--card);color:var(--text);width:100%">
-            <option value="8" ${c.type==='8'?'selected':''}>8 занятий — €120</option>
-            <option value="12" ${c.type==='12'?'selected':''}>12 занятий — €160</option>
-            <option value="single" ${c.type==='single'?'selected':''}>Разовое — €25</option>
+            <option value="8" ${c.type==='8'?'selected':''}>8 — €120</option>
+            <option value="12" ${c.type==='12'?'selected':''}>12 — €160</option>
+            <option value="single" ${c.type==='single'?'selected':''}>1 — €25</option>
           </select>
         </div>
       </div>
@@ -883,39 +902,40 @@ function renderClientCard(c){
   </div>
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px">
-    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Управление занятиями</div>
+    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">${L('Διαχείριση μαθημάτων','Manage classes','Управление занятиями')}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      <button class="btn sm" onclick="adjustBalance(${c.id},1)" style="justify-content:center">+ Добавить занятие</button>
-      <button class="btn sm danger" onclick="adjustBalance(${c.id},-1)" style="justify-content:center">− Убрать занятие</button>
+      <button class="btn sm" onclick="adjustBalance(${c.id},1)" style="justify-content:center">+ ${L('Προσθήκη','Add class','Добавить занятие')}</button>
+      <button class="btn sm danger" onclick="adjustBalance(${c.id},-1)" style="justify-content:center">− ${L('Αφαίρεση','Remove class','Убрать занятие')}</button>
     </div>
   </div>
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    <button class="btn" onclick="openClientCalModal(${c.id})" style="justify-content:center">📅 Записать на занятия</button>
-    <button class="btn danger" onclick="cancelAllFutureBookings(${c.id})" style="justify-content:center">Отменить все будущие</button>
+    <button class="btn" onclick="openClientCalModal(${c.id})" style="justify-content:center">📅 ${L('Κράτηση μαθημάτων','Book classes','Записать на занятия')}</button>
+    <button class="btn danger" onclick="cancelAllFutureBookings(${c.id})" style="justify-content:center">${L('Ακύρωση όλων','Cancel all future','Отменить все будущие')}</button>
   </div>
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px">
     <div class="ctab-row" id="ctab-row-${c.id}">
-      <button class="ctab on" onclick="switchClientTab(${c.id},'visits')">Посещения (${visits.length})</button>
-      <button class="ctab" onclick="switchClientTab(${c.id},'payments')">Оплаты (${payments.length})</button>
-      <button class="ctab" onclick="switchClientTab(${c.id},'cancels')">Отмены (${cancels.length})</button>
+      <button class="ctab on" onclick="switchClientTab(${c.id},'visits')">${L('Επισκέψεις','Visits','Посещения')} (${visits.length})</button>
+      <button class="ctab" onclick="switchClientTab(${c.id},'payments')">${L('Πληρωμές','Payments','Оплаты')} (${payments.length})</button>
+      <button class="ctab" onclick="switchClientTab(${c.id},'cancels')">${L('Ακυρώσεις','Cancels','Отмены')} (${cancels.length})</button>
     </div>
     <div id="ctab-content-${c.id}">${renderHistoryItems(visits,'visits')}</div>
   </div>
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
-    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Связь с клиентом</div>
-    <button class="btn" onclick="sendWhatsApp(${c.id},'booking')" style="width:100%;justify-content:center">📱 WhatsApp — напоминание о записи</button>
-    <button class="btn" onclick="sendWhatsApp(${c.id},'payment')" style="width:100%;justify-content:center;${isExpiringSoon?'background:var(--warn-bg);border-color:#D4B870;color:var(--warn)':''}">💰 WhatsApp — напоминание об оплате</button>
-    <button class="btn dark" onclick="generateRevolutLink(${c.id})" style="width:100%;justify-content:center">⚡ Сгенерировать ссылку Revolut</button>
+    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">${L('Επικοινωνία','Contact client','Связь с клиентом')}</div>
+    <button class="btn" onclick="sendWhatsApp(${c.id},'booking')" style="width:100%;justify-content:center">📱 WhatsApp — ${L('υπενθύμιση κράτησης','booking reminder','напоминание о записи')}</button>
+    <button class="btn" onclick="sendWhatsApp(${c.id},'payment')" style="width:100%;justify-content:center;${isExpiringSoon?'background:var(--warn-bg);border-color:#D4B870;color:var(--warn)':''}">💰 WhatsApp — ${L('υπενθύμιση πληρωμής','payment reminder','напоминание об оплате')}</button>
+    <button class="btn dark" onclick="generateRevolutLink(${c.id})" style="width:100%;justify-content:center">⚡ ${L('Σύνδεσμος Revolut','Generate Revolut link','Ссылка Revolut')}</button>
   </div>`;
 
   renderClientCalendar(c.id);
 }
 
 function renderHistoryItems(items,type){
-  if(!items.length) return `<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">Нет записей</div>`;
+  const noRec=adminLang==='el'?'Δεν υπάρχουν εγγραφές':adminLang==='en'?'No records':'Нет записей';
+  if(!items.length) return `<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">${noRec}</div>`;
   const col=type==='payments'?'var(--green)':type==='cancels'?'var(--red)':'#378ADD';
   return items.map(h=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px">
     <span style="display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:50%;background:${col};display:inline-block;flex-shrink:0"></span><span style="color:var(--text2)">${h.d}</span></span>
@@ -929,8 +949,8 @@ function switchClientTab(clientId,tab){
   if(row) row.querySelectorAll('.ctab').forEach(b=>b.classList.remove('on'));
   const btn=row?.querySelector(`.ctab[onclick*="'${tab}'"]`);
   if(btn) btn.classList.add('on');
-  const visits=(c.history||[]).filter(h=>h.t.toLowerCase().includes('attend')||h.t.includes('Записан'));
-  const payments=(c.history||[]).filter(h=>h.t.toLowerCase().includes('payment')||h.t.includes('Оплата'));
+  const visits=(c.history||[]).filter(h=>h.t.toLowerCase().includes('attend')||h.t.includes('Записан')||h.t.includes('Booked'));
+  const payments=(c.history||[]).filter(h=>h.t.toLowerCase().includes('payment')||h.t.includes('Оплата')||h.t.includes('Paid'));
   const cancels=(c.history||[]).filter(h=>h.t.toLowerCase().includes('cancel')||h.t.includes('Отмен'));
   const items=tab==='visits'?visits:tab==='payments'?payments:cancels;
   const el=document.getElementById('ctab-content-'+clientId);
@@ -1090,10 +1110,11 @@ function renderClientCalendarModal(clientId){
   </div>`;
 }
 
-function confirmClientBookings(clientId){
+async function confirmClientBookings(clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
   const pending=Object.keys(pendingSelections).filter(k=>k.startsWith(clientId+'_')&&pendingSelections[k]);
   let added=0;
+  const dbRows=[];
   pending.forEach(key=>{
     // key: clientId_dateStr_dow_time  e.g. "1_2026-05-19_1_07:00"
     const rest=key.slice((clientId+'_').length);
@@ -1108,10 +1129,33 @@ function confirmClientBookings(clientId){
     clientDateBookings[clientId+'_'+dateStr+'_'+time]=true;
     delete pendingSelections[key];
     c.history.unshift({d:dateStr,t:'Записан '+time});
+    const slotId=scheduleSlotIds[slotKey];
+    if(slotId && c._uuid) dbRows.push({
+      studio_id:STUDIO_ID,
+      client_id:c._uuid,
+      slot_id:slotId,
+      subscription_id:c._subUuid||null,
+      class_date:dateStr,
+      status:'booked'
+    });
     added++;
   });
   c.upcoming=(c.upcoming||0)+added;
-  toast(`✓ Подтверждено ${added} зан.`);
+  // Save to DB
+  if(sb && dbRows.length){
+    try{
+      await sb.from('bookings').insert(dbRows);
+      if(c._subUuid && added>0 && c.left>0){
+        const newUsed=Math.min(c.total,c.total-c.left+added);
+        await sb.from('subscriptions')
+          .update({used_classes:newUsed})
+          .eq('id',c._subUuid);
+        c.left=Math.max(0,c.total-newUsed);
+        c.status=c.left===0?'inactive':c.left<=1?'danger':c.left<=2?'warn':'ok';
+      }
+    }catch(e){console.error('bulk booking:',e.message);}
+  }
+  toast(`✓ ${adminLang==='ru'?'Подтверждено':adminLang==='en'?'Confirmed':'Επιβεβαιώθηκαν'} ${added} ${adminLang==='ru'?'зан.':adminLang==='en'?'classes':'μαθήματα'}`);
   refreshClientStats(clientId);
   renderClientCalendarModal(clientId);
   renderClients();
@@ -1197,8 +1241,9 @@ function toggleClientBooking(clientId,dateStr,dow,time){
   renderClientCalendarModal(clientId);
 }
 
-function cancelAllFutureBookings(clientId){
+async function cancelAllFutureBookings(clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   let count=0;
   Object.keys(slotBookingsMap).forEach(k=>{
     const arr=slotBookingsMap[k];
@@ -1209,8 +1254,20 @@ function cancelAllFutureBookings(clientId){
     if(k.startsWith(clientId+'_')) delete clientDateBookings[k];
   });
   c.upcoming=0;
-  if(count>0) c.history.unshift({d:'Сегодня',t:`Отменено ${count} записей`});
-  toast(`Отменено ${count} записей`);
+  // Cancel in DB — delete all future booked records for this client
+  if(sb && c._uuid){
+    try{
+      await sb.from('bookings')
+        .delete()
+        .eq('studio_id',STUDIO_ID)
+        .eq('client_id',c._uuid)
+        .eq('status','booked')
+        .gte('class_date',localDateStr(new Date()));
+    }catch(e){console.error('cancel all bookings:',e.message);}
+  }
+  const msg=L(`Ακυρώθηκαν ${count} κρατήσεις`,`Cancelled ${count} bookings`,`Отменено ${count} записей`);
+  if(count>0) c.history.unshift({d:localDateStr(new Date()),t:msg});
+  toast(msg);
   renderClientCard(c);
   renderClients();
 }
@@ -1219,9 +1276,17 @@ function sendWhatsApp(clientId,type){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
   const phone=(c.phone||'').replace(/[^\d+]/g,'');
   const name=c.name.split(' ')[0];
-  const msg=type==='booking'
-    ?`Привет, ${name}! Напоминаем о записи в Alma Pilates Studio. До встречи! 🧘‍♀️`
-    :`Привет, ${name}! Напоминаем об оплате абонемента Alma Pilates (${c.nextPayment}). 💜`;
+  const clientLang=(c.lang||'EL').toUpperCase();
+  let msg;
+  if(type==='booking'){
+    if(clientLang==='RU') msg=`Привет, ${name}! Напоминаем о вашей записи в Alma Pilates Studio. До встречи! 🧘‍♀️`;
+    else if(clientLang==='EN') msg=`Hi ${name}! This is a reminder of your upcoming class at Alma Pilates Studio. See you soon! 🧘‍♀️`;
+    else msg=`Γεια σου ${name}! Υπενθύμιση για το μάθημά σου στο Alma Pilates Studio. Σε περιμένουμε! 🧘‍♀️`;
+  } else {
+    if(clientLang==='RU') msg=`Привет, ${name}! Напоминаем об оплате абонемента Alma Pilates (${c.nextPayment}). 💜`;
+    else if(clientLang==='EN') msg=`Hi ${name}! A reminder that your Alma Pilates subscription is due for renewal (${c.nextPayment}). 💜`;
+    else msg=`Γεια σου ${name}! Υπενθύμιση για την ανανέωση της συνδρομής σου στο Alma Pilates (${c.nextPayment}). 💜`;
+  }
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 
@@ -1471,8 +1536,33 @@ function closeSlotDetail(){
   currentSlot=null;
 }
 
-function removeFromSlot(key,idx){
-  if(slotBookingsMap[key]) slotBookingsMap[key].splice(idx,1);
+async function removeFromSlot(key,idx){
+  const arr=slotBookingsMap[key]||[];
+  const name=arr[idx];
+  arr.splice(idx,1);
+  // Remove from DB
+  if(sb && name && currentSlot?.dateStr){
+    const client=CLIENTS.find(c=>c.name===name);
+    const slotId=scheduleSlotIds[key];
+    if(client?._uuid && slotId){
+      try{
+        await sb.from('bookings').delete()
+          .eq('studio_id',STUDIO_ID)
+          .eq('client_id',client._uuid)
+          .eq('slot_id',slotId)
+          .eq('class_date',currentSlot.dateStr)
+          .in('status',['booked','attended']);
+        // Restore subscription balance
+        if(client._subUuid){
+          await sb.from('subscriptions')
+            .update({used_classes:Math.max(0,client.total-client.left-1)})
+            .eq('id',client._subUuid);
+          client.left=Math.min(client.total,client.left+1);
+          client.status=client.left===0?'inactive':client.left<=1?'danger':client.left<=2?'warn':'ok';
+        }
+      }catch(e){console.error('booking delete:',e.message);}
+    }
+  }
   if(currentSlot) openSlotDetail(currentSlot.di,currentSlot.time,currentSlot.dateStr);
   renderSchedule();
   toast(adminLang==='ru'?'Запись удалена':adminLang==='en'?'Booking removed':'Αφαιρέθηκε');
@@ -1516,7 +1606,7 @@ function cancelSlotFromDetail(){
           extended++;
         }
       });
-      toast(`✅ Занятие отменено. ${extended} клиентам продлён абонемент на 7 дней!`);
+      toast(`✅ ${adminLang==='ru'?`Занятие отменено. ${extended} клиентам продлён абонемент на 7 дней!`:adminLang==='en'?`Class cancelled. ${extended} subscriptions extended by 7 days!`:`Το μάθημα ακυρώθηκε. ${extended} συνδρομές παρατάθηκαν κατά 7 ημέρες!`}`);
     } else {
       toast(adminLang==='ru'?'Занятие отменено':adminLang==='en'?'Class cancelled':'Ακυρώθηκε');
     }
@@ -2732,7 +2822,7 @@ function cancelSlotFromDetail(){
           c.nextPayment = d.getDate() + ' ' + ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'][d.getMonth()];
         }
       });
-      toast('✅ Занятие отменено. Абонементы записанных клиентов продлены на 7 дней!');
+      toast(`✅ ${adminLang==='ru'?'Занятие отменено. Абонементы записанных клиентов продлены на 7 дней!':adminLang==='en'?'Class cancelled. Enrolled subscriptions extended by 7 days!':'Το μάθημα ακυρώθηκε. Οι συνδρομές παρατάθηκαν κατά 7 ημέρες!'}`);
     } else {
       toast(adminLang==='ru'?'Занятие отменено':adminLang==='en'?'Class cancelled':'Ακυρώθηκε');
     }
@@ -2849,6 +2939,14 @@ async function testConnection(){
 async function dbLoad(){
   if(!sb) return;
   try{
+    // Load schedule slot IDs
+    const {data:slots}=await sb.from('schedule_slots')
+      .select('id,day_of_week,start_time')
+      .eq('studio_id',STUDIO_ID);
+    if(slots) slots.forEach(s=>{
+      scheduleSlotIds[s.day_of_week+'_'+s.start_time.slice(0,5)]=s.id;
+    });
+
     const {data,error}=await sb.from('clients')
       .select('*,subscriptions(*)')
       .eq('studio_id',STUDIO_ID)
@@ -2861,6 +2959,7 @@ async function dbLoad(){
       const total=sub?.total_classes||8;
       CLIENTS.push({
         id:i+1,_uuid:c.id,
+        _subUuid:sub?.id||null,
         name:c.full_name,
         initials:c.full_name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
         phone:c.phone||'',lang:(c.language||'el').toUpperCase(),
@@ -3345,11 +3444,34 @@ function showWaitlistNotif(person,di,time,dateStr,key,msg){
 
 function dismissWLNotif(){ const n=document.getElementById('wl-notif'); if(n) n.innerHTML=''; }
 
-function bookFromWaitlist(key,idx,name,di,time,dateStr){
+async function bookFromWaitlist(key,idx,name,di,time,dateStr){
   if(waitlist[key]) waitlist[key].splice(idx,1);
   const slotKey=di+'_'+time;
   if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
   if(!slotBookingsMap[slotKey].includes(name)) slotBookingsMap[slotKey].push(name);
+  // Save to DB
+  if(sb && dateStr && dateStr!=='any'){
+    const client=CLIENTS.find(c=>c.name===name);
+    const slotId=scheduleSlotIds[slotKey];
+    if(client?._uuid && slotId){
+      try{
+        await sb.from('bookings').insert({
+          studio_id:STUDIO_ID,
+          client_id:client._uuid,
+          slot_id:slotId,
+          subscription_id:client._subUuid||null,
+          class_date:dateStr,
+          status:'booked'
+        });
+        if(client._subUuid && client.left>0){
+          await sb.from('subscriptions')
+            .update({used_classes:client.total-client.left+1})
+            .eq('id',client._subUuid);
+          client.left=Math.max(0,client.left-1);
+        }
+      }catch(e){console.error('waitlist booking:',e.message);}
+    }
+  }
   dismissWLNotif();
   toast(`✅ ${name} ${adminLang==='ru'?'записан!':'booked!'}`);
   renderSchedule();
@@ -3507,19 +3629,44 @@ function confirmBooking(){
   bookClientByName(selected.value);
 }
 
-function bookClientByName(name){
+async function bookClientByName(name){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   if(currentBookSlot){
     const {di,time}=currentBookSlot;
     const slotKey=di+'_'+time;
-    const dateStr=currentSlot?.dateStr||'any';
+    const dateStr=currentSlot?.dateStr||null;
     if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
     if(slotBookingsMap[slotKey].length>=CAP){
       const client=CLIENTS.find(c=>c.name===name);
-      addToWaitlist(name,client?.phone||'',di,time,dateStr);
+      addToWaitlist(name,client?.phone||'',di,time,dateStr||'any');
       return;
     }
     if(!slotBookingsMap[slotKey].includes(name)) slotBookingsMap[slotKey].push(name);
+    // Save to database
+    if(sb && dateStr){
+      const client=CLIENTS.find(c=>c.name===name);
+      const slotId=scheduleSlotIds[slotKey];
+      if(client?._uuid && slotId){
+        try{
+          await sb.from('bookings').insert({
+            studio_id:STUDIO_ID,
+            client_id:client._uuid,
+            slot_id:slotId,
+            subscription_id:client._subUuid||null,
+            class_date:dateStr,
+            status:'booked'
+          });
+          // Decrement subscription balance if exists
+          if(client._subUuid && client.left>0){
+            await sb.from('subscriptions')
+              .update({used_classes:client.total-client.left+1})
+              .eq('id',client._subUuid);
+            client.left=Math.max(0,client.left-1);
+            client.status=client.left===0?'inactive':client.left<=1?'danger':client.left<=2?'warn':'ok';
+          }
+        }catch(e){console.error('booking insert:',e.message);}
+      }
+    }
   }
   closeModal('book-modal');
   toast(L('Κράτηση ✓','Booked ✓','Записан!'));
