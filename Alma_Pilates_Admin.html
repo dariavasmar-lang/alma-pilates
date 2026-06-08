@@ -468,6 +468,51 @@ tbody tr.selected{background:#EDE4D8}
 <!-- BOOK MODAL -->
 <div class="modal-overlay" id="book-modal"></div>
 
+<!-- ADD / CANCEL SLOT MODAL -->
+<div class="modal-overlay" id="add-slot-modal">
+  <div class="modal" style="width:420px">
+    <div class="modal-title" id="asm-title">Управление занятиями</div>
+    <div class="form-grid" style="gap:10px;margin-bottom:12px">
+      <div class="ff">
+        <label id="asm-action-lbl">Действие</label>
+        <select id="asm-action" onchange="asmToggle()">
+          <option value="add">➕ Добавить занятие</option>
+          <option value="cancel">✕ Отменить занятие</option>
+          <option value="holiday">🎉 Праздничный день</option>
+        </select>
+      </div>
+      <div class="ff">
+        <label id="asm-day-lbl">День</label>
+        <select id="asm-day">
+          <option value="0">Понедельник</option>
+          <option value="1">Вторник</option>
+          <option value="2">Среда</option>
+          <option value="3">Четверг</option>
+          <option value="4">Пятница</option>
+          <option value="5">Суббота</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid" style="gap:10px;margin-bottom:12px">
+      <div class="ff" id="asm-time-row">
+        <label id="asm-time-lbl">Время (ЧЧ:ММ)</label>
+        <input type="time" id="asm-time" value="09:00">
+      </div>
+      <div class="ff">
+        <label id="asm-reason-lbl">Причина / Название</label>
+        <input type="text" id="asm-reason" placeholder="Например: Пасха, Перенос...">
+      </div>
+    </div>
+    <div id="asm-holiday-row" style="display:none;background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:10px 12px;font-size:11px;color:var(--warn);margin-bottom:12px">
+      🔔 Праздничный день закроет студию полностью. Абонементы клиентов будут продлены на 1 день автоматически.
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('add-slot-modal')">Отмена</button>
+      <button class="btn primary" onclick="saveSlotAction()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── DATA ──────────────────────────────────────────────────────
 const CLIENTS = [];
@@ -1619,29 +1664,28 @@ function cancelSlotFromDetail(){
 }
 
 // ── ADD SLOT MODAL ────────────────────────────────────────────
-function openAddSlotModal(){
-  document.getElementById('add-slot-modal').classList.add('open');
-}
-
-function saveSlotAction(){
+function asmToggle(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const action=document.getElementById('asm-action').value;
-  const di=parseInt(document.getElementById('asm-day').value);
-  const timeRaw=document.getElementById('asm-time').value;
-  const time=timeRaw.split('–')[0].split('—')[0].trim();
-  const reason=document.getElementById('asm-reason').value;
-  const dates=getWeekDates();
-  const dateStr=dates[di].toISOString().split('T')[0];
-  if(action==='add'){
-    if(!slotBookingsMap[di+'_'+time]) slotBookingsMap[di+'_'+time]=[];
-    toast('✅ '+(adminLang==='ru'?'Дополнительное занятие добавлено!':adminLang==='en'?'Extra class added!':'Επιπλέον μάθημα προστέθηκε!'));
-  } else {
-    const isHoliday=action==='holiday';
-    cancellations.push({type:isHoliday?'holiday':'slot',date:dateStr,endDate:dateStr,slot:time,reason,name:reason||dateStr});
-    if(isHoliday) toast('🎉 '+(adminLang==='ru'?'Праздник добавлен. Занятия клиентов перенесены.':adminLang==='en'?'Holiday added. Clients notified.':'Αργία προστέθηκε.'));
-    else toast(adminLang==='ru'?'Занятие отменено':'Class cancelled');
+  const timeRow=document.getElementById('asm-time-row');
+  const holRow=document.getElementById('asm-holiday-row');
+  const title=document.getElementById('asm-title');
+  if(timeRow) timeRow.style.display=action==='holiday'?'none':'';
+  if(holRow) holRow.style.display=action==='holiday'?'block':'none';
+  if(title) title.textContent=
+    action==='add'? L('Προσθήκη μαθήματος','Add extra class','Добавить занятие'):
+    action==='cancel'? L('Ακύρωση μαθήματος','Cancel class','Отменить занятие'):
+    L('Αργία / Κλείσιμο','Holiday / Closure','Праздник / Закрытие');
+  // Update day labels
+  const dayEl=document.getElementById('asm-day');
+  if(dayEl){
+    const DAYS=L(['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ'],['Mon','Tue','Wed','Thu','Fri','Sat'],['Пн','Вт','Ср','Чт','Пт','Сб']);
+    const dates=getWeekDates();
+    Array.from(dayEl.options).forEach((opt,i)=>{
+      const d=dates[i];
+      opt.text=DAYS[i]+' '+d.getDate()+'/'+String(d.getMonth()+1).padStart(2,'0');
+    });
   }
-  closeModal('add-slot-modal');
-  renderSchedule();
 }
 
 // ── HOLIDAYS CHIPS ────────────────────────────────────────────
@@ -2873,41 +2917,38 @@ function cancelSlotFromDetail(){
 // ─── ADD SLOT MODAL ────────────────────────────────────────────
 function openAddSlotModal(){
   document.getElementById('asm-action').value = 'add';
-  document.getElementById('asm-holiday-row').style.display = 'none';
+  asmToggle();
   document.getElementById('add-slot-modal').classList.add('open');
 }
 
 function saveSlotAction(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const action = document.getElementById('asm-action').value;
   const di = parseInt(document.getElementById('asm-day').value);
-  const time = document.getElementById('asm-time').value.split('–')[0];
+  const time = document.getElementById('asm-time').value;
   const reason = document.getElementById('asm-reason').value;
   const dates = getWeekDates();
   const date = dates[di];
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = localDateStr(date);
 
   if(action==='add'){
-    if(!extraSlots[weekOffset+'_'+di]) extraSlots[weekOffset+'_'+di]=[];
-    extraSlots[weekOffset+'_'+di].push({t:time, e:time, reason});
-    toast('✅ Дополнительное занятие добавлено!');
-  } else if(action==='cancel'||action==='holiday'){
-    const isHol = action==='holiday';
-    cancellations.push({type:isHol?'holiday':'slot', date:dateStr, endDate:dateStr, slot:time, reason, name:reason||dateStr});
-    if(isHol){
-      toast('✅ Праздник добавлен. Занятия перенесены клиентам.');
-    } else {
-      toast('Занятие отменено');
-    }
+    if(!time){toast(L('Εισάγετε ώρα','Enter time','Введите время'));return;}
+    if(!dateExtraSlots[dateStr]) dateExtraSlots[dateStr]=[];
+    dateExtraSlots[dateStr].push({time, reason: reason||time});
+    toast('✅ '+L('Επιπλέον μάθημα προστέθηκε!','Extra class added!','Дополнительное занятие добавлено!'));
+  } else if(action==='cancel'){
+    if(!time){toast(L('Εισάγετε ώρα','Enter time','Введите время'));return;}
+    cancellations.push({type:'slot', date:dateStr, endDate:dateStr, slot:time, reason, name:reason||time});
+    toast(L('Ακυρώθηκε','Class cancelled','Занятие отменено'));
+  } else if(action==='holiday'){
+    cancellations.push({type:'holiday', date:dateStr, endDate:dateStr, slot:'', reason, name:reason||dateStr});
+    toast('🎉 '+L('Αργία προστέθηκε. Κλείσιμο studio.','Holiday added. Studio closed.','Праздник добавлен. Студия закрыта.'));
   }
   closeModal('add-slot-modal');
   renderSchedule();
+  renderCancelInline();
 }
 
-// Show holiday transfer warning
-document.getElementById('asm-action')?.addEventListener('change', function(){
-  document.getElementById('asm-holiday-row').style.display = 
-    this.value==='holiday'?'block':'none';
-});
 
 
 // ── SUPABASE ─────────────────────────────────────────────────
