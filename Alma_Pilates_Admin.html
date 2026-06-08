@@ -1407,23 +1407,85 @@ const slotBookingsMap = Object.fromEntries(
 let cancellations = [];
 let currentSlot = null;
 
-function saveLocalData(){
+// ── SUPABASE: load extra classes, cancellations, slot names ──────
+async function dbLoadScheduleData(){
+  if(!sb) return;
   try{
-    localStorage.setItem('alma_extraSlots', JSON.stringify(dateExtraSlots));
-    localStorage.setItem('alma_cancellations', JSON.stringify(cancellations));
-    localStorage.setItem('alma_slotNames', JSON.stringify(slotNames));
-  }catch(e){}
+    // Extra classes
+    const {data:ex}=await sb.from('extra_classes')
+      .select('class_date,start_time,name')
+      .eq('studio_id',STUDIO_ID).eq('is_active',true);
+    Object.keys(dateExtraSlots).forEach(k=>delete dateExtraSlots[k]);
+    (ex||[]).forEach(r=>{
+      const d=r.class_date, t=r.start_time.slice(0,5);
+      if(!dateExtraSlots[d]) dateExtraSlots[d]=[];
+      if(!dateExtraSlots[d].find(s=>s.time===t))
+        dateExtraSlots[d].push({time:t, reason:r.name||t});
+    });
+
+    // Cancellations
+    const {data:ca}=await sb.from('schedule_cancellations')
+      .select('*').eq('studio_id',STUDIO_ID);
+    cancellations.length=0;
+    (ca||[]).forEach(r=>cancellations.push({
+      _id:r.id, type:r.type,
+      date:r.date, endDate:r.end_date||r.date,
+      slot:r.slot_time||'', reason:r.reason||'', name:r.name||''
+    }));
+
+    // Slot names
+    const {data:sn}=await sb.from('slot_names')
+      .select('day_of_week,start_time,name').eq('studio_id',STUDIO_ID);
+    Object.keys(slotNames).forEach(k=>delete slotNames[k]);
+    (sn||[]).forEach(r=>{ slotNames[r.day_of_week+'_'+r.start_time.slice(0,5)]=r.name; });
+  }catch(e){ console.error('dbLoadScheduleData:',e.message); }
 }
 
-function loadLocalData(){
+// ── SUPABASE: save extra class ────────────────────────────────────
+async function dbSaveExtraClass(dateStr, time, name){
+  if(!sb) return;
   try{
-    const ex=localStorage.getItem('alma_extraSlots');
-    if(ex) Object.assign(dateExtraSlots, JSON.parse(ex));
-    const ca=localStorage.getItem('alma_cancellations');
-    if(ca){ cancellations.length=0; JSON.parse(ca).forEach(c=>cancellations.push(c)); }
-    const sn=localStorage.getItem('alma_slotNames');
-    if(sn) Object.assign(slotNames, JSON.parse(sn));
-  }catch(e){}
+    await sb.from('extra_classes').insert({
+      studio_id:STUDIO_ID, class_date:dateStr,
+      start_time:time, name:name||''
+    });
+  }catch(e){ console.error('dbSaveExtraClass:',e.message); }
+}
+
+// ── SUPABASE: save cancellation, returns db id ────────────────────
+async function dbSaveCancellation(obj){
+  if(!sb) return null;
+  try{
+    const {data,error}=await sb.from('schedule_cancellations').insert({
+      studio_id:STUDIO_ID, type:obj.type,
+      date:obj.date, end_date:obj.endDate||obj.date,
+      slot_time:obj.slot||null, reason:obj.reason||'', name:obj.name||''
+    }).select('id').single();
+    if(error) throw error;
+    return data?.id||null;
+  }catch(e){ console.error('dbSaveCancellation:',e.message); return null; }
+}
+
+// ── SUPABASE: delete cancellation by db id ────────────────────────
+async function dbDeleteCancellation(id){
+  if(!sb||!id) return;
+  try{ await sb.from('schedule_cancellations').delete().eq('id',id); }
+  catch(e){ console.error('dbDeleteCancellation:',e.message); }
+}
+
+// ── SUPABASE: upsert slot name ────────────────────────────────────
+async function dbSaveSlotName(dow, time, name){
+  if(!sb) return;
+  try{
+    if(name){
+      await sb.from('slot_names').upsert({
+        studio_id:STUDIO_ID, day_of_week:dow, start_time:time, name
+      },{onConflict:'studio_id,day_of_week,start_time'});
+    } else {
+      await sb.from('slot_names').delete()
+        .eq('studio_id',STUDIO_ID).eq('day_of_week',dow).eq('start_time',time);
+    }
+  }catch(e){ console.error('dbSaveSlotName:',e.message); }
 }
 let weekOffset = 0;
 
@@ -1667,7 +1729,7 @@ function saveSlotName(val){
   const key=currentSlot.di+'_'+currentSlot.time;
   if(val.trim()) slotNames[key]=val.trim();
   else delete slotNames[key];
-  saveLocalData();
+  dbSaveSlotName(currentSlot.di, currentSlot.time, val.trim());
   renderSchedule();
 }
 
@@ -3004,43 +3066,43 @@ function openBookFromSlot(){
   openBookModal(currentSlot.di, currentSlot.time);
 }
 
-function cancelSlotFromDetail(){
+async function cancelSlotFromDetail(){
   if(!currentSlot) return;
   const {di, time, dateStr} = currentSlot;
   const cancelled = isSlotCancelled(di, time, new Date(dateStr));
   if(cancelled){
-    // restore - remove from cancellations
+    // restore — remove from DB and memory
+    const found = cancellations.find(c=>c.date===dateStr&&c.slot===time&&c.type==='slot');
+    if(found?._id) await dbDeleteCancellation(found._id);
     cancellations = cancellations.filter(c=>!(c.date===dateStr&&c.slot===time&&c.type==='slot'));
     toast(adminLang==='ru'?'Занятие восстановлено!':adminLang==='en'?'Class restored!':'Αποκαταστάθηκε!');
   } else {
-    // cancel - check if holiday-type (transfer classes)
     const reason = prompt(
       adminLang==='ru'?'Причина отмены (праздник — перенесём занятия клиентам):':
       adminLang==='en'?'Reason (holiday = classes will be transferred):':
       'Αιτιολογία (αργία = τα μαθήματα θα μεταφερθούν):', ''
     );
     if(reason === null) return;
-    const isHoliday = reason.toLowerCase().includes('праздник') || reason.toLowerCase().includes('holiday') || reason.toLowerCase().includes('αργία') || reason.toLowerCase().includes('αργια');
-    cancellations.push({type:'slot', date:dateStr, endDate:dateStr, slot:time, reason, name:reason||time});
+    const isHoliday = /праздник|holiday|αργί/i.test(reason);
+    const obj = {type:'slot', date:dateStr, endDate:dateStr, slot:time, reason, name:reason||time};
+    const dbId = await dbSaveCancellation(obj);
+    obj._id = dbId;
+    cancellations.push(obj);
     if(isHoliday){
-      // Transfer: extend expiry for enrolled clients
       const slotKey = di + '_' + time;
-      const enrolled = SLOT_BOOKINGS[slotKey] || [];
+      const enrolled = slotBookingsMap[slotKey] || [];
       enrolled.forEach(name => {
-        const c = CLIENTS.find(x=>x.name===name||x.initials===name.slice(0,2));
+        const c = CLIENTS.find(x=>x.name===name);
         if(c && c.expiresDate){
-          const d = new Date(c.expiresDate);
-          d.setDate(d.getDate()+7); // extend by 1 week per cancelled class
-          c.expiresDate = d.toISOString().split('T')[0];
-          c.nextPayment = d.getDate() + ' ' + ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'][d.getMonth()];
+          const d = new Date(c.expiresDate); d.setDate(d.getDate()+7);
+          c.expiresDate = localDateStr(d);
         }
       });
-      toast(`✅ ${adminLang==='ru'?'Занятие отменено. Абонементы записанных клиентов продлены на 7 дней!':adminLang==='en'?'Class cancelled. Enrolled subscriptions extended by 7 days!':'Το μάθημα ακυρώθηκε. Οι συνδρομές παρατάθηκαν κατά 7 ημέρες!'}`);
+      toast(adminLang==='ru'?'Занятие отменено. Абонементы продлены на 7 дней!':adminLang==='en'?'Class cancelled. Subscriptions extended 7 days!':'Ακυρώθηκε. Συνδρομές +7 ημέρες!');
     } else {
       toast(adminLang==='ru'?'Занятие отменено':adminLang==='en'?'Class cancelled':'Ακυρώθηκε');
     }
   }
-  saveLocalData();
   renderSchedule();
   openSlotDetail(currentSlot.di, currentSlot.time, currentSlot.dateStr);
 }
@@ -3060,7 +3122,7 @@ function openAddSlotModal(){
   document.getElementById('add-slot-modal').classList.add('open');
 }
 
-function saveSlotAction(){
+async function saveSlotAction(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const action  = document.getElementById('asm-action').value;
   const dateStr = document.getElementById('asm-date').value;
@@ -3072,25 +3134,34 @@ function saveSlotAction(){
     const name = document.getElementById('asm-add-name')?.value||'';
     if(!dateExtraSlots[dateStr]) dateExtraSlots[dateStr]=[];
     dateExtraSlots[dateStr].push({time, reason:name||time});
+    await dbSaveExtraClass(dateStr, time, name);
     toast(L('Μάθημα προστέθηκε!','Class added!','Занятие добавлено!'));
   } else if(action==='slot'){
     const slotRaw = document.getElementById('asm-slot')?.value||'';
     const slot = slotRaw.split('–')[0].split('—')[0].trim();
     const reason = document.getElementById('asm-reason')?.value||'';
-    cancellations.push({type:'slot',date:dateStr,endDate:dateStr,slot,reason,name:reason||slot});
+    const obj={type:'slot',date:dateStr,endDate:dateStr,slot,reason,name:reason||slot};
+    obj._id = await dbSaveCancellation(obj);
+    cancellations.push(obj);
     toast(L('Ακυρώθηκε','Slot cancelled','Слот отменён'));
   } else if(action==='all'){
     const reason = document.getElementById('asm-reason')?.value||'';
-    cancellations.push({type:'all',date:dateStr,endDate:dateStr,slot:'',reason,name:reason||dateStr});
+    const obj={type:'all',date:dateStr,endDate:dateStr,slot:'',reason,name:reason||dateStr};
+    obj._id = await dbSaveCancellation(obj);
+    cancellations.push(obj);
     toast(L('Ακύρωση ημέρας','Day cancelled','День отменён'));
   } else if(action==='holiday'){
     const reason = document.getElementById('asm-reason')?.value||'';
-    cancellations.push({type:'holiday',date:dateStr,endDate:dateStr,slot:'',reason,name:reason||dateStr});
+    const obj={type:'holiday',date:dateStr,endDate:dateStr,slot:'',reason,name:reason||dateStr};
+    obj._id = await dbSaveCancellation(obj);
+    cancellations.push(obj);
     toast(L('Αργία προστέθηκε!','Holiday added!','Праздник добавлен!'));
   } else if(action==='vacation'){
     const endDate = document.getElementById('asm-vac-end')?.value||dateStr;
     const reason  = document.getElementById('asm-reason2')?.value||'';
-    cancellations.push({type:'vacation',date:dateStr,endDate,slot:'',reason,name:reason||L('Διακοπές','Vacation','Отпуск')});
+    const obj={type:'vacation',date:dateStr,endDate,slot:'',reason,name:reason||L('Διακοπές','Vacation','Отпуск')};
+    obj._id = await dbSaveCancellation(obj);
+    cancellations.push(obj);
     toast(L('Διακοπές','Vacation set','Отпуск добавлен'));
   }
 
@@ -3101,7 +3172,6 @@ function saveSlotAction(){
   const selMon  = new Date(selDate); selMon.setDate(selDate.getDate()-((selDate.getDay()+6)%7));
   weekOffset = Math.round((selMon-todayMon)/(7*864e5));
 
-  saveLocalData();
   closeModal('add-slot-modal');
   renderSchedule();
   renderCancelInline();
@@ -3135,7 +3205,6 @@ function showApp(){
   const app=document.getElementById('main-app');
   app.style.display='flex';
   app.style.flexDirection='row';
-  loadLocalData();
   dbLoad();
 }
 
@@ -3213,6 +3282,7 @@ async function dbLoad(){
       });
     });
     renderClients(); renderDashboard();
+    await dbLoadScheduleData();
     dbLoadBookings();
   }catch(e){console.error('dbLoad:',e.message);}
 }
