@@ -1273,11 +1273,14 @@ let currentSlot = null;
 let weekOffset = 0;
 
 function getWeekDates(){
-  const base=new Date(2026,4,4);
-  base.setDate(base.getDate()+weekOffset*7);
+  const today=new Date();
+  const dow=today.getDay();
+  const base=new Date(today);
+  base.setDate(today.getDate()-((dow+6)%7)+weekOffset*7);
+  base.setHours(12,0,0,0);
   return Array.from({length:6},(_,i)=>{const d=new Date(base);d.setDate(d.getDate()+i);return d;});
 }
-function shiftWeek(d){ weekOffset+=d; renderSchedule(); }
+function shiftWeek(d){ weekOffset+=d; renderSchedule(); dbLoadBookings(); }
 
 function localDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
@@ -1853,7 +1856,7 @@ function deletePayment(visIdx){
 
 function openPayModal(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  const clientOpts=CLIENTS.filter(c=>c.status!=='inactive').map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  const clientOpts=CLIENTS.filter(c=>c.is_active!==false).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
   const today=localDateStr(new Date());
   let m=document.getElementById('pay-add-modal');
   if(!m){m=document.createElement('div');m.className='modal-overlay';m.id='pay-add-modal';document.body.appendChild(m);}
@@ -2883,8 +2886,35 @@ async function dbLoad(){
       });
     });
     renderClients(); renderDashboard();
+    dbLoadBookings();
   }catch(e){console.error('dbLoad:',e.message);}
 }
+
+async function dbLoadBookings(){
+  if(!sb) return;
+  try{
+    const dates=getWeekDates().map(d=>localDateStr(d));
+    const {data,error}=await sb.from('bookings')
+      .select('slot_id,class_date,status,clients(full_name),schedule_slots(day_of_week,start_time)')
+      .in('class_date',dates)
+      .in('status',['booked','attended'])
+      .eq('studio_id',STUDIO_ID);
+    if(error||!data) return;
+    // Reset map
+    Object.keys(slotBookingsMap).forEach(k=>delete slotBookingsMap[k]);
+    data.forEach(b=>{
+      const dow=b.schedule_slots?.day_of_week;
+      const t=b.schedule_slots?.start_time?.slice(0,5);
+      if(dow==null||!t) return;
+      const key=dow+'_'+t;
+      if(!slotBookingsMap[key]) slotBookingsMap[key]=[];
+      const name=b.clients?.full_name||'—';
+      if(!slotBookingsMap[key].includes(name)) slotBookingsMap[key].push(name);
+    });
+    renderSchedule();
+  }catch(e){console.error('dbLoadBookings:',e.message);}
+}
+
 function isoFmt(iso){
   if(!iso||iso==='—') return '—';
   const p=iso.split('-');
