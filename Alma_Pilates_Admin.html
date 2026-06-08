@@ -765,7 +765,8 @@ function renderClients(search=''){
   // Rows
   const tbody=document.getElementById('clients-table');
   const filtered=CLIENTS.filter(c=>{
-    const ms=c.name.toLowerCase().includes((search||'').toLowerCase());
+    const q=(search||'').toLowerCase();
+    const ms=c.name.toLowerCase().includes(q)||(c.phone||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))||( q.startsWith('+')&&(c.phone||'').includes(q.slice(1)));
     if(clientFilter==='warn') return ms&&(c.status==='warn'||c.status==='danger');
     if(clientFilter==='active') return ms&&c.status!=='inactive';
     if(clientFilter==='inactive') return ms&&c.status==='inactive';
