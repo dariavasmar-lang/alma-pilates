@@ -1936,7 +1936,7 @@ function deletePayment(visIdx){
 
 function openPayModal(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  const clientOpts=CLIENTS.filter(c=>c.is_active!==false).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  const sortedClients=CLIENTS.filter(c=>c.is_active!==false).sort((a,b)=>a.name.localeCompare(b.name));
   const today=localDateStr(new Date());
   let m=document.getElementById('pay-add-modal');
   if(!m){m=document.createElement('div');m.className='modal-overlay';m.id='pay-add-modal';document.body.appendChild(m);}
@@ -1953,9 +1953,17 @@ function openPayModal(){
         </div>`).join('')}
     </div>
     <div class="form-grid" style="gap:10px">
-      <div class="ff">
+      <div class="ff" style="position:relative">
         <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Πελάτης','Client','Клиент')}</label>
-        <select id="pam-client" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px">${clientOpts}</select>
+        <input type="text" id="pam-client-search" autocomplete="off"
+          placeholder="${L('Αναζήτηση ονόματος...','Search client...','Поиск клиента...')}"
+          oninput="pamFilterClients(this.value)"
+          onfocus="pamFilterClients(this.value)"
+          style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
+        <input type="hidden" id="pam-client">
+        <div id="pam-client-list" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--card);border:0.5px solid var(--border);border-radius:9px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:180px;overflow-y:auto;margin-top:2px">
+          ${sortedClients.map(c=>`<div onclick="pamSelectClient('${c.name.replace(/'/g,"\\'")}',this)" style="padding:8px 12px;font-size:13px;cursor:pointer;color:var(--text)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">${c.name}</div>`).join('')}
+        </div>
       </div>
       <div class="ff">
         <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Πακέτο','Membership','Абонемент')}</label>
@@ -1989,6 +1997,34 @@ function openPayModal(){
   m.classList.add('open');
   window._pamMethod='revolut';
 }
+
+function pamFilterClients(q){
+  const list=document.getElementById('pam-client-list'); if(!list) return;
+  const ql=q.toLowerCase();
+  let anyVisible=false;
+  list.querySelectorAll('div').forEach(div=>{
+    const match=div.textContent.toLowerCase().includes(ql);
+    div.style.display=match?'':'none';
+    if(match) anyVisible=true;
+  });
+  list.style.display=anyVisible?'block':'none';
+}
+
+function pamSelectClient(name, el){
+  const inp=document.getElementById('pam-client-search');
+  const hidden=document.getElementById('pam-client');
+  if(inp) inp.value=name;
+  if(hidden) hidden.value=name;
+  const list=document.getElementById('pam-client-list');
+  if(list) list.style.display='none';
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click',function(e){
+  const list=document.getElementById('pam-client-list');
+  if(list&&!e.target.closest('#pam-client-search')&&!e.target.closest('#pam-client-list'))
+    list.style.display='none';
+},true);
 
 function pamSelMethod(val){
   window._pamMethod=val;
