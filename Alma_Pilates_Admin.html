@@ -358,6 +358,13 @@ tbody tr.selected{background:#EDE4D8}
     <button class="btn" style="padding:3px 8px;font-size:11px" onclick="closeSlotDetail()">✕</button>
   </div>
 
+  <!-- Class name -->
+  <div>
+    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px" id="sdp-name-lbl">Название класса</div>
+    <input type="text" id="sdp-slot-name" oninput="saveSlotName(this.value)"
+      style="width:100%;font-size:13px;padding:7px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);box-sizing:border-box">
+  </div>
+
   <!-- capacity dots -->
   <div style="background:var(--bg2);border-radius:10px;padding:10px 12px">
     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:7px">
@@ -1521,8 +1528,10 @@ function renderSchedule(){
 
       const extraStyle=s.extra?'border-color:var(--green);background:var(--green-bg);':'';
       const timeStyle=s.extra?'color:var(--green)':'';
+      const sName=slotNames[key]||(s.extra&&s.reason?s.reason:'');
       return `<div class="slot ${cls}" onclick="openSlotDetail(${di},'${s.t}','${dateStr}')" style="cursor:pointer;${extraStyle}">
         <span class="slot-time" style="${timeStyle}">${s.t}</span>
+        ${sName?`<span style="font-size:9px;color:${s.extra?'var(--green)':'var(--text3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px">${sName}</span>`:''}
         <span class="slot-spots" style="${spotStyle}">${txt}</span>
       </div>`;
     };
@@ -1563,6 +1572,13 @@ function openSlotDetail(di, time, dateStr){
   const names=slotBookingsMap[key]||[];
   const bk=names.length;
   const cancelled=isSlotCancelled(di,time,new Date(dateStr));
+
+  // Class name field
+  const nameInp=document.getElementById('sdp-slot-name');
+  const nameLbl=document.getElementById('sdp-name-lbl');
+  if(nameInp) nameInp.value=slotNames[key]||'';
+  if(nameLbl) nameLbl.textContent=adminLang==='el'?'Όνομα μαθήματος':adminLang==='en'?'Class name':'Название класса';
+  if(nameInp) nameInp.placeholder=adminLang==='el'?'π.χ. Reformer, Cardio...':adminLang==='en'?'e.g. Reformer, Cardio...':'Напр.: Реформер, Кардио...';
 
   document.getElementById('sdp-cap-label').textContent=adminLang==='el'?'Κατειλημμένες':adminLang==='en'?'Booked':'Занято';
   document.getElementById('sdp-cap-val').textContent=bk+' / '+CAP;
@@ -1608,6 +1624,14 @@ function openSlotDetail(di, time, dateStr){
 function closeSlotDetail(){
   document.getElementById('slot-detail-panel').style.display='none';
   currentSlot=null;
+}
+
+function saveSlotName(val){
+  if(!currentSlot) return;
+  const key=currentSlot.di+'_'+currentSlot.time;
+  if(val.trim()) slotNames[key]=val.trim();
+  else delete slotNames[key];
+  renderSchedule();
 }
 
 async function removeFromSlot(key,idx){
