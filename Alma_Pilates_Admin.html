@@ -1466,8 +1466,8 @@ function renderSchedule(){
       const startMo=mo(d0.getMonth()), endMo=mo(d6.getMonth());
       const sameMonth=d0.getMonth()===d6.getMonth()&&d0.getFullYear()===d6.getFullYear();
       wl.textContent=sameMonth
-        ? d0.getDate()+' — '+d6.getDate()+' '+endMo+' '+d6.getFullYear()
-        : d0.getDate()+' '+startMo+' — '+d6.getDate()+' '+endMo+' '+d6.getFullYear();
+        ? d0.getDate()+' — '+d6.getDate()+' '+endMo
+        : d0.getDate()+' '+startMo+' — '+d6.getDate()+' '+endMo;
     }
   }
   if(viewMode==='month'){ renderMonthView(); return; }
