@@ -1406,6 +1406,25 @@ const slotBookingsMap = Object.fromEntries(
 
 let cancellations = [];
 let currentSlot = null;
+
+function saveLocalData(){
+  try{
+    localStorage.setItem('alma_extraSlots', JSON.stringify(dateExtraSlots));
+    localStorage.setItem('alma_cancellations', JSON.stringify(cancellations));
+    localStorage.setItem('alma_slotNames', JSON.stringify(slotNames));
+  }catch(e){}
+}
+
+function loadLocalData(){
+  try{
+    const ex=localStorage.getItem('alma_extraSlots');
+    if(ex) Object.assign(dateExtraSlots, JSON.parse(ex));
+    const ca=localStorage.getItem('alma_cancellations');
+    if(ca){ cancellations.length=0; JSON.parse(ca).forEach(c=>cancellations.push(c)); }
+    const sn=localStorage.getItem('alma_slotNames');
+    if(sn) Object.assign(slotNames, JSON.parse(sn));
+  }catch(e){}
+}
 let weekOffset = 0;
 
 function getWeekDates(){
@@ -1648,6 +1667,7 @@ function saveSlotName(val){
   const key=currentSlot.di+'_'+currentSlot.time;
   if(val.trim()) slotNames[key]=val.trim();
   else delete slotNames[key];
+  saveLocalData();
   renderSchedule();
 }
 
@@ -3020,6 +3040,7 @@ function cancelSlotFromDetail(){
       toast(adminLang==='ru'?'Занятие отменено':adminLang==='en'?'Class cancelled':'Ακυρώθηκε');
     }
   }
+  saveLocalData();
   renderSchedule();
   openSlotDetail(currentSlot.di, currentSlot.time, currentSlot.dateStr);
 }
@@ -3080,6 +3101,7 @@ function saveSlotAction(){
   const selMon  = new Date(selDate); selMon.setDate(selDate.getDate()-((selDate.getDay()+6)%7));
   weekOffset = Math.round((selMon-todayMon)/(7*864e5));
 
+  saveLocalData();
   closeModal('add-slot-modal');
   renderSchedule();
   renderCancelInline();
@@ -3113,6 +3135,7 @@ function showApp(){
   const app=document.getElementById('main-app');
   app.style.display='flex';
   app.style.flexDirection='row';
+  loadLocalData();
   dbLoad();
 }
 
