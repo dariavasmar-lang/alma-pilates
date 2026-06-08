@@ -465,45 +465,12 @@ tbody tr.selected{background:#EDE4D8}
 
 <script>
 // ── DATA ──────────────────────────────────────────────────────
-const CLIENTS = [
-  {id:1,name:'Мария Константину',initials:'МК',phone:'+35799111222',lang:'EL',type:'8',left:2,total:8,start:'3 мая',paid:'15 апр',nextPayment:'3 июн',expiresDate:'2026-06-03',status:'warn',startIso:'2026-05-03',attendedMonth:3,upcoming:1,
-   history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Attended'},{d:'29 апр',t:'Attended'},{d:'24 апр',t:'Payment €120'}]},
-  {id:2,name:'Анна Николаиду',initials:'АН',phone:'+35796333444',lang:'EL',type:'12',left:1,total:12,start:'15 апр',paid:'1 апр',nextPayment:'15 мая',expiresDate:'2026-05-15',status:'danger',startIso:'2026-04-15',attendedMonth:11,upcoming:0,
-   history:[{d:'2 мая',t:'Attended'},{d:'30 апр',t:'Attended'},{d:'1 апр',t:'Payment €160'}]},
-  {id:3,name:'Елена Папаиоанну',initials:'ЕП',phone:'+35797555666',lang:'EL',type:'8',left:2,total:8,start:'1 мая',paid:'1 мая',nextPayment:'1 июн',expiresDate:'2026-06-01',status:'warn',startIso:'2026-05-01',attendedMonth:2,upcoming:1,
-   history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Payment €120'},{d:'1 мая',t:'Attended'}]},
-  {id:4,name:'София Васильеу',initials:'СВ',phone:'+35795777888',lang:'EL',type:'12',left:8,total:12,start:'28 апр',paid:'28 апр',nextPayment:'28 мая',expiresDate:'2026-05-28',status:'ok',startIso:'2026-04-28',attendedMonth:2,upcoming:2,
-   history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Attended'},{d:'28 апр',t:'Payment €160'}]},
-  {id:5,name:'Ирина Смирнова',initials:'ИС',phone:'+35796100200',lang:'RU',type:'8',left:7,total:8,start:'2 мая',paid:'2 мая',nextPayment:'2 июн',expiresDate:'2026-06-02',status:'ok',startIso:'2026-05-02',attendedMonth:1,upcoming:2,
-   history:[{d:'2 мая',t:'Payment €120'},{d:'2 мая',t:'Attended'}]},
-  {id:6,name:'Наталья Кузнецова',initials:'НК',phone:'+35799300400',lang:'RU',type:'12',left:11,total:12,start:'30 апр',paid:'30 апр',nextPayment:'30 мая',expiresDate:'2026-05-30',status:'ok',startIso:'2026-04-30',attendedMonth:2,upcoming:3,
-   history:[{d:'3 мая',t:'Attended'},{d:'30 апр',t:'Payment €160'}]},
-  {id:7,name:'Ольга Петрова',initials:'ОП',phone:'+35796700800',lang:'RU',type:'12',left:5,total:12,start:'20 апр',paid:'20 апр',nextPayment:'20 мая',expiresDate:'2026-05-20',status:'ok',startIso:'2026-04-20',attendedMonth:3,upcoming:2,
-   history:[{d:'3 мая',t:'Attended'},{d:'1 мая',t:'Attended'},{d:'20 апр',t:'Payment €160'}]},
-  {id:8,name:'Кристина Георгиу',initials:'КГ',phone:'+35797500600',lang:'EL',type:'8',left:0,total:8,start:'1 мар',paid:'1 мар',nextPayment:'—',expiresDate:null,status:'inactive',startIso:'2026-03-01',attendedMonth:0,upcoming:0,
-   history:[{d:'28 мар',t:'Attended'},{d:'1 мар',t:'Payment €120'}]},
-];
+const CLIENTS = [];
 
-const PAYMENTS = [
-  {name:'Мария Константину',init:'МК',detail:'8-class membership',method:'revolut',amt:120,date:'2 мая',status:'paid'},
-  {name:'Наталья Кузнецова',init:'НК',detail:'12-class membership',method:'revolut',amt:160,date:'30 апр',status:'paid'},
-  {name:'Ирина Смирнова',init:'ИС',detail:'8-class membership',method:'cash',amt:120,date:'2 мая',status:'paid'},
-  {name:'София Васильеу',init:'СВ',detail:'12-class membership',method:'bank',amt:160,date:'28 апр',status:'paid'},
-  {name:'Ольга Петрова',init:'ОП',detail:'12-class membership',method:'card',amt:160,date:'20 апр',status:'paid'},
-  {name:'Анна Николаиду',init:'АН',detail:'12-class membership',method:'revolut',amt:160,date:'?',status:'pending'},
-  {name:'Елена Папаиоанну',init:'ЕП',detail:'8-class membership',method:'revolut',amt:120,date:'?',status:'pending'},
-];
+const PAYMENTS = [];
 
-let EXPENSES = [
-  {id:1, cat:'rent',   desc:'Аренда студии',       amt:650, date:'2026-05-01', recurring:true},
-  {id:2, cat:'salary', desc:'Тренер — Алексия',    amt:800, date:'2026-05-01', recurring:true},
-  {id:3, cat:'util',   desc:'Электричество и вода', amt:95,  date:'2026-05-03', recurring:false},
-  {id:4, cat:'market', desc:'Реклама Instagram',    amt:80,  date:'2026-05-02', recurring:false},
-  {id:5, cat:'equip',  desc:'Коврики (6 шт.)',      amt:120, date:'2026-05-04', recurring:false},
-  {id:6, cat:'market', desc:'Флаеры / печать',      amt:50,  date:'2026-05-05', recurring:false},
-  {id:7, cat:'other',  desc:'Чистящие средства',    amt:25,  date:'2026-05-02', recurring:false},
-];
-let _expNextId = 8;
+let EXPENSES = [];
+let _expNextId = 1;
 
 const CATS = {
   rent:   {name:'Аренда',       color:'#E24B4A', icon:'🏢', budget:700},
@@ -1294,18 +1261,7 @@ function updateClientSubType(clientId,type){
 
 // ── SCHEDULE ──────────────────────────────────────────────────
 const CAP=4, MAX_M=3, MAX_E=4;
-const SLOT_BOOKINGS_DATA = {
-  '1_07:00':['Ирина Смирнова','София Васильеу'],
-  '1_08:00':['Мария Константину','Наталья Кузнецова','Анна Николаиду','Елена Папаиоанну'],
-  '1_09:15':['Ольга Петрова','Кристина Георгиу'],
-  '3_07:00':['Мария Константину','София Васильеу','Наталья Кузнецова'],
-  '4_07:00':['Ирина Смирнова','Елена Папаиоанну','Анна Николаиду','София Васильеу'],
-  '4_17:30':['Мария Константину','Наталья Кузнецова'],
-  '0_16:30':['Ирина Смирнова'],
-  '0_17:30':['София Васильеу','Мария Константину'],
-  '2_18:30':['Наталья Кузнецова','Анна Николаиду','Елена Папаиоанну'],
-  '5_09:30':['Ирина Смирнова','Мария Константину','София Васильеу','Наталья Кузнецова'],
-};
+const SLOT_BOOKINGS_DATA = {};
 
 // Map di_time -> array of names (mutable)
 const slotBookingsMap = Object.fromEntries(
