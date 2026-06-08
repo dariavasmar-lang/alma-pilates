@@ -111,7 +111,7 @@ tbody tr.selected{background:#EDE4D8}
 .week-label{flex:1;text-align:center;font-size:13px;font-weight:500;color:var(--text)}
 .week-btn{width:28px;height:28px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:transparent;display:flex;align-items:center;justify-content:center;color:var(--text2)}
 .week-btn:hover{background:var(--bg2)}
-.sched-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.sched-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
 .day-col{display:flex;flex-direction:column;gap:3px}
 .day-head{text-align:center;padding:5px 2px 6px;font-size:10px;font-weight:500;color:var(--text2);border-radius:8px;background:var(--bg2)}
 .day-head.today{background:var(--accent);color:var(--bg)}
@@ -1414,7 +1414,7 @@ function getWeekDates(){
   const base=new Date(today);
   base.setDate(today.getDate()-((dow+6)%7)+weekOffset*7);
   base.setHours(12,0,0,0);
-  return Array.from({length:6},(_,i)=>{const d=new Date(base);d.setDate(d.getDate()+i);return d;});
+  return Array.from({length:7},(_,i)=>{const d=new Date(base);d.setDate(d.getDate()+i);return d;});
 }
 function shiftWeek(d){ weekOffset+=d; renderSchedule(); dbLoadBookings(); }
 
@@ -1486,7 +1486,7 @@ function renderSchedule(){
   if(hBtn) hBtn.textContent=L('🎉 Αργίες Κύπρου','🎉 Cyprus Holidays','🎉 Праздники Кипра');
 
   const today=new Date();
-  const DAYS_LOC=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
+  const DAYS_LOC=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ','Κυρ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat','Sun']:['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   let totalSlots=0, totalBooked=0, html='';
 
   const SCH_FLAT={
@@ -1496,11 +1496,12 @@ function renderSchedule(){
     3:[{t:'07:00'},{t:'08:00'},{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
     4:[{t:'07:00'},{t:'08:00'},{t:'09:15'},{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
     5:[{t:'09:30'},{t:'10:30'}],
+    6:[], // Sunday — no regular classes, only extra
   };
   const isMorning=t=>t<'12:00';
 
   // Pre-compute all slots per day (regular + extra) to find dynamic max
-  const allDayData=dates.slice(0,6).map((date,di)=>{
+  const allDayData=dates.slice(0,7).map((date,di)=>{
     const dateStr=localDateStr(date);
     const regular=SCH_FLAT[di]||[];
     const extra=(dateExtraSlots[dateStr]||[]).map(s=>({t:s.time,extra:true,reason:s.reason}));
@@ -1514,7 +1515,7 @@ function renderSchedule(){
   const dynMaxM=Math.max(MAX_M,...allDayData.map(d=>d.mSlots.length));
   const dynMaxE=Math.max(MAX_E,...allDayData.map(d=>d.eSlots.length));
 
-  for(let di=0;di<6;di++){
+  for(let di=0;di<7;di++){
     const {date,dateStr,mSlots,eSlots}=allDayData[di];
     const isToday=date.toDateString()===today.toDateString();
 
@@ -3017,14 +3018,7 @@ function cancelSlotFromDetail(){
 
 // ─── ADD SLOT MODAL ────────────────────────────────────────────
 function asmCheckSunday(dateStr){
-  const warn=document.getElementById('asm-sun-warn'); if(!warn) return;
-  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  if(dateStr && new Date(dateStr+'T12:00:00').getDay()===0){
-    warn.textContent=L('Κυριακή — κλειστά. Επιλέξτε Δευ–Σαβ.','Sunday — studio closed. Choose Mon–Sat.','Воскресенье — студия закрыта. Выберите Пн–Сб.');
-    warn.style.display='block';
-  } else {
-    warn.style.display='none';
-  }
+  // Sunday is now allowed (extra classes can be added on any day)
 }
 
 function openAddSlotModal(){
@@ -3042,13 +3036,6 @@ function saveSlotAction(){
   const action  = document.getElementById('asm-action').value;
   const dateStr = document.getElementById('asm-date').value;
   if(!dateStr){toast(L('Επιλέξτε ημ/νία','Choose a date','Выберите дату'));return;}
-
-  // Check for Sunday (getDay()===0) — studio is closed
-  const selDow = new Date(dateStr+'T12:00:00').getDay();
-  if(selDow===0){
-    toast(L('Κυριακή — κλειστά','Sunday — studio closed','Воскресенье — студия закрыта'));
-    return;
-  }
 
   if(action==='add'){
     const time = document.getElementById('asm-time').value;
