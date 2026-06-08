@@ -494,7 +494,8 @@ tbody tr.selected{background:#EDE4D8}
       </div>
       <div class="ff">
         <label id="asm-date-lbl"></label>
-        <input type="date" id="asm-date">
+        <input type="date" id="asm-date" onchange="asmCheckSunday(this.value)">
+        <div id="asm-sun-warn" style="display:none;font-size:11px;color:var(--red);margin-top:4px"></div>
       </div>
     </div>
 
@@ -3015,6 +3016,17 @@ function cancelSlotFromDetail(){
 }
 
 // ─── ADD SLOT MODAL ────────────────────────────────────────────
+function asmCheckSunday(dateStr){
+  const warn=document.getElementById('asm-sun-warn'); if(!warn) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(dateStr && new Date(dateStr+'T12:00:00').getDay()===0){
+    warn.textContent=L('Κυριακή — κλειστά. Επιλέξτε Δευ–Σαβ.','Sunday — studio closed. Choose Mon–Sat.','Воскресенье — студия закрыта. Выберите Пн–Сб.');
+    warn.style.display='block';
+  } else {
+    warn.style.display='none';
+  }
+}
+
 function openAddSlotModal(){
   document.getElementById('asm-action').value = 'add';
   const dateEl=document.getElementById('asm-date');
@@ -3030,6 +3042,13 @@ function saveSlotAction(){
   const action  = document.getElementById('asm-action').value;
   const dateStr = document.getElementById('asm-date').value;
   if(!dateStr){toast(L('Επιλέξτε ημ/νία','Choose a date','Выберите дату'));return;}
+
+  // Check for Sunday (getDay()===0) — studio is closed
+  const selDow = new Date(dateStr+'T12:00:00').getDay();
+  if(selDow===0){
+    toast(L('Κυριακή — κλειστά','Sunday — studio closed','Воскресенье — студия закрыта'));
+    return;
+  }
 
   if(action==='add'){
     const time = document.getElementById('asm-time').value;
