@@ -47,6 +47,8 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);color:v
 .btn{font-size:12px;padding:7px 14px;border:0.5px solid var(--border);border-radius:10px;cursor:pointer;background:transparent;color:var(--text2);transition:all .15s;display:inline-flex;align-items:center;gap:5px}
 .btn:hover{background:var(--bg2)}
 .btn.sm{font-size:11px;padding:4px 10px;border-radius:8px}
+.btn.success{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+.btn.success:hover{background:var(--green);color:#fff}
 .btn.danger{background:var(--red-bg);border-color:var(--red);color:var(--red)}
 .btn.danger:hover{background:var(--red);color:#fff}
 .btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
@@ -991,9 +993,15 @@ function renderClientCard(c){
     </div>
   </div>
 
-  <div style="border-top:0.5px solid var(--border);padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    <button class="btn" onclick="openClientCalModal(${c.id})" style="justify-content:center">📅 ${L('Κράτηση μαθημάτων','Book classes','Записать на занятия')}</button>
-    <button class="btn danger" onclick="cancelAllFutureBookings(${c.id})" style="justify-content:center">${L('Ακύρωση όλων','Cancel all future','Отменить все будущие')}</button>
+  <div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <button class="btn" onclick="openClientCalModal(${c.id})" style="justify-content:center">${L('Κράτηση μαθήματος','Book a class','Записать на занятие')}</button>
+      <button class="btn primary" onclick="openRecurringModal(${c.id})" style="justify-content:center">${L('Επαναλαμβανόμενα','Recurring','Повторяющиеся')}</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <button class="btn success" onclick="openPayModal('${c.name.replace(/'/g,"\\'")}')">+ ${L('Πληρωμή','Payment','Оплата')}</button>
+      <button class="btn danger" onclick="cancelAllFutureBookings(${c.id})" style="justify-content:center">${L('Ακύρωση όλων','Cancel all future','Отменить все будущие')}</button>
+    </div>
   </div>
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px">
@@ -2170,7 +2178,7 @@ function deletePayment(visIdx){
   renderPayments();
 }
 
-function openPayModal(){
+function openPayModal(prefilledClient){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const sortedClients=CLIENTS.filter(c=>c.is_active!==false).sort((a,b)=>a.name.localeCompare(b.name));
   const today=localDateStr(new Date());
@@ -2232,6 +2240,15 @@ function openPayModal(){
   </div>`;
   m.classList.add('open');
   window._pamMethod='revolut';
+  // Pre-fill client if provided
+  if(prefilledClient){
+    const si=document.getElementById('pam-client-search');
+    const hi=document.getElementById('pam-client-hidden');
+    if(si) si.value=prefilledClient;
+    if(hi) hi.value=prefilledClient;
+    pamFilterClients(prefilledClient);
+    setTimeout(()=>pamSelectClient(prefilledClient),50);
+  }
 }
 
 function pamFilterClients(q){
@@ -3997,6 +4014,174 @@ async function bookClientByName(name){
   if(currentSlot) openSlotDetail(currentSlot.di,currentSlot.time,currentSlot.dateStr);
 }
 
+// ── RECURRING BOOKINGS ───────────────────────────────────────
+let _rmClientId = null;
+
+const RM_SCH = {
+  0:['16:30','17:30','18:30','19:30'],
+  1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+  2:['16:30','17:30','18:30','19:30'],
+  3:['07:00','08:00','16:30','17:30','18:30','19:30'],
+  4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+  5:['09:30','10:30'],
+  6:[]
+};
+
+function openRecurringModal(clientId){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  _rmClientId = clientId;
+  const c = CLIENTS.find(x=>x.id===clientId); if(!c) return;
+
+  const DAYS_FULL = adminLang==='el'
+    ?['Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο','Κυριακή']
+    :adminLang==='en'
+    ?['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+    :['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+
+  document.getElementById('rm-title').textContent = L('Επαναλαμβανόμενες κρατήσεις','Recurring bookings','Повторяющиеся занятия');
+  document.getElementById('rm-sub').textContent = c.name;
+  document.getElementById('rm-from-lbl').textContent = L('Από','From','С');
+  document.getElementById('rm-to-lbl').textContent = L('Έως','To','По');
+  document.getElementById('rm-cancel-btn').textContent = L('Ακύρωση','Cancel','Отмена');
+  document.getElementById('rm-save-btn').textContent = L('Δημιουργία κρατήσεων','Create bookings','Создать записи');
+
+  const today = localDateStr(todayCY());
+  const yearAhead = localDateStr(new Date(new Date().setFullYear(new Date().getFullYear()+1)));
+  document.getElementById('rm-from').value = today;
+  document.getElementById('rm-to').value = yearAhead;
+
+  // Day checkboxes
+  const daysEl = document.getElementById('rm-days');
+  daysEl.innerHTML = DAYS_FULL.map((d,i)=>`
+    <label style="display:flex;align-items:center;gap:5px;padding:6px 10px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;background:var(--bg2)">
+      <input type="checkbox" value="${i}" onchange="rmToggleDay(${i})" style="accent-color:var(--accent);width:13px;height:13px">
+      ${d.slice(0,3)}
+    </label>`).join('');
+
+  document.getElementById('rm-times').innerHTML = '';
+  document.getElementById('rm-preview').textContent = L('Επιλέξτε ημέρες...','Select days...','Выберите дни...');
+  document.getElementById('recurring-modal').classList.add('open');
+}
+
+function rmToggleDay(dow){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const DAYS_SHORT = adminLang==='el'
+    ?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ','Κυρ']
+    :adminLang==='en'
+    ?['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+    :['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const timesEl = document.getElementById('rm-times');
+  const existing = document.getElementById('rm-time-row-'+dow);
+  const slots = RM_SCH[dow]||[];
+  if(existing){ existing.remove(); }
+  else if(slots.length>0){
+    const row = document.createElement('div');
+    row.id = 'rm-time-row-'+dow;
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border-radius:9px';
+    row.innerHTML=`<span style="font-size:12px;font-weight:500;color:var(--text);width:30px">${DAYS_SHORT[dow]}</span>
+      <select id="rm-slot-${dow}" onchange="rmUpdatePreview()" style="flex:1;padding:6px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:12px">
+        ${slots.map(t=>`<option value="${t}">${toAMPM(t)}</option>`).join('')}
+      </select>`;
+    // Insert in order by dow
+    const rows = Array.from(timesEl.children);
+    const insertBefore = rows.find(r=>parseInt(r.id.split('-').pop())>dow);
+    insertBefore ? timesEl.insertBefore(row,insertBefore) : timesEl.appendChild(row);
+  } else {
+    // Sunday with no regular slots — add a time input
+    const row = document.createElement('div');
+    row.id = 'rm-time-row-'+dow;
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border-radius:9px';
+    row.innerHTML=`<span style="font-size:12px;font-weight:500;color:var(--text);width:30px">${DAYS_SHORT[dow]}</span>
+      <input type="time" id="rm-slot-${dow}" onchange="rmUpdatePreview()" value="10:00"
+        style="flex:1;padding:6px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:12px">`;
+    timesEl.appendChild(row);
+  }
+  rmUpdatePreview();
+}
+
+function rmUpdatePreview(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const from = document.getElementById('rm-from').value;
+  const to   = document.getElementById('rm-to').value;
+  if(!from||!to){ document.getElementById('rm-preview').textContent=L('Επιλέξτε ημερομηνίες','Select dates','Выберите даты'); return; }
+  const selected = rmGetSelected();
+  if(!selected.length){ document.getElementById('rm-preview').textContent=L('Επιλέξτε ημέρες...','Select days...','Выберите дни...'); return; }
+  const dates = rmGenerateDates(from, to, selected);
+  const byDay = {};
+  dates.forEach(({dow})=>{ byDay[dow]=(byDay[dow]||0)+1; });
+  const DAYS_SHORT = adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ','Κυρ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat','Sun']:['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const detail = selected.map(({dow,time})=>`${DAYS_SHORT[dow]} ${toAMPM(time)} ×${byDay[dow]||0}`).join(' · ');
+  document.getElementById('rm-preview').innerHTML=`<b>${dates.length}</b> ${L('κρατήσεις','bookings','записей')}: ${detail}`;
+}
+
+function rmGetSelected(){
+  const result=[];
+  document.querySelectorAll('#rm-days input[type=checkbox]:checked').forEach(cb=>{
+    const dow=parseInt(cb.value);
+    const timeEl=document.getElementById('rm-slot-'+dow);
+    if(timeEl) result.push({dow, time:timeEl.value});
+  });
+  return result;
+}
+
+function rmGenerateDates(from, to, selected){
+  const dates=[];
+  const end=new Date(to+'T12:00:00');
+  let cur=new Date(from+'T12:00:00');
+  while(cur<=end){
+    const jsDow=cur.getDay(); // 0=Sun,1=Mon...
+    const ourDow=(jsDow+6)%7; // 0=Mon..6=Sun
+    selected.forEach(({dow,time})=>{
+      if(ourDow===dow) dates.push({dateStr:localDateStr(cur),dow,time});
+    });
+    cur.setDate(cur.getDate()+1);
+  }
+  return dates;
+}
+
+async function saveRecurringBookings(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const c=CLIENTS.find(x=>x.id===_rmClientId); if(!c) return;
+  const from=document.getElementById('rm-from').value;
+  const to=document.getElementById('rm-to').value;
+  const selected=rmGetSelected();
+  if(!selected.length){toast(L('Επιλέξτε ημέρες','Select days','Выберите дни'));return;}
+  if(!from||!to){toast(L('Επιλέξτε ημερομηνίες','Select date range','Выберите период'));return;}
+
+  const dates=rmGenerateDates(from,to,selected);
+  if(!dates.length){toast(L('Δεν βρέθηκαν ημερομηνίες','No dates found','Нет подходящих дат'));return;}
+
+  const btn=document.getElementById('rm-save-btn');
+  if(btn){btn.disabled=true;btn.textContent=L('Φόρτωση...','Saving...','Сохраняем...');}
+
+  let saved=0, skipped=0;
+  for(const {dateStr,dow,time} of dates){
+    const slotKey=dow+'_'+time;
+    const slotId=scheduleSlotIds[slotKey];
+    // Add to in-memory map
+    if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
+    if(!slotBookingsMap[slotKey].includes(c.name)) slotBookingsMap[slotKey].push(c.name);
+    // Save to DB
+    if(sb && c._uuid && slotId){
+      try{
+        const {error}=await sb.from('bookings').insert({
+          studio_id:STUDIO_ID, client_id:c._uuid,
+          slot_id:slotId, subscription_id:c._subUuid||null,
+          class_date:dateStr, status:'booked'
+        });
+        if(!error) saved++;
+        else if(error.code==='23505') skipped++; // duplicate
+      }catch(e){ skipped++; }
+    } else { saved++; }
+  }
+
+  if(btn){btn.disabled=false;btn.textContent=L('Δημιουργία κρατήσεων','Create bookings','Создать записи');}
+  closeModal('recurring-modal');
+  toast(L(`Κρατήθηκαν ${saved} μαθ.!`,`Booked ${saved} classes!`,`Записано ${saved} занятий!`));
+  renderSchedule();
+  dbLoadBookings();
+}
+
 // ── INIT ─────────────────────────────────────────────────────
 renderDashboard();
 renderSchedule();
@@ -4047,6 +4232,45 @@ document.querySelector('.nav-item').classList.add('active');
 
 
 <!-- ADD SLOT MODAL -->
+
+<!-- RECURRING BOOKING MODAL -->
+<div class="modal-overlay" id="recurring-modal">
+  <div class="modal" style="width:500px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <div id="rm-title" style="font-family:var(--serif);font-size:17px;color:var(--text)"></div>
+        <div id="rm-sub" style="font-size:12px;color:var(--text3);margin-top:2px"></div>
+      </div>
+      <button onclick="closeModal('recurring-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
+    </div>
+
+    <!-- Day checkboxes -->
+    <div id="rm-days" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
+
+    <!-- Time selects per day (shown when day is checked) -->
+    <div id="rm-times" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+
+    <!-- Date range -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="ff">
+        <label id="rm-from-lbl" style="font-size:11px;color:var(--text2);font-weight:500"></label>
+        <input type="date" id="rm-from" style="width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box;margin-top:4px" onchange="rmUpdatePreview()">
+      </div>
+      <div class="ff">
+        <label id="rm-to-lbl" style="font-size:11px;color:var(--text2);font-weight:500"></label>
+        <input type="date" id="rm-to" style="width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box;margin-top:4px" onchange="rmUpdatePreview()">
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div id="rm-preview" style="background:var(--bg2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:14px;min-height:36px"></div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('recurring-modal')" id="rm-cancel-btn"></button>
+      <button class="btn primary" onclick="saveRecurringBookings()" id="rm-save-btn"></button>
+    </div>
+  </div>
+</div>
 
 </div><!-- /main-app -->
 </body>
