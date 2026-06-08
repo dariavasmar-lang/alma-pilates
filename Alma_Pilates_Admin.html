@@ -857,7 +857,7 @@ function renderClients(search=''){
     const isActive=c.status!=='inactive';
     const lbl=isActive?t.badgeOk:t.badgeInactive;
     const typeLabel=c.type+(adminLang==='el'?' μαθ.':adminLang==='en'?' cl.':' зан.');
-    const isSoon=isActive&&c.expiresDate&&new Date(c.expiresDate)<=new Date('2026-05-20');
+    const isSoon=isActive&&c.expiresDate&&new Date(c.expiresDate)<=new Date(Date.now()+14*864e5);
     return `<tr onclick="selectClient(${c.id})" id="row-${c.id}">
       <td><span style="width:26px;height:26px;border-radius:50%;background:var(--bg3);color:var(--accent);font-size:9px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;margin-right:7px;vertical-align:middle">${c.initials}</span><span style="font-size:12px;font-weight:500">${c.name}</span>${c.isNew?`<span class="badge new-client">NEW</span>`:''}</td>
       <td style="color:var(--text2)">${typeLabel}</td>
@@ -1100,7 +1100,8 @@ function renderClientCalendarModal(clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
   const modal=document.getElementById('client-cal-modal'); if(!modal) return;
   const offset=clientCalOffset[clientId]||0;
-  const ref=new Date(2026,4+offset,1);
+  const today=todayCY();
+  const ref=new Date(today.getFullYear(),today.getMonth()+offset,1);
   const curM=ref.getMonth(), curY=ref.getFullYear();
   const mn=ref.toLocaleString('ru-RU',{month:'long',year:'numeric'});
   const monthLabel=mn.charAt(0).toUpperCase()+mn.slice(1);
@@ -1110,7 +1111,6 @@ function renderClientCalendarModal(clientId){
              2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
              4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
   const DAYS7=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-  const today=new Date(2026,4,18);
   const first=new Date(curY,curM,1);
   const startDow=(first.getDay()+6)%7;
   const cells=[];
@@ -1131,7 +1131,7 @@ function renderClientCalendarModal(clientId){
     const dow=(date.getDay()+6)%7;
     const isSun=dow===6;
     const slots=isSun||!isCur||isPast?[]:(SCH[dow]||[]);
-    const dateStr=date.toISOString().split('T')[0];
+    const dateStr=localDateStr(date);
     let slotsHtml='';
     slots.forEach(t=>{
       const key=dow+'_'+t;
@@ -1254,7 +1254,8 @@ function renderClientCalendar(clientId){
   const labelEl=document.getElementById('ccal-label-'+clientId);
   if(!container) return;
   const offset=clientCalOffset[clientId]||0;
-  const ref=new Date(2026,4+offset,1);
+  const today=todayCY();
+  const ref=new Date(today.getFullYear(),today.getMonth()+offset,1);
   const curM=ref.getMonth(), curY=ref.getFullYear();
   if(labelEl){
     const mn=ref.toLocaleString('ru-RU',{month:'long',year:'numeric'});
@@ -1264,7 +1265,6 @@ function renderClientCalendar(clientId){
              2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
              4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
   const DAYS7=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-  const today=new Date(2026,4,18);
   const first=new Date(curY,curM,1);
   const startDow=(first.getDay()+6)%7;
   const cells=[];
@@ -1285,7 +1285,7 @@ function renderClientCalendar(clientId){
     const dow=(date.getDay()+6)%7;
     const isSun=dow===6;
     const slots=isSun||!isCur||isPast?[]:(SCH[dow]||[]);
-    const dateStr=date.toISOString().split('T')[0];
+    const dateStr=localDateStr(date);
     let slotsHtml='';
     slots.forEach(t=>{
       const key=dow+'_'+t;
@@ -1408,7 +1408,7 @@ let currentSlot = null;
 let weekOffset = 0;
 
 function getWeekDates(){
-  const today=new Date();
+  const today=todayCY();
   const dow=today.getDay();
   const base=new Date(today);
   base.setDate(today.getDate()-((dow+6)%7)+weekOffset*7);
@@ -1418,6 +1418,13 @@ function getWeekDates(){
 function shiftWeek(d){ weekOffset+=d; renderSchedule(); dbLoadBookings(); }
 
 function localDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+// Cyprus timezone (Europe/Nicosia): returns a Date object set to today's date in Cyprus local time
+function todayCY(){
+  const s=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Nicosia'}); // "YYYY-MM-DD"
+  const [y,m,d]=s.split('-').map(Number);
+  return new Date(y,m-1,d,12,0,0);
+}
 
 function isSlotCancelled(di, time, date){
   const ds=localDateStr(date);
@@ -3009,9 +3016,9 @@ function cancelSlotFromDetail(){
 function openAddSlotModal(){
   document.getElementById('asm-action').value = 'add';
   const dateEl=document.getElementById('asm-date');
-  if(dateEl) dateEl.value=localDateStr(new Date());
+  if(dateEl) dateEl.value=localDateStr(todayCY());
   const vacEl=document.getElementById('asm-vac-end');
-  if(vacEl) vacEl.value=localDateStr(new Date());
+  if(vacEl) vacEl.value=localDateStr(todayCY());
   asmToggle();
   document.getElementById('add-slot-modal').classList.add('open');
 }
@@ -3028,7 +3035,7 @@ function saveSlotAction(){
     const name = document.getElementById('asm-add-name')?.value||'';
     if(!dateExtraSlots[dateStr]) dateExtraSlots[dateStr]=[];
     dateExtraSlots[dateStr].push({time, reason:name||time});
-    toast('✅ '+L('Μάθημα προστέθηκε!','Class added!','Занятие добавлено!'));
+    toast(L('Μάθημα προστέθηκε!','Class added!','Занятие добавлено!'));
   } else if(action==='slot'){
     const slotRaw = document.getElementById('asm-slot')?.value||'';
     const slot = slotRaw.split('–')[0].split('—')[0].trim();
@@ -3042,13 +3049,21 @@ function saveSlotAction(){
   } else if(action==='holiday'){
     const reason = document.getElementById('asm-reason')?.value||'';
     cancellations.push({type:'holiday',date:dateStr,endDate:dateStr,slot:'',reason,name:reason||dateStr});
-    toast('🎉 '+L('Αργία!','Holiday added!','Праздник добавлен!'));
+    toast(L('Αργία προστέθηκε!','Holiday added!','Праздник добавлен!'));
   } else if(action==='vacation'){
     const endDate = document.getElementById('asm-vac-end')?.value||dateStr;
     const reason  = document.getElementById('asm-reason2')?.value||'';
     cancellations.push({type:'vacation',date:dateStr,endDate,slot:'',reason,name:reason||L('Διακοπές','Vacation','Отпуск')});
-    toast('🏖 '+L('Διακοπές','Vacation set','Отпуск добавлен'));
+    toast(L('Διακοπές','Vacation set','Отпуск добавлен'));
   }
+
+  // Switch to the week containing the selected date
+  const selDate = new Date(dateStr+'T12:00:00');
+  const today = new Date(); today.setHours(12,0,0,0);
+  const todayMon = new Date(today); todayMon.setDate(today.getDate()-((today.getDay()+6)%7));
+  const selMon  = new Date(selDate); selMon.setDate(selDate.getDate()-((selDate.getDay()+6)%7));
+  weekOffset = Math.round((selMon-todayMon)/(7*864e5));
+
   closeModal('add-slot-modal');
   renderSchedule();
   renderCancelInline();
@@ -3222,7 +3237,7 @@ function updateClientStart(id,isoDate){
 }
 
 // ── SCHEDULE ADDITIONS ────────────────────────────────────────
-let viewMode='week'; let currentDate=new Date(2026,4,4);
+let viewMode='week'; let currentDate=todayCY();
 let waitlist={};
 let schedFreq=2;
 
@@ -3873,7 +3888,7 @@ document.querySelector('.nav-item').classList.add('active');
     <div class="modal-title">Добавить отмену / Праздник</div>
     <div class="modal-sub">Выберите дату и тип отмены</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div class="ff"><label>Дата</label><input type="date" id="cm-date" value="2026-05-19"></div>
+      <div class="ff"><label>Дата</label><input type="date" id="cm-date"></div>
       <div class="ff"><label>Тип отмены</label>
         <select id="cm-type" onchange="toggleCancelSlot()">
           <option value="all">Весь день (все занятия)</option>
@@ -3894,7 +3909,7 @@ document.querySelector('.nav-item').classList.add('active');
       <div class="ff"><label>Причина</label><input type="text" id="cm-reason" placeholder="Необязательно"></div>
     </div>
     <div id="cm-vacation-row" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div class="ff"><label>Дата окончания</label><input type="date" id="cm-vac-end" value="2026-05-25"></div>
+      <div class="ff"><label>Дата окончания</label><input type="date" id="cm-vac-end"></div>
       <div class="ff"><label>Причина</label><input type="text" id="cm-reason2" placeholder="Отпуск, ремонт..."></div>
     </div>
     <div style="background:var(--green-bg);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2)">
