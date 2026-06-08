@@ -471,29 +471,29 @@ tbody tr.selected{background:#EDE4D8}
 <!-- ADD / CANCEL SLOT MODAL -->
 <div class="modal-overlay" id="add-slot-modal">
   <div class="modal" style="width:460px">
-    <div class="modal-title" id="asm-title">Управление расписанием</div>
-    <div class="modal-sub" id="asm-sub">Добавить занятие или отметить отмену / закрытие</div>
+    <div class="modal-title" id="asm-title"></div>
+    <div class="modal-sub" id="asm-sub"></div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div class="ff">
-        <label id="asm-action-lbl">Действие</label>
+        <label id="asm-action-lbl"></label>
         <select id="asm-action" onchange="asmToggle()">
-          <option value="add">➕ Добавить занятие</option>
-          <option value="all">✕ Отменить весь день</option>
-          <option value="slot">✕ Отменить конкретный слот</option>
-          <option value="holiday">🎉 Праздничный день</option>
-          <option value="vacation">🏖 Отпуск / закрыто</option>
+          <option value="add" id="asm-opt-add"></option>
+          <option value="all" id="asm-opt-all"></option>
+          <option value="slot" id="asm-opt-slot"></option>
+          <option value="holiday" id="asm-opt-holiday"></option>
+          <option value="vacation" id="asm-opt-vacation"></option>
         </select>
       </div>
       <div class="ff">
-        <label id="asm-date-lbl">Дата</label>
+        <label id="asm-date-lbl"></label>
         <input type="date" id="asm-date">
       </div>
     </div>
 
     <div id="asm-slot-row" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div class="ff">
-        <label id="asm-slot-lbl">Слот</label>
+        <label id="asm-slot-lbl"></label>
         <select id="asm-slot">
           <option>07:00–08:00</option><option>08:00–09:00</option><option>09:15–10:15</option>
           <option>09:30–10:30</option><option>10:30–11:30</option>
@@ -501,44 +501,40 @@ tbody tr.selected{background:#EDE4D8}
         </select>
       </div>
       <div class="ff">
-        <label id="asm-reason-lbl">Причина</label>
-        <input type="text" id="asm-reason" placeholder="Необязательно">
+        <label id="asm-reason-lbl"></label>
+        <input type="text" id="asm-reason">
       </div>
     </div>
 
     <div id="asm-add-row" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div class="ff">
-        <label id="asm-time-lbl">Время начала</label>
+        <label id="asm-time-lbl"></label>
         <input type="time" id="asm-time" value="09:00">
       </div>
       <div class="ff">
-        <label>Название (необязательно)</label>
-        <input type="text" id="asm-add-name" placeholder="Например: Кардио">
+        <label id="asm-addname-lbl"></label>
+        <input type="text" id="asm-add-name">
       </div>
     </div>
 
     <div id="asm-vac-row" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div class="ff">
-        <label>Дата окончания</label>
+        <label id="asm-vacend-lbl"></label>
         <input type="date" id="asm-vac-end">
       </div>
       <div class="ff">
-        <label>Причина</label>
-        <input type="text" id="asm-reason2" placeholder="Отпуск, ремонт...">
+        <label id="asm-reason2-lbl"></label>
+        <input type="text" id="asm-reason2">
       </div>
     </div>
 
-    <div id="asm-holiday-row" style="display:none;background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:10px 12px;font-size:11px;color:var(--warn);margin-bottom:12px">
-      🔔 Праздничный день — студия закрыта полностью. Клиенты уведомлены, занятие не списывается с абонемента.
-    </div>
+    <div id="asm-holiday-row" style="display:none;background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:10px 12px;font-size:11px;color:var(--warn);margin-bottom:12px" id="asm-holiday-info"></div>
 
-    <div style="background:var(--green-bg);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2);margin-bottom:14px" id="asm-info-row">
-      ✅ Занятие НЕ списывается с абонемента. Записанные клиенты получат уведомление.
-    </div>
+    <div style="background:var(--green-bg);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2);margin-bottom:14px" id="asm-info-row"></div>
 
     <div class="modal-actions">
-      <button class="btn" onclick="closeModal('add-slot-modal')" id="asm-cancel-btn">Отмена</button>
-      <button class="btn primary" onclick="saveSlotAction()" id="asm-save-btn">Сохранить</button>
+      <button class="btn" onclick="closeModal('add-slot-modal')" id="asm-cancel-btn"></button>
+      <button class="btn primary" onclick="saveSlotAction()" id="asm-save-btn"></button>
     </div>
   </div>
 </div>
@@ -1697,19 +1693,66 @@ function cancelSlotFromDetail(){
 function asmToggle(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const action=document.getElementById('asm-action').value;
+  const tx=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t;};
   const show=(id,v)=>{const e=document.getElementById(id);if(e)e.style.display=v;};
+
+  // Option labels
+  tx('asm-opt-add',     L('Προσθήκη μαθήματος','Add extra class','Добавить занятие'));
+  tx('asm-opt-all',     L('Ακύρωση ολόκληρης ημέρας','Cancel entire day','Отменить весь день'));
+  tx('asm-opt-slot',    L('Ακύρωση συγκεκριμένης θέσης','Cancel specific slot','Отменить конкретный слот'));
+  tx('asm-opt-holiday', L('Αργία','Public holiday','Праздничный день'));
+  tx('asm-opt-vacation',L('Διακοπές / Κλειστό','Vacation / Closed','Отпуск / Закрыто'));
+
+  // Static labels
+  tx('asm-action-lbl',  L('Ενέργεια','Action','Действие'));
+  tx('asm-date-lbl',    L('Ημερομηνία','Date','Дата'));
+  tx('asm-slot-lbl',    L('Θέση','Slot','Слот'));
+  tx('asm-reason-lbl',  L('Αιτιολογία (προαιρ.)','Reason (opt.)','Причина (необяз.)'));
+  tx('asm-time-lbl',    L('Ώρα έναρξης','Start time','Время начала'));
+  tx('asm-addname-lbl', L('Όνομα (προαιρ.)','Name (optional)','Название (необяз.)'));
+  tx('asm-vacend-lbl',  L('Ημ/νία λήξης','End date','Дата окончания'));
+  tx('asm-reason2-lbl', L('Αιτιολογία','Reason','Причина'));
+  tx('asm-cancel-btn',  L('Άκυρο','Cancel','Отмена'));
+  tx('asm-save-btn',    L('Αποθήκευση','Save','Сохранить'));
+
+  // Placeholders
+  const r=document.getElementById('asm-reason');
+  if(r) r.placeholder=L('Προαιρετικό','Optional','Необязательно');
+  const r2=document.getElementById('asm-reason2');
+  if(r2) r2.placeholder=L('Διακοπές, ανακαίνιση...','Vacation, renovation...','Отпуск, ремонт...');
+  const an=document.getElementById('asm-add-name');
+  if(an) an.placeholder=L('π.χ. Cardio','e.g. Cardio','Например: Кардио');
+
+  // Title & subtitle
+  tx('asm-title',
+    action==='add'?      L('Προσθήκη μαθήματος','Add extra class','Добавить занятие'):
+    action==='all'?      L('Ακύρωση ημέρας','Cancel day','Отменить день'):
+    action==='slot'?     L('Ακύρωση θέσης','Cancel slot','Отменить слот'):
+    action==='holiday'?  L('Αργία','Public holiday','Праздничный день'):
+                         L('Διακοπές / Κλειστό','Vacation / Closed','Отпуск / Закрыто'));
+  tx('asm-sub',
+    action==='add'?      L('Προσθέστε ένα έκτακτο μάθημα','Add a one-off extra class','Добавьте разовое дополнительное занятие'):
+    action==='holiday'?  L('Στούντιο κλειστό, συνδρομές δεν αφαιρούνται','Studio closed, subscriptions not deducted','Студия закрыта, абонементы не списываются'):
+    action==='vacation'? L('Κλείσιμο για αρκετές ημέρες','Closed for several days','Закрытие на несколько дней'):
+                         L('Η θέση εμφανίζεται ως ακυρωμένη στο πρόγραμμα','Slot appears as cancelled in schedule','Слот отображается как отменённый в расписании'));
+
+  // Info note
+  tx('asm-info-row',
+    action==='add'? '':
+    L('Τα μαθήματα ΔΕΝ αφαιρούνται από τη συνδρομή. Οι εγγεγραμμένοι πελάτες θα ειδοποιηθούν.',
+      'Classes are NOT deducted from subscriptions. Enrolled clients will be notified.',
+      'Занятие НЕ списывается с абонемента. Записанные клиенты получат уведомление.'));
+  tx('asm-holiday-row',
+    L('Αργία: το studio κλείνει πλήρως. Οι συνδρομές παρατείνονται αυτόματα.',
+      'Public holiday: studio fully closed. Subscriptions extended automatically.',
+      'Праздник: студия полностью закрыта. Абонементы продлеваются автоматически.'));
+
+  // Show/hide conditional rows
   show('asm-slot-row',   action==='slot'?'grid':'none');
   show('asm-add-row',    action==='add'?'grid':'none');
   show('asm-vac-row',    action==='vacation'?'grid':'none');
   show('asm-holiday-row',action==='holiday'?'block':'none');
   show('asm-info-row',   action==='add'?'none':'block');
-  const title=document.getElementById('asm-title');
-  if(title) title.textContent=
-    action==='add'?      L('Προσθήκη μαθήματος','Add extra class','Добавить занятие'):
-    action==='all'?      L('Ακύρωση ημέρας','Cancel entire day','Отменить весь день'):
-    action==='slot'?     L('Ακύρωση θέσης','Cancel specific slot','Отменить конкретный слот'):
-    action==='holiday'?  L('Αργία','Holiday','Праздничный день'):
-                         L('Διακοπές / Κλειστό','Vacation / Closed','Отпуск / Закрыто');
 }
 
 // ── HOLIDAYS CHIPS ────────────────────────────────────────────
