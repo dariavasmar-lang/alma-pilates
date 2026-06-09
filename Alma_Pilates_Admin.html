@@ -429,7 +429,6 @@ tbody tr.selected{background:#EDE4D8}
   <div class="page-header"><div><div class="page-title">Settings</div><div class="page-sub" id="sett-sub">Alma Pilates Studio</div></div></div>
   <div class="two-col">
     <div>
-    <div>
       <div class="card" style="margin-bottom:12px">
         <div class="card-head">Studio</div>
         <div class="form-grid-2">
@@ -465,11 +464,58 @@ tbody tr.selected{background:#EDE4D8}
         </div>
       </div>
     </div>
+  <!-- Schedule column -->
+  <div>
+    <div class="card">
+      <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
+        <span id="sett-sched-head">Schedule</span>
+        <button class="btn sm" onclick="openSchedModal()" id="sett-sched-btn">Manage →</button>
+      </div>
+      <div id="sett-sched-summary" style="font-size:12px;color:var(--text3);line-height:1.7"></div>
+    </div>
   </div>
 </div>
 </div>
 
 </div><!-- /main -->
+
+<!-- SCHEDULE SETTINGS MODAL -->
+<div class="modal-overlay" id="sched-modal">
+  <div class="modal" style="width:560px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div id="sched-modal-title" style="font-family:var(--serif);font-size:17px;color:var(--text)">Schedule</div>
+      <button onclick="closeModal('sched-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
+    </div>
+    <!-- Current slots -->
+    <div id="sched-slots-list" style="margin-bottom:16px"></div>
+    <!-- Add new slot -->
+    <div style="border-top:0.5px solid var(--border);padding-top:14px">
+      <div id="sched-add-title" style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px">Add slot</div>
+      <!-- Date from which changes take effect — shared for all added slots -->
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;margin-bottom:12px;border:0.5px solid var(--border)">
+        <div style="font-size:12px;color:var(--text2);white-space:nowrap" id="sched-lbl-from">Schedule active from</div>
+        <input type="date" id="sched-new-from" style="flex:1;padding:6px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px">
+        <div style="font-size:11px;color:var(--text3)" id="sched-from-hint">applies to all new slots</div>
+      </div>
+      <!-- Day + Time row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:flex-end">
+        <div class="ff">
+          <label id="sched-lbl-day" style="font-size:11px;color:var(--text2);font-weight:500">Day</label>
+          <select id="sched-new-day" style="width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px">
+            <option value="0">Mon</option><option value="1">Tue</option>
+            <option value="2">Wed</option><option value="3">Thu</option>
+            <option value="4">Fri</option><option value="5">Sat</option>
+          </select>
+        </div>
+        <div class="ff">
+          <label id="sched-lbl-time" style="font-size:11px;color:var(--text2);font-weight:500">Start time</label>
+          <input type="time" id="sched-new-time" value="09:00" style="width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
+        </div>
+        <button class="btn primary" onclick="addSchedSlot()" id="sched-add-btn" style="justify-content:center;white-space:nowrap">+ Add</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -619,13 +665,14 @@ let slotNames = {};
 // Manually cancelled slots (key -> true)
 let manualCancelled = {};
 
-const SCHEDULE = {
-  0:[{t:'16:30',tp:'evening'},{t:'17:30',tp:'evening'},{t:'18:30',tp:'evening'},{t:'19:30',tp:'evening'}],
-  1:[{t:'07:00',tp:'morning'},{t:'08:00',tp:'morning'},{t:'09:15',tp:'morning'},{t:'16:30',tp:'evening'},{t:'17:30',tp:'evening'},{t:'18:30',tp:'evening'},{t:'19:30',tp:'evening'}],
-  2:[{t:'16:30',tp:'evening'},{t:'17:30',tp:'evening'},{t:'18:30',tp:'evening'},{t:'19:30',tp:'evening'}],
-  3:[{t:'07:00',tp:'morning'},{t:'08:00',tp:'morning'},{t:'16:30',tp:'evening'},{t:'17:30',tp:'evening'},{t:'18:30',tp:'evening'},{t:'19:30',tp:'evening'}],
-  4:[{t:'07:00',tp:'morning'},{t:'08:00',tp:'morning'},{t:'09:15',tp:'morning'},{t:'16:30',tp:'evening'},{t:'17:30',tp:'evening'},{t:'18:30',tp:'evening'},{t:'19:30',tp:'evening'}],
-  5:[{t:'09:30',tp:'morning'},{t:'10:30',tp:'morning'}],
+// Global schedule — loaded from Supabase on init, fallback to hardcoded
+let GSCHED={
+  0:['16:30','17:30','18:30','19:30'],
+  1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+  2:['16:30','17:30','18:30','19:30'],
+  3:['07:00','08:00','16:30','17:30','18:30','19:30'],
+  4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+  5:['09:30','10:30']
 };
 
 // MAX_M/MAX_E defined in schedule section
@@ -1116,9 +1163,7 @@ function renderClientCalendarModal(clientId){
   const monthLabel=mn.charAt(0).toUpperCase()+mn.slice(1);
   const pending=Object.keys(pendingSelections).filter(k=>k.startsWith(clientId+'_')&&pendingSelections[k]);
 
-  const SCH={0:['16:30','17:30','18:30','19:30'],1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
-             2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
-             4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
+  const SCH=GSCHED;
   const DAYS7=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   const first=new Date(curY,curM,1);
   const startDow=(first.getDay()+6)%7;
@@ -1269,9 +1314,7 @@ function renderClientCalendar(clientId){
     const mn=ref.toLocaleString('ru-RU',{month:'long',year:'numeric'});
     labelEl.textContent=mn.charAt(0).toUpperCase()+mn.slice(1);
   }
-  const SCH={0:['16:30','17:30','18:30','19:30'],1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
-             2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
-             4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
+  const SCH=GSCHED;
   const DAYS7=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   const first=new Date(curY,curM,1);
   const startDow=(first.getDay()+6)%7;
@@ -1403,7 +1446,7 @@ function updateClientSubType(clientId,type){
 }
 
 // ── SCHEDULE ──────────────────────────────────────────────────
-const CAP=4, MAX_M=3, MAX_E=4;
+let CAP=4; const MAX_M=3, MAX_E=4;
 const SLOT_BOOKINGS_DATA = {};
 
 // Map di_time -> array of names (mutable)
@@ -1585,15 +1628,10 @@ function renderSchedule(){
   const DAYS_LOC=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ','Κυρ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat','Sun']:['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   let totalSlots=0, totalBooked=0, html='';
 
-  const SCH_FLAT={
-    0:[{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
-    1:[{t:'07:00'},{t:'08:00'},{t:'09:15'},{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
-    2:[{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
-    3:[{t:'07:00'},{t:'08:00'},{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
-    4:[{t:'07:00'},{t:'08:00'},{t:'09:15'},{t:'16:30'},{t:'17:30'},{t:'18:30'},{t:'19:30'}],
-    5:[{t:'09:30'},{t:'10:30'}],
-    6:[], // Sunday — no regular classes, only extra
-  };
+  // Build SCH_FLAT from global GSCHED (+ Sunday = always empty)
+  const SCH_FLAT=Object.assign({6:[]},Object.fromEntries(
+    Object.entries(GSCHED).map(([d,ts])=>[d,ts.map(t=>({t}))])
+  ));
   const isMorning=t=>t<'12:00';
 
   // Pre-compute all slots per day (regular + extra) to find dynamic max
@@ -2655,6 +2693,140 @@ function renderTaxChart(){
     }).join('')+'</div>';
 }
 
+// ── SCHEDULE SETTINGS ────────────────────────────────────────
+function openSchedModal(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const DNAMES=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:
+               adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:
+                                ['Пн','Вт','Ср','Чт','Пт','Сб'];
+  // Populate day dropdown with current language
+  const daySelect=document.getElementById('sched-new-day');
+  if(daySelect) daySelect.innerHTML=DNAMES.map((d,i)=>`<option value="${i}">${d}</option>`).join('');
+  // Default valid_from = today
+  const fromInput=document.getElementById('sched-new-from');
+  if(fromInput&&!fromInput.value) fromInput.value=localDateStr(new Date());
+  // Labels
+  document.getElementById('sched-modal-title').textContent=L('Πρόγραμμα','Schedule','Расписание');
+  document.getElementById('sched-add-title').textContent=L('Προσθήκη θέσης','Add slot','Добавить слот');
+  document.getElementById('sched-lbl-day').textContent=L('Ημέρα','Day','День');
+  document.getElementById('sched-lbl-time').textContent=L('Ώρα έναρξης','Start time','Время начала');
+  document.getElementById('sched-lbl-from').textContent=L('Πρόγραμμα ενεργό από','Schedule active from','Расписание действует с');
+  document.getElementById('sched-from-hint').textContent=L('για νέες θέσεις','applies to new slots','для новых слотов');
+  document.getElementById('sched-add-btn').textContent='+ '+L('Προσθήκη','Add','Добавить');
+  renderSchedSlotsList();
+  document.getElementById('sched-modal').classList.add('open');
+}
+
+function renderSchedSlotsList(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const DNAMES=adminLang==='el'?['Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο']:
+               adminLang==='en'?['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']:
+                                ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  const list=document.getElementById('sched-slots-list');
+  if(!list) return;
+  const rows=[];
+  [0,1,2,3,4,5].forEach(d=>{
+    const times=GSCHED[d]||[];
+    if(!times.length) return;
+    rows.push(`<div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">${DNAMES[d]}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${times.map(t=>`
+          <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border:0.5px solid var(--border);border-radius:20px;background:var(--bg2)">
+            <span style="font-size:12px;color:var(--text)">${toAMPM(t)}</span>
+            <button onclick="deleteSchedSlot(${d},'${t}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;line-height:1;padding:0" title="${L('Διαγραφή','Delete','Удалить')}">✕</button>
+          </div>`).join('')}
+      </div>
+    </div>`);
+  });
+  list.innerHTML=rows.length?rows.join(''):
+    `<div style="color:var(--text3);font-size:12px">${L('Κανένα μάθημα','No slots defined','Нет слотов')}</div>`;
+}
+
+async function deleteSchedSlot(day, time){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  // Remove from GSCHED
+  if(GSCHED[day]) GSCHED[day]=GSCHED[day].filter(t=>t!==time);
+  // Remove from Supabase
+  const slotKey=day+'_'+time;
+  const slotId=scheduleSlotIds[slotKey];
+  if(sb && slotId){
+    try{
+      await sb.from('schedule_slots').update({is_active:false}).eq('id',slotId);
+      delete scheduleSlotIds[slotKey];
+    }catch(e){console.error('deleteSchedSlot:',e);}
+  }
+  renderSchedSlotsList();
+  renderSettingsSummary();
+  toast(L('Αφαιρέθηκε','Slot removed','Слот удалён'));
+}
+
+async function addSchedSlot(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const day=parseInt(document.getElementById('sched-new-day')?.value||'0');
+  const time=(document.getElementById('sched-new-time')?.value||'').slice(0,5);
+  const validFrom=document.getElementById('sched-new-from')?.value||localDateStr(new Date());
+  if(!time){toast(L('Επιλέξτε ώρα','Enter a time','Введите время'));return;}
+  // Check duplicate
+  if((GSCHED[day]||[]).includes(time)){
+    toast(L('Υπάρχει ήδη','Slot already exists','Такой слот уже есть'));return;
+  }
+  // Calculate end_time (+1 hour)
+  const [hh,mm]=time.split(':').map(Number);
+  const endH=String(hh+1).padStart(2,'0');
+  const endTime=endH+':'+String(mm).padStart(2,'0');
+  // Add to Supabase
+  if(sb){
+    try{
+      // Try insert with valid_from (requires migration_valid_from.sql)
+      // Falls back to insert without it if column doesn't exist
+      let insertData={studio_id:STUDIO_ID,day_of_week:day,start_time:time,end_time:endTime,is_active:true,capacity:CAP};
+      let r=await sb.from('schedule_slots').insert({...insertData,valid_from:validFrom}).select('id').single();
+      if(r.error&&r.error.message&&r.error.message.includes('valid_from')){
+        r=await sb.from('schedule_slots').insert(insertData).select('id').single();
+      }
+      const {data:newSlot,error}=r;
+      if(error) throw error;
+      if(newSlot){
+        const today=localDateStr(new Date());
+        if(validFrom<=today){
+          // Active now — add to GSCHED
+          if(!GSCHED[day]) GSCHED[day]=[];
+          if(!GSCHED[day].includes(time)){GSCHED[day].push(time);GSCHED[day].sort();}
+        }
+        scheduleSlotIds[day+'_'+time]=newSlot.id;
+      }
+    }catch(e){console.error('addSchedSlot:',e);toast('Error: '+e.message);return;}
+  } else {
+    // No Supabase — add locally only
+    if(!GSCHED[day]) GSCHED[day]=[];
+    if(!GSCHED[day].includes(time)){GSCHED[day].push(time);GSCHED[day].sort();}
+  }
+  renderSchedSlotsList();
+  renderSettingsSummary();
+  toast(L('Αποθηκεύτηκε','Slot added','Слот добавлен'));
+}
+
+function renderSettingsSummary(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const DSHORT=adminLang==='el'?['Δε','Τρ','Τε','Πε','Πα','Σα']:
+               adminLang==='en'?['Mo','Tu','We','Th','Fr','Sa']:
+                                ['Пн','Вт','Ср','Чт','Пт','Сб'];
+  const el=document.getElementById('sett-sched-summary');
+  if(!el) return;
+  const rows=[0,1,2,3,4,5]
+    .filter(d=>(GSCHED[d]||[]).length)
+    .map(d=>`
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:600;color:var(--text2);min-width:22px;padding-top:3px">${DSHORT[d]}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${GSCHED[d].map(t=>`<div style="padding:2px 9px;border:0.5px solid var(--border);border-radius:20px;background:var(--bg2);font-size:11px;color:var(--text)">${toAMPM(t)}</div>`).join('')}
+        </div>
+      </div>`);
+  el.innerHTML=rows.length?rows.join(''):
+    `<div style="color:var(--text3);font-size:12px">${L('Κανένα μάθημα','No slots','Нет слотов')}</div>`;
+}
+
 function renderSettings(){
   const t=AL();
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
@@ -2667,8 +2839,12 @@ function renderSettings(){
   if(revConn)revConn.textContent=t.settRevConnected;
   const revBal=document.getElementById('rev-bal-info');
   if(revBal)revBal.textContent=L('Υπόλοιπο: €3 412.50 · Συγχρ.: σήμερα','Balance: €3 412.50 · Sync: today','Баланс: €3 412.50 · Синхронизация: сегодня');
-
-// cat-list removed — categories managed in Expenses
+  // Schedule card
+  const schedHead=document.getElementById('sett-sched-head');
+  if(schedHead)schedHead.textContent=L('Πρόγραμμα','Schedule','Расписание');
+  const schedBtn=document.getElementById('sett-sched-btn');
+  if(schedBtn)schedBtn.textContent=L('Διαχείριση →','Manage →','Управление →');
+  renderSettingsSummary();
 }
 
 // ── UTILS ────────────────────────────────────────────────────
@@ -3288,13 +3464,36 @@ async function testConnection(){
 async function dbLoad(){
   if(!sb) return;
   try{
-    // Load schedule slot IDs
-    const {data:slots}=await sb.from('schedule_slots')
-      .select('id,day_of_week,start_time')
-      .eq('studio_id',STUDIO_ID);
-    if(slots) slots.forEach(s=>{
-      scheduleSlotIds[s.day_of_week+'_'+s.start_time.slice(0,5)]=s.id;
-    });
+    // Load schedule slots: rebuild GSCHED + scheduleSlotIds
+    // Try with valid_from (if migration ran), fallback without it
+    let slots=null;
+    try{
+      const {data:d1}=await sb.from('schedule_slots')
+        .select('id,day_of_week,start_time,valid_from')
+        .eq('studio_id',STUDIO_ID).eq('is_active',true)
+        .order('day_of_week').order('start_time');
+      slots=d1;
+    }catch(_){
+      const {data:d2}=await sb.from('schedule_slots')
+        .select('id,day_of_week,start_time')
+        .eq('studio_id',STUDIO_ID).eq('is_active',true)
+        .order('day_of_week').order('start_time');
+      slots=d2;
+    }
+    if(slots&&slots.length){
+      const today=localDateStr(new Date());
+      const newSCH={};
+      slots.forEach(s=>{
+        const t=s.start_time.slice(0,5);
+        scheduleSlotIds[s.day_of_week+'_'+t]=s.id;
+        if(s.valid_from&&s.valid_from>today) return; // future slot, skip for now
+        const d=s.day_of_week;
+        if(!newSCH[d]) newSCH[d]=[];
+        if(!newSCH[d].includes(t)) newSCH[d].push(t);
+      });
+      Object.keys(newSCH).forEach(d=>newSCH[d].sort());
+      if(Object.keys(newSCH).length>0) GSCHED=newSCH;
+    }
 
     const {data,error}=await sb.from('clients')
       .select('*,subscriptions(*)')
@@ -3413,9 +3612,7 @@ function renderMonthView(){
   const cells=getMonthDates();
   const DAYS7=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ','Κυρ']:
                adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat','Sun']:['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-  const SCH={0:['16:30','17:30','18:30','19:30'],1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
-             2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
-             4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
+  const SCH=GSCHED;
   grid.style.display='block';
 
   // collect monthly stats
@@ -3497,9 +3694,7 @@ function openDayModal(date){
                  ['Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο','Κυριακή'];
   const MO=adminLang==='ru'?['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря']:
            ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const SCH={0:['16:30','17:30','18:30','19:30'],1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
-             2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
-             4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
+  const SCH=GSCHED;
   const dow=(date.getDay()+6)%7;
   const dateStr=localDateStr(date);
   const slots=dow===6?[]:(SCH[dow]||[]);
@@ -3640,9 +3835,7 @@ function openAddToScheduleModal(clientId){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   let m=document.getElementById('add-to-sched-modal');
   if(!m){m=document.createElement('div');m.className='modal-overlay';m.id='add-to-sched-modal';document.body.appendChild(m);}
-  const SCH={0:['16:30','17:30','18:30','19:30'],1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
-             2:['16:30','17:30','18:30','19:30'],3:['07:00','08:00','16:30','17:30','18:30','19:30'],
-             4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],5:['09:30','10:30']};
+  const SCH=GSCHED;
   const DSHORT=adminLang==='el'?['Δε','Τρ','Τε','Πε','Πα','Σα']:adminLang==='en'?['Mo','Tu','We','Th','Fr','Sa']:['Пн','Вт','Ср','Чт','Пт','Сб'];
   const slots=[];
   for(let di=0;di<6;di++) (SCH[di]||[]).forEach(t=>slots.push({di,time:t}));
