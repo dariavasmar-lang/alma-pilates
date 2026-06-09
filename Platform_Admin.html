@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Studio Platform — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#FDF5F7; --bg2:#F8EAEE; --card:#FFFFFF;
+  --border:#EDCFD6; --border2:#F5DDE3;
+  --accent:#BF5870; --accent-bg:#FCEEF1; --accent-hover:#A8495F;
+  --text:#2C1A20; --text2:#7A4F5A; --text3:#B89099;
+  --sidebar:#F2E0E6; --sidebar-active:#FCEEF1;
+  --green:#5C9A7A; --green-bg:#EAF4EF;
+  --red:#C04F5C; --red-bg:#FCEDEF;
+  --warn:#C8855A; --warn-bg:#FDF0E6;
+  --serif:'Georgia',serif;
+  --radius:12px; --shadow:0 2px 12px rgba(191,88,112,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:13px}
+
+/* ── LOGIN ── */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#FDF0F3 0%,#F5E4EC 100%)}
+.login-box{background:var(--card);border-radius:20px;padding:40px;width:360px;box-shadow:0 8px 40px rgba(191,88,112,.12)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo-mark{width:48px;height:48px;background:linear-gradient(135deg,var(--accent),#D4728A);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:10px}
+.login-logo-title{font-family:var(--serif);font-size:20px;color:var(--text)}
+.login-logo-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.login-box label{font-size:11px;color:var(--text2);font-weight:500;display:block;margin-bottom:4px;margin-top:14px}
+.login-box input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;outline:none;transition:border .15s}
+.login-box input:focus{border-color:var(--accent)}
+.login-btn{width:100%;margin-top:20px;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
+.login-btn:hover{background:var(--accent-hover)}
+.login-err{color:var(--red);font-size:11px;margin-top:8px;display:none}
+
+/* ── LAYOUT ── */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;background:var(--sidebar);border-right:1px solid var(--border2);display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid var(--border2)}
+.sidebar-logo-mark{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),#D4728A);border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;vertical-align:middle;margin-right:8px}
+.sidebar-logo-text{font-family:var(--serif);font-size:15px;color:var(--text);vertical-align:middle}
+.sidebar-logo-sub{font-size:10px;color:var(--text3);margin-top:4px;padding-left:40px}
+.nav{padding:12px 8px;flex:1}
+.nav-section{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:8px 10px 4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;cursor:pointer;color:var(--text2);font-size:12px;font-weight:500;transition:all .15s;margin-bottom:1px}
+.nav-item:hover{background:var(--bg2);color:var(--text)}
+.nav-item.active{background:var(--sidebar-active);color:var(--accent);font-weight:600}
+.nav-icon{font-size:15px;width:20px;text-align:center}
+.sidebar-bottom{padding:12px 8px;border-top:1px solid var(--border2)}
+.sidebar-user{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;cursor:pointer}
+.sidebar-avatar{width:28px;height:28px;background:linear-gradient(135deg,var(--accent),#D4728A);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:600;flex-shrink:0}
+.sidebar-user-name{font-size:12px;color:var(--text);font-weight:500}
+.sidebar-user-role{font-size:10px;color:var(--text3)}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.page{display:none;padding:24px;flex:1}
+.page.active{display:block}
+.page-header{margin-bottom:20px}
+.page-title{font-family:var(--serif);font-size:22px;color:var(--text)}
+.page-sub{font-size:12px;color:var(--text3);margin-top:3px}
+
+/* ── CARDS & METRICS ── */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.metric-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.metric-val{font-family:var(--serif);font-size:26px;color:var(--text);margin-bottom:2px}
+.metric-label{font-size:11px;color:var(--text3)}
+.metric-sub{font-size:11px;color:var(--green);margin-top:4px}
+.card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:18px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card-head{font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border2)}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--border2);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--bg)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600}
+.badge.active{background:var(--green-bg);color:var(--green)}
+.badge.trial{background:#EEF3FF;color:#5570C4}
+.badge.overdue{background:var(--red-bg);color:var(--red)}
+.badge.onboarding{background:var(--warn-bg);color:var(--warn)}
+.badge.at-risk{background:var(--red-bg);color:var(--red)}
+.badge.churned{background:var(--bg2);color:var(--text3)}
+.badge.open{background:var(--warn-bg);color:var(--warn)}
+.badge.in_progress{background:var(--accent-bg);color:var(--accent)}
+.badge.closed{background:var(--bg2);color:var(--text3)}
+.badge.high{background:var(--red-bg);color:var(--red)}
+.badge.paid{background:var(--green-bg);color:var(--green)}
+.badge.unpaid{background:var(--warn-bg);color:var(--warn)}
+.badge.hosting{background:#EEF3FF;color:#5570C4}
+.badge.domain{background:#F0EEF9;color:#7A6CBF}
+.badge.tools{background:var(--bg2);color:var(--text2)}
+.badge.design{background:#FEF0F6;color:#C05890}
+.badge.marketing{background:#FEF6E8;color:#C8855A}
+.badge.tax{background:var(--bg2);color:var(--text3)}
+.badge.salary{background:var(--green-bg);color:var(--green)}
+.badge.other{background:var(--bg2);color:var(--text3)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 14px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:hover{background:var(--bg2)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.sm{padding:4px 10px;font-size:11px;border-radius:7px}
+.btn.ghost{border:none;background:none;color:var(--text2)}
+.btn.ghost:hover{color:var(--accent);background:var(--accent-bg)}
+.btn.danger{background:var(--red-bg);color:var(--red);border-color:#F0C0C5}
+.btn.danger:hover{background:#F9DCDE}
+.btn.wa{background:#25D366;color:#fff;border-color:#25D366}
+.btn.wa:hover{background:#1FB855}
+
+/* ── INPUTS ── */
+.ff label{font-size:11px;color:var(--text2);font-weight:500;display:block;margin-bottom:4px}
+.ff input,.ff select,.ff textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;outline:none;transition:border .15s}
+.ff input:focus,.ff select:focus,.ff textarea:focus{border-color:var(--accent)}
+.ff textarea{resize:vertical;min-height:70px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(44,26,32,.35);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:16px;padding:24px;width:560px;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(191,88,112,.18)}
+
+/* ── SEARCH / FILTER ── */
+.search-row{display:flex;gap:8px;margin-bottom:14px;align-items:center}
+.search-inp{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--text);font-size:13px;outline:none}
+.search-inp:focus{border-color:var(--accent)}
+.filter-chips{display:flex;gap:6px}
+.chip{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--card);font-size:11px;font-weight:500;cursor:pointer;color:var(--text2);transition:all .15s}
+.chip.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+
+/* ── SUPPORT CHAT ── */
+.ticket-msg{padding:10px 14px;border-radius:12px;max-width:85%;margin-bottom:8px;font-size:12px;line-height:1.5}
+.ticket-msg.platform{background:var(--accent-bg);color:var(--text);margin-left:auto;border-bottom-right-radius:4px}
+.ticket-msg.studio{background:var(--bg2);color:var(--text);border-bottom-left-radius:4px}
+.ticket-msg-meta{font-size:10px;color:var(--text3);margin-bottom:2px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:var(--card);padding:10px 18px;border-radius:10px;font-size:12px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:2000}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ── AVATAR ── */
+.studio-avatar{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+
+/* ── STUDIO DETAIL ── */
+.detail-hero{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:24px;margin-bottom:14px;box-shadow:var(--shadow)}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.detail-stat{background:var(--bg2);border-radius:10px;padding:12px 16px}
+.detail-stat-val{font-family:var(--serif);font-size:20px;color:var(--text)}
+.detail-stat-label{font-size:10px;color:var(--text3);margin-top:2px}
+.info-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2)}
+.info-row:last-child{border-bottom:none}
+.info-icon{font-size:14px;width:20px;text-align:center;margin-top:1px;flex-shrink:0}
+.info-label{font-size:10px;color:var(--text3);margin-bottom:1px}
+.info-val{font-size:12px;color:var(--text);font-weight:500}
+.timeline-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2)}
+.timeline-item:last-child{border-bottom:none}
+.timeline-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;margin-top:5px}
+.timeline-dot.paid{background:var(--green)}
+.timeline-dot.unpaid{background:var(--warn)}
+.timeline-dot.overdue{background:var(--red)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-mark">🌸</div>
+      <div class="login-logo-title">Studio Platform</div>
+      <div class="login-logo-sub">Platform Admin</div>
+    </div>
+    <label>Email</label>
+    <input type="email" id="adm-email" placeholder="your@email.com">
+    <label>Password</label>
+    <input type="password" id="adm-pass" placeholder="••••••••">
+    <div id="adm-err" class="login-err"></div>
+    <button class="login-btn" onclick="platformLogin()">Sign in</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="app" style="display:none">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div>
+        <span class="sidebar-logo-mark">🌸</span>
+        <span class="sidebar-logo-text">Studio Platform</span>
+      </div>
+      <div class="sidebar-logo-sub">Platform Admin</div>
+    </div>
+    <div class="nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="showPage('dashboard',this)">
+        <span class="nav-icon">📊</span>Dashboard
+      </div>
+      <div class="nav-section">Studios</div>
+      <div class="nav-item" onclick="showPage('studios',this)">
+        <span class="nav-icon">🏢</span>All Studios
+      </div>
+      <div class="nav-item" onclick="showPage('billing',this)">
+        <span class="nav-icon">💳</span>Billing
+      </div>
+      <div class="nav-item" onclick="showPage('expenses',this)">
+        <span class="nav-icon">🧾</span>Expenses
+      </div>
+      <div class="nav-section">Communication</div>
+      <div class="nav-item" onclick="showPage('support',this)">
+        <span class="nav-icon">💬</span>Support
+        <span id="nav-badge-tickets" style="margin-left:auto;background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;display:none"></span>
+      </div>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar" id="sidebar-avatar">D</div>
+        <div>
+          <div class="sidebar-user-name" id="sidebar-name">Admin</div>
+          <div class="sidebar-user-role" style="cursor:pointer;color:var(--accent)" onclick="signOut()">Sign out</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub" id="dash-date"></div>
+      </div>
+      <div class="metrics" id="dash-metrics"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="card">
+          <div class="card-head">Studios overview</div>
+          <div id="dash-studios-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">Open support tickets</div>
+          <div id="dash-tickets-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STUDIOS -->
+    <div id="page-studios" class="page">
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="page-title">Studios</div>
+          <div class="page-sub" id="studios-sub"></div>
+        </div>
+        <button class="btn primary" onclick="openStudioModal()">+ Add studio</button>
+      </div>
+      <div class="search-row">
+        <input class="search-inp" id="studios-search" placeholder="Search by name, city, contact..." oninput="renderStudios()">
+        <div class="filter-chips">
+          <div class="chip active" onclick="setStudioFilter('all',this)">All</div>
+          <div class="chip" onclick="setStudioFilter('active',this)">Active</div>
+          <div class="chip" onclick="setStudioFilter('trial',this)">Trial</div>
+          <div class="chip" onclick="setStudioFilter('at-risk',this)">At risk</div>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Studio</th>
+              <th>Plan</th>
+              <th>Status</th>
+              <th>Clients</th>
+              <th>Next billing</th>
+              <th>Contact</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="studios-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BILLING -->
+    <div id="page-billing" class="page">
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="page-title">Billing</div>
+          <div class="page-sub" id="billing-sub"></div>
+        </div>
+        <button class="btn primary" onclick="openBillingModal()">+ Add record</button>
+      </div>
+      <div class="metrics" id="billing-metrics"></div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Studio</th>
+              <th>Period</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Paid at</th>
+              <th>Notes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="billing-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div id="page-expenses" class="page">
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="page-title">Expenses</div>
+          <div class="page-sub" id="exp-sub"></div>
+        </div>
+        <button class="btn primary" onclick="openExpenseModal()">+ Add expense</button>
+      </div>
+      <div class="metrics" id="exp-metrics"></div>
+      <!-- Category breakdown -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div class="card">
+          <div class="card-head">By category</div>
+          <div id="exp-categories"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">P&L this month</div>
+          <div id="exp-pnl"></div>
+        </div>
+      </div>
+      <!-- Filter row -->
+      <div class="search-row">
+        <input class="search-inp" id="exp-search" placeholder="Search expenses..." oninput="renderExpenses()">
+        <div class="filter-chips" id="exp-cat-chips">
+          <div class="chip active" onclick="setExpenseFilter('all',this)">All</div>
+          <div class="chip" onclick="setExpenseFilter('hosting',this)">Hosting</div>
+          <div class="chip" onclick="setExpenseFilter('tools',this)">Tools</div>
+          <div class="chip" onclick="setExpenseFilter('domain',this)">Domain</div>
+          <div class="chip" onclick="setExpenseFilter('marketing',this)">Marketing</div>
+          <div class="chip" onclick="setExpenseFilter('other',this)">Other</div>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Amount</th>
+              <th>Period</th>
+              <th>Recurring</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="exp-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SUPPORT -->
+    <div id="page-support" class="page">
+      <div class="page-header">
+        <div class="page-title">Support</div>
+        <div class="page-sub" id="support-sub"></div>
+      </div>
+      <div class="search-row">
+        <input class="search-inp" id="support-search" placeholder="Search tickets..." oninput="renderSupport()">
+        <div class="filter-chips">
+          <div class="chip active" onclick="setSupportFilter('all',this)">All</div>
+          <div class="chip" onclick="setSupportFilter('open',this)">Open</div>
+          <div class="chip" onclick="setSupportFilter('in_progress',this)">In progress</div>
+          <div class="chip" onclick="setSupportFilter('closed',this)">Closed</div>
+        </div>
+      </div>
+      <div id="support-list"></div>
+    </div>
+
+    <!-- STUDIO DETAIL -->
+    <div id="page-studio-detail" class="page">
+      <div class="page-header" style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <button class="btn ghost" onclick="backFromDetail()" style="padding:6px 10px;font-size:18px;line-height:1">←</button>
+        <div>
+          <div class="page-title" id="detail-title">Studio</div>
+          <div class="page-sub" id="detail-sub"></div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px" id="detail-actions"></div>
+      </div>
+
+      <!-- Hero stats row -->
+      <div class="detail-hero">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+          <div id="detail-avatar" class="studio-avatar" style="width:52px;height:52px;border-radius:14px;font-size:20px"></div>
+          <div style="flex:1">
+            <div style="font-family:var(--serif);font-size:18px;color:var(--text)" id="detail-name"></div>
+            <div style="font-size:12px;color:var(--text3);margin-top:3px" id="detail-city-plan"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--text3)">Status:</span>
+            <select id="detail-health-sel" onchange="updateStudioHealth()" style="padding:5px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px;font-weight:500">
+              <option value="onboarding">Onboarding</option>
+              <option value="active">Active</option>
+              <option value="at-risk">At risk</option>
+              <option value="churned">Churned</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px" id="detail-stats"></div>
+      </div>
+
+      <div class="detail-grid">
+        <!-- Left col -->
+        <div>
+          <div class="card">
+            <div class="card-head">Contact info</div>
+            <div id="detail-contacts"></div>
+          </div>
+          <div class="card">
+            <div class="card-head">Plan & billing</div>
+            <div id="detail-plan"></div>
+          </div>
+          <div class="card" id="detail-notes-card">
+            <div class="card-head">Internal notes
+              <button class="btn sm ghost" onclick="toggleEditNotes()">Edit</button>
+            </div>
+            <div id="detail-notes-view" style="font-size:12px;color:var(--text2);line-height:1.6"></div>
+            <div id="detail-notes-edit" style="display:none">
+              <textarea id="detail-notes-ta" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px;resize:vertical;min-height:80px;outline:none"></textarea>
+              <div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end">
+                <button class="btn sm" onclick="toggleEditNotes()">Cancel</button>
+                <button class="btn sm primary" onclick="saveNotes()">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Right col -->
+        <div>
+          <div class="card">
+            <div class="card-head">Billing history
+              <button class="btn sm primary" onclick="openBillingModalForStudio()">+ Add</button>
+            </div>
+            <div id="detail-billing"></div>
+          </div>
+          <div class="card">
+            <div class="card-head">Support tickets
+              <button class="btn sm" onclick="openNewTicketModal()">+ New ticket</button>
+            </div>
+            <div id="detail-tickets"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- STUDIO MODAL -->
+<div class="modal-overlay" id="studio-modal">
+  <div class="modal" style="width:600px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-family:var(--serif);font-size:17px" id="studio-modal-title">Add studio</div>
+      <button onclick="closeModal('studio-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
+    </div>
+    <input type="hidden" id="sm-id">
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff"><label>Studio name *</label><input id="sm-name" placeholder="Alma Pilates Studio"></div>
+      <div class="ff"><label>City</label><input id="sm-city" placeholder="Limassol, Cyprus"></div>
+    </div>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff"><label>Contact person</label><input id="sm-contact" placeholder="Name, role"></div>
+      <div class="ff"><label>WhatsApp</label><input id="sm-whatsapp" placeholder="+357 96 000000"></div>
+    </div>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff"><label>Email</label><input id="sm-email" placeholder="studio@email.com"></div>
+      <div class="ff"><label>Instagram</label><input id="sm-instagram" placeholder="@almapilates"></div>
+    </div>
+    <div class="form-grid-3" style="margin-bottom:10px">
+      <div class="ff">
+        <label>Plan</label>
+        <select id="sm-plan">
+          <option value="starter">Starter</option>
+          <option value="business" selected>Business</option>
+          <option value="multi">Multi</option>
+        </select>
+      </div>
+      <div class="ff">
+        <label>Status</label>
+        <select id="sm-health">
+          <option value="onboarding">Onboarding</option>
+          <option value="active">Active</option>
+          <option value="at-risk">At risk</option>
+          <option value="churned">Churned</option>
+        </select>
+      </div>
+      <div class="ff"><label>Trial ends</label><input type="date" id="sm-trial"></div>
+    </div>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff"><label>Next billing date</label><input type="date" id="sm-billing-date"></div>
+      <div class="ff"><label>How did they find us</label><input id="sm-source" placeholder="Instagram, referral..."></div>
+    </div>
+    <div class="ff" style="margin-bottom:16px">
+      <label>Internal notes</label>
+      <textarea id="sm-notes" placeholder="Notes visible only to you..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('studio-modal')">Cancel</button>
+      <button class="btn primary" onclick="saveStudio()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- BILLING MODAL -->
+<div class="modal-overlay" id="billing-modal">
+  <div class="modal" style="width:480px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-family:var(--serif);font-size:17px">Add billing record</div>
+      <button onclick="closeModal('billing-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
+    </div>
+    <div class="ff" style="margin-bottom:10px">
+      <label>Studio</label>
+      <select id="bm-studio"></select>
+    </div>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff"><label>Period (YYYY-MM)</label><input id="bm-period" placeholder="2026-06"></div>
+      <div class="ff"><label>Amount €</label><input type="number" id="bm-amount" placeholder="49"></div>
+    </div>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff">
+        <label>Status</label>
+        <select id="bm-status">
+          <option value="trial">Trial</option>
+          <option value="unpaid" selected>Unpaid</option>
+          <option value="paid">Paid</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
+      <div class="ff"><label>Paid at</label><input type="date" id="bm-paid-at"></div>
+    </div>
+    <div class="ff" style="margin-bottom:16px">
+      <label>Notes</label>
+      <input id="bm-notes" placeholder="Bank transfer, invoice #...">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('billing-modal')">Cancel</button>
+      <button class="btn primary" onclick="saveBilling()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TICKET MODAL -->
+<div class="modal-overlay" id="ticket-modal">
+  <div class="modal" style="width:540px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <div style="font-family:var(--serif);font-size:16px" id="ticket-modal-title">Ticket</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px" id="ticket-modal-meta"></div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <select id="ticket-status-sel" onchange="updateTicketStatus()" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:11px">
+          <option value="open">Open</option>
+          <option value="in_progress">In progress</option>
+          <option value="closed">Closed</option>
+        </select>
+        <button onclick="closeModal('ticket-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
+      </div>
+    </div>
+    <div id="ticket-msgs" style="min-height:120px;max-height:300px;overflow-y:auto;margin-bottom:14px;display:flex;flex-direction:column"></div>
+    <div style="display:flex;gap:8px">
+      <input id="ticket-reply" placeholder="Reply..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;outline:none" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendTicketReply()}">
+      <button class="btn primary" onclick="sendTicketReply()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPENSE MODAL -->
+<div class="modal-overlay" id="expense-modal">
+  <div class="modal" style="width:480px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-family:var(--serif);font-size:17px" id="expense-modal-title">Add expense</div>
+      <button onclick="closeModal('expense-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
+    </div>
+    <input type="hidden" id="em-id">
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff"><label>Description *</label><input id="em-desc" placeholder="Netlify subscription"></div>
+      <div class="ff"><label>Amount €</label><input type="number" id="em-amount" placeholder="9.00" step="0.01"></div>
+    </div>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff">
+        <label>Category</label>
+        <select id="em-cat">
+          <option value="hosting">🖥 Hosting</option>
+          <option value="domain">🌐 Domain</option>
+          <option value="tools">🔧 Tools & Software</option>
+          <option value="design">🎨 Design</option>
+          <option value="marketing">📣 Marketing</option>
+          <option value="tax">📋 Tax & Legal</option>
+          <option value="salary">👤 Salary</option>
+          <option value="other">📦 Other</option>
+        </select>
+      </div>
+      <div class="ff"><label>Date</label><input type="date" id="em-date"></div>
+    </div>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff"><label>Period (YYYY-MM, optional)</label><input id="em-period" placeholder="2026-06"></div>
+      <div class="ff" style="display:flex;align-items:flex-end;padding-bottom:2px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2)">
+          <input type="checkbox" id="em-recurring" style="width:auto;accent-color:var(--accent)">
+          Recurring monthly
+        </label>
+      </div>
+    </div>
+    <div class="ff" style="margin-bottom:16px">
+      <label>Notes</label>
+      <input id="em-notes" placeholder="Invoice #, link...">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn danger" id="em-delete-btn" style="display:none;margin-right:auto" onclick="deleteExpense()">Delete</button>
+      <button class="btn" onclick="closeModal('expense-modal')">Cancel</button>
+      <button class="btn primary" onclick="saveExpense()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW TICKET MODAL -->
+<div class="modal-overlay" id="new-ticket-modal">
+  <div class="modal" style="width:440px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-family:var(--serif);font-size:17px">New support ticket</div>
+      <button onclick="closeModal('new-ticket-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
+    </div>
+    <div class="ff" style="margin-bottom:10px">
+      <label>Subject</label>
+      <input id="nt-title" placeholder="What's the issue?">
+    </div>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff">
+        <label>Priority</label>
+        <select id="nt-priority">
+          <option value="low">Low</option>
+          <option value="normal" selected>Normal</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+      <div class="ff">
+        <label>Status</label>
+        <select id="nt-status">
+          <option value="open" selected>Open</option>
+          <option value="in_progress">In progress</option>
+        </select>
+      </div>
+    </div>
+    <div class="ff" style="margin-bottom:16px">
+      <label>First message (optional)</label>
+      <textarea id="nt-msg" placeholder="Describe the issue..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('new-ticket-modal')">Cancel</button>
+      <button class="btn primary" onclick="saveNewTicket()">Create ticket</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SUPABASE ─────────────────────────────────────────────────
+const SUPABASE_URL='https://oaaplxktimcoxgziibzb.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hYXBseGt0aW1jb3hnemlpYnpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzYyNTQsImV4cCI6MjA5NTExMjI1NH0.AA3t8_Vm5nWPxeKm72PC319P5zv1n48ft3kfvQVW9R0';
+let sb=null;
+try{ if(typeof supabase!=='undefined') sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
+
+// ── STATE ─────────────────────────────────────────────────────
+let STUDIOS=[], BILLING=[], TICKETS=[], MESSAGES={}, EXPENSES=[];
+let studioFilter='all', supportFilter='all', expenseFilter='all';
+let currentTicketId=null;
+let currentStudioId=null;
+let previousPage='studios';
+
+const CAT_EMOJI={hosting:'🖥',domain:'🌐',tools:'🔧',design:'🎨',marketing:'📣',tax:'📋',salary:'👤',other:'📦'};
+
+// ── AUTH ──────────────────────────────────────────────────────
+async function platformLogin(){
+  const email=document.getElementById('adm-email').value.trim();
+  const pass=document.getElementById('adm-pass').value;
+  const err=document.getElementById('adm-err');
+  err.style.display='none';
+  if(!email||!pass){err.textContent='Enter email and password';err.style.display='block';return;}
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){err.textContent='Wrong email or password';err.style.display='block';return;}
+  const {data:pa}=await sb.from('platform_admins').select('name').eq('user_id',data.user.id).single();
+  if(!pa){err.textContent='No platform admin access';err.style.display='block';await sb.auth.signOut();return;}
+  document.getElementById('sidebar-name').textContent=pa.name||email.split('@')[0];
+  document.getElementById('sidebar-avatar').textContent=(pa.name||email)[0].toUpperCase();
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  await loadAll();
+  renderDashboard();
+}
+
+async function signOut(){
+  await sb.auth.signOut();
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+// ── LOAD DATA ─────────────────────────────────────────────────
+async function loadAll(){
+  if(!sb) return;
+  const load=async(table,order,asc=false)=>{
+    try{
+      const {data,error}=await sb.from(table).select('*').order(order,{ascending:asc});
+      if(error) throw error;
+      return data||[];
+    }catch(e){console.warn('loadAll '+table+':',e.message);return[];}
+  };
+  STUDIOS  = await load('studios','created_at');
+  BILLING  = await load('studio_billing','created_at');
+  TICKETS  = await load('support_tickets','updated_at');
+  EXPENSES = await load('platform_expenses','date');
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────
+function showPage(id, el){
+  document.querySelectorAll('.page').forEach(p=>{p.classList.remove('active')});
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  if(id==='dashboard') renderDashboard();
+  else if(id==='studios') renderStudios();
+  else if(id==='billing') renderBilling();
+  else if(id==='expenses') renderExpenses();
+  else if(id==='support') renderSupport();
+}
+
+function openStudioDetail(id, from){
+  previousPage=from||'studios';
+  currentStudioId=id;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-studio-detail').classList.add('active');
+  renderStudioDetail(id);
+}
+
+function backFromDetail(){
+  currentStudioId=null;
+  showPage(previousPage, document.querySelector(`.nav-item[onclick*="${previousPage}"]`));
+}
+
+// ── UTILS ─────────────────────────────────────────────────────
+function studioColor(name){
+  const colors=['#BF5870','#7A6CBF','#5C9A7A','#C8855A','#5A8FAF','#A05C9A'];
+  let h=0; for(const c of (name||'?')) h=(h*31+c.charCodeAt(0))&0xffffffff;
+  return colors[Math.abs(h)%colors.length];
+}
+function studioInitials(name){
+  return (name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+}
+function fmtDate(d){
+  if(!d) return '—';
+  return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
+function fmtPeriod(p){
+  if(!p) return '—';
+  const [y,m]=p.split('-');
+  const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return (mo[parseInt(m)-1]||m)+' '+y;
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+function renderDashboard(){
+  const now=new Date();
+  document.getElementById('dash-date').textContent=
+    now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  const active=STUDIOS.filter(s=>s.health==='active').length;
+  const trial=STUDIOS.filter(s=>s.health==='onboarding').length;
+  const atRisk=STUDIOS.filter(s=>s.health==='at-risk').length;
+  const churned=STUDIOS.filter(s=>s.health==='churned').length;
+  const curPeriod=now.toISOString().slice(0,7);
+  const mrr=BILLING.filter(b=>b.status==='paid'&&b.period===curPeriod)
+    .reduce((s,b)=>s+(b.amount||0),0);
+  const arr=mrr*12;
+  const paying=STUDIOS.filter(s=>s.health==='active'||s.health==='at-risk');
+  const avgRev=paying.length?mrr/paying.length:0;
+  const openTickets=TICKETS.filter(t=>t.status==='open'||t.status==='in_progress').length;
+  const unpaidAmt=BILLING.filter(b=>b.status==='unpaid'||b.status==='overdue')
+    .reduce((s,b)=>s+(b.amount||0),0);
+  // Upcoming renewals in next 7 days
+  const in7=new Date(now); in7.setDate(in7.getDate()+7);
+  const renewals=STUDIOS.filter(s=>s.next_billing_at&&new Date(s.next_billing_at)<=in7&&new Date(s.next_billing_at)>=now).length;
+
+  document.getElementById('dash-metrics').innerHTML=`
+    <div class="metric-card">
+      <div class="metric-val">${STUDIOS.length}</div>
+      <div class="metric-label">Total studios</div>
+      <div class="metric-sub">${active} active · ${trial} onboarding${churned?' · '+churned+' churned':''}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--accent)">€${mrr.toFixed(0)}</div>
+      <div class="metric-label">MRR this month</div>
+      <div class="metric-sub" style="color:var(--text3)">ARR ~€${arr.toFixed(0)}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--text2)">€${avgRev.toFixed(0)}</div>
+      <div class="metric-label">Avg per studio</div>
+      <div class="metric-sub" style="color:${unpaidAmt?'var(--warn)':'var(--text3)'}">€${unpaidAmt.toFixed(0)} outstanding</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:${atRisk?'var(--red)':'var(--green)'}">${atRisk}</div>
+      <div class="metric-label">At risk</div>
+      <div class="metric-sub" style="color:${renewals?'var(--warn)':'var(--text3)'}">
+        ${renewals?renewals+' renewal'+( renewals>1?'s':'')+' this week':'No renewals this week'}
+      </div>
+    </div>`;
+
+  document.getElementById('dash-studios-list').innerHTML=STUDIOS.slice(0,5).map(s=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2);cursor:pointer" onclick="openStudioDetail('${s.id}','dashboard')">
+      <div class="studio-avatar" style="background:${studioColor(s.name)}">${studioInitials(s.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+        <div style="font-size:10px;color:var(--text3)">${s.city||'—'} · ${s.plan||'business'}</div>
+      </div>
+      <span class="badge ${s.health||'onboarding'}">${s.health||'onboarding'}</span>
+    </div>`).join('')||'<div style="color:var(--text3);font-size:12px;padding:12px 0">No studios yet</div>';
+
+  const openTix=TICKETS.filter(t=>t.status!=='closed').slice(0,5);
+  document.getElementById('dash-tickets-list').innerHTML=openTix.map(t=>{
+    const studio=STUDIOS.find(s=>s.id===t.studio_id);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2);cursor:pointer" onclick="openTicket('${t.id}')">
+      <span class="badge ${t.status}">${t.status.replace('_',' ')}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</div>
+        <div style="font-size:10px;color:var(--text3)">${studio?.name||'Unknown studio'}</div>
+      </div>
+      ${t.priority==='high'?'<span class="badge high">!</span>':''}
+    </div>`;
+  }).join('')||'<div style="color:var(--green);font-size:12px;padding:12px 0">✓ No open tickets</div>';
+
+  const badge=document.getElementById('nav-badge-tickets');
+  if(openTickets>0){badge.textContent=openTickets;badge.style.display='';}
+  else badge.style.display='none';
+}
+
+// ── STUDIOS ───────────────────────────────────────────────────
+function setStudioFilter(f,el){
+  studioFilter=f;
+  document.querySelectorAll('#page-studios .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderStudios();
+}
+
+function renderStudios(){
+  const search=(document.getElementById('studios-search')?.value||'').toLowerCase();
+  let list=STUDIOS.filter(s=>{
+    if(studioFilter!=='all'&&(s.health||'onboarding')!==studioFilter) return false;
+    if(search&&![s.name,s.city,s.contact_name,s.email].filter(Boolean).join(' ').toLowerCase().includes(search)) return false;
+    return true;
+  });
+  document.getElementById('studios-sub').textContent=`${list.length} of ${STUDIOS.length} studios`;
+  document.getElementById('studios-tbody').innerHTML=list.map(s=>{
+    const nextB=s.next_billing_at?fmtDate(s.next_billing_at):'—';
+    const isOverdue=s.next_billing_at&&new Date(s.next_billing_at)<new Date();
+    const wa=s.whatsapp||(s.phone?s.phone.replace(/\s/g,''):'');
+    const stPaid=BILLING.filter(b=>b.studio_id===s.id&&b.status==='paid').reduce((a,b)=>a+(b.amount||0),0);
+    return `<tr style="cursor:pointer" onclick="openStudioDetail('${s.id}','studios')">
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="studio-avatar" style="background:${studioColor(s.name)}">${studioInitials(s.name)}</div>
+          <div>
+            <div style="font-weight:500;color:var(--accent)">${s.name}</div>
+            <div style="font-size:11px;color:var(--text3)">${s.city||'—'}</div>
+          </div>
+        </div>
+      </td>
+      <td><span style="font-size:11px;font-weight:500;color:var(--text2)">${(s.plan||'business').toUpperCase()}</span></td>
+      <td><span class="badge ${s.health||'onboarding'}">${s.health||'onboarding'}</span></td>
+      <td style="color:var(--green);font-weight:500">€${stPaid.toFixed(0)}</td>
+      <td style="color:${isOverdue?'var(--red)':'var(--text2)'}">
+        ${isOverdue?'⚠ ':''}${nextB}
+      </td>
+      <td>
+        <div style="font-size:12px;color:var(--text)">${s.contact_name||'—'}</div>
+        <div style="font-size:11px;color:var(--text3)">${s.email||''}</div>
+      </td>
+      <td onclick="event.stopPropagation()">
+        <div style="display:flex;gap:4px">
+          ${wa?`<a href="https://wa.me/${wa.replace(/[^0-9]/g,'')}" target="_blank" class="btn sm wa" style="text-decoration:none">WA</a>`:''}
+          <button class="btn sm" onclick="openStudioModal('${s.id}')">Edit</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3)">No studios found</td></tr>`;
+}
+
+// ── STUDIO MODAL ──────────────────────────────────────────────
+function openStudioModal(id){
+  const s=id?STUDIOS.find(x=>x.id===id):null;
+  document.getElementById('studio-modal-title').textContent=s?'Edit studio':'Add studio';
+  document.getElementById('sm-id').value=id||'';
+  document.getElementById('sm-name').value=s?.name||'';
+  document.getElementById('sm-city').value=s?.city||'';
+  document.getElementById('sm-contact').value=s?.contact_name||'';
+  document.getElementById('sm-whatsapp').value=s?.whatsapp||s?.phone||'';
+  document.getElementById('sm-email').value=s?.email||'';
+  document.getElementById('sm-instagram').value=s?.instagram||'';
+  document.getElementById('sm-plan').value=s?.plan||'business';
+  document.getElementById('sm-health').value=s?.health||'onboarding';
+  document.getElementById('sm-trial').value=s?.trial_ends_at||'';
+  document.getElementById('sm-billing-date').value=s?.next_billing_at||'';
+  document.getElementById('sm-source').value=s?.source||'';
+  document.getElementById('sm-notes').value=s?.platform_notes||'';
+  document.getElementById('studio-modal').classList.add('open');
+}
+
+async function saveStudio(){
+  const id=document.getElementById('sm-id').value;
+  const payload={
+    name:document.getElementById('sm-name').value.trim(),
+    city:document.getElementById('sm-city').value.trim(),
+    contact_name:document.getElementById('sm-contact').value.trim(),
+    whatsapp:document.getElementById('sm-whatsapp').value.trim(),
+    email:document.getElementById('sm-email').value.trim(),
+    instagram:document.getElementById('sm-instagram').value.trim(),
+    plan:document.getElementById('sm-plan').value,
+    health:document.getElementById('sm-health').value,
+    trial_ends_at:document.getElementById('sm-trial').value||null,
+    next_billing_at:document.getElementById('sm-billing-date').value||null,
+    source:document.getElementById('sm-source').value.trim(),
+    platform_notes:document.getElementById('sm-notes').value.trim()
+  };
+  if(!payload.name){toast('Studio name is required');return;}
+  try{
+    if(id){
+      await sb.from('studios').update(payload).eq('id',id);
+      const i=STUDIOS.findIndex(s=>s.id===id);
+      if(i>=0) STUDIOS[i]={...STUDIOS[i],...payload};
+    } else {
+      payload.subdomain=payload.name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-');
+      const {data}=await sb.from('studios').insert(payload).select().single();
+      if(data) STUDIOS.unshift(data);
+    }
+    closeModal('studio-modal');
+    renderStudios();
+    renderDashboard();
+    toast(id?'Studio updated ✓':'Studio added ✓');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+// ── BILLING ───────────────────────────────────────────────────
+function renderBilling(){
+  const paid=BILLING.filter(b=>b.status==='paid').reduce((s,b)=>s+(b.amount||0),0);
+  const unpaid=BILLING.filter(b=>b.status==='unpaid'||b.status==='overdue').reduce((s,b)=>s+(b.amount||0),0);
+  const now=new Date().toISOString().slice(0,7);
+  const mrr=BILLING.filter(b=>b.status==='paid'&&b.period===now).reduce((s,b)=>s+(b.amount||0),0);
+  document.getElementById('billing-sub').textContent=`${BILLING.length} records`;
+  document.getElementById('billing-metrics').innerHTML=`
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--accent)">€${mrr.toFixed(0)}</div>
+      <div class="metric-label">MRR (this month)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--green)">€${paid.toFixed(0)}</div>
+      <div class="metric-label">Total received</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--warn)">€${unpaid.toFixed(0)}</div>
+      <div class="metric-label">Outstanding</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val">${BILLING.filter(b=>b.status==='trial').length}</div>
+      <div class="metric-label">On trial</div>
+    </div>`;
+  document.getElementById('billing-tbody').innerHTML=BILLING.map(b=>{
+    const studio=STUDIOS.find(s=>s.id===b.studio_id);
+    return `<tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="studio-avatar" style="width:24px;height:24px;border-radius:6px;font-size:9px;background:${studioColor(studio?.name||'?')}">${studioInitials(studio?.name||'?')}</div>
+          <span style="font-weight:500">${studio?.name||'—'}</span>
+        </div>
+      </td>
+      <td style="color:var(--text2)">${fmtPeriod(b.period)}</td>
+      <td style="font-weight:500">€${(b.amount||0).toFixed(0)}</td>
+      <td><span class="badge ${b.status}">${b.status}</span></td>
+      <td style="color:var(--text3)">${b.paid_at?fmtDate(b.paid_at):'—'}</td>
+      <td style="color:var(--text3);font-size:11px">${b.notes||'—'}</td>
+      <td>
+        ${b.status!=='paid'?`<button class="btn sm primary" onclick="markPaid('${b.id}')">Mark paid</button>`:''}
+      </td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3)">No billing records yet</td></tr>`;
+}
+
+function openBillingModal(){
+  document.getElementById('bm-studio').innerHTML=STUDIOS.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  document.getElementById('bm-period').value=new Date().toISOString().slice(0,7);
+  document.getElementById('bm-amount').value='';
+  document.getElementById('bm-status').value='unpaid';
+  document.getElementById('bm-paid-at').value='';
+  document.getElementById('bm-notes').value='';
+  document.getElementById('billing-modal').classList.add('open');
+}
+
+async function saveBilling(){
+  const payload={
+    studio_id:document.getElementById('bm-studio').value,
+    period:document.getElementById('bm-period').value,
+    amount:parseFloat(document.getElementById('bm-amount').value)||0,
+    status:document.getElementById('bm-status').value,
+    paid_at:document.getElementById('bm-paid-at').value||null,
+    notes:document.getElementById('bm-notes').value.trim()||null
+  };
+  if(!payload.studio_id||!payload.period){toast('Fill studio and period');return;}
+  try{
+    const {data}=await sb.from('studio_billing').insert(payload).select().single();
+    if(data) BILLING.unshift(data);
+    closeModal('billing-modal');
+    renderBilling();
+    renderDashboard();
+    toast('Record added ✓');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+async function markPaid(id){
+  try{
+    const now=new Date().toISOString();
+    await sb.from('studio_billing').update({status:'paid',paid_at:now}).eq('id',id);
+    const rec=BILLING.find(b=>b.id===id);
+    if(rec){rec.status='paid';rec.paid_at=now;}
+    renderBilling();
+    renderDashboard();
+    toast('Marked as paid ✓');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+// ── SUPPORT ───────────────────────────────────────────────────
+function setSupportFilter(f,el){
+  supportFilter=f;
+  document.querySelectorAll('#page-support .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderSupport();
+}
+
+function renderSupport(){
+  const search=(document.getElementById('support-search')?.value||'').toLowerCase();
+  let list=TICKETS.filter(t=>{
+    if(supportFilter!=='all'&&t.status!==supportFilter) return false;
+    if(search&&!t.title.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  document.getElementById('support-sub').textContent=`${list.length} tickets`;
+  document.getElementById('support-list').innerHTML=list.map(t=>{
+    const studio=STUDIOS.find(s=>s.id===t.studio_id);
+    return `<div class="card" style="cursor:pointer;padding:14px 18px" onclick="openTicket('${t.id}')">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="studio-avatar" style="background:${studioColor(studio?.name||'?')}">${studioInitials(studio?.name||'?')}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+            <span style="font-weight:500;font-size:13px">${t.title}</span>
+            ${t.priority==='high'?'<span class="badge high">High</span>':''}
+          </div>
+          <div style="font-size:11px;color:var(--text3)">${studio?.name||'Unknown'} · ${fmtDate(t.updated_at)}</div>
+        </div>
+        <span class="badge ${t.status}">${t.status.replace('_',' ')}</span>
+      </div>
+    </div>`;
+  }).join('')||`<div style="text-align:center;padding:48px;color:var(--text3)">No tickets found</div>`;
+}
+
+async function openTicket(id){
+  currentTicketId=id;
+  const t=TICKETS.find(x=>x.id===id);
+  const studio=STUDIOS.find(s=>s.id===t?.studio_id);
+  document.getElementById('ticket-modal-title').textContent=t?.title||'Ticket';
+  document.getElementById('ticket-modal-meta').textContent=(studio?.name||'Unknown')+' · '+fmtDate(t?.created_at);
+  document.getElementById('ticket-status-sel').value=t?.status||'open';
+  // Load messages
+  try{
+    const {data}=await sb.from('support_messages').select('*').eq('ticket_id',id).order('created_at');
+    MESSAGES[id]=data||[];
+  }catch(e){MESSAGES[id]=[];}
+  renderTicketMsgs(id);
+  document.getElementById('ticket-modal').classList.add('open');
+  document.getElementById('ticket-reply').focus();
+}
+
+function renderTicketMsgs(id){
+  const msgs=MESSAGES[id]||[];
+  document.getElementById('ticket-msgs').innerHTML=msgs.length
+    ?msgs.map(m=>`
+      <div style="display:flex;flex-direction:column;align-items:${m.sender==='platform'?'flex-end':'flex-start'}">
+        <div class="ticket-msg ${m.sender}">${m.text}</div>
+        <div class="ticket-msg-meta" style="text-align:${m.sender==='platform'?'right':'left'};margin:0 4px 6px">${m.sender==='platform'?'You':'Studio'} · ${fmtDate(m.created_at)}</div>
+      </div>`).join('')
+    :`<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px 0">No messages yet</div>`;
+  const c=document.getElementById('ticket-msgs');
+  c.scrollTop=c.scrollHeight;
+}
+
+async function sendTicketReply(){
+  const text=document.getElementById('ticket-reply').value.trim();
+  if(!text||!currentTicketId) return;
+  try{
+    const {data}=await sb.from('support_messages').insert({
+      ticket_id:currentTicketId, sender:'platform', text
+    }).select().single();
+    if(!MESSAGES[currentTicketId]) MESSAGES[currentTicketId]=[];
+    if(data) MESSAGES[currentTicketId].push(data);
+    await sb.from('support_tickets').update({status:'in_progress',updated_at:new Date().toISOString()}).eq('id',currentTicketId);
+    const t=TICKETS.find(x=>x.id===currentTicketId);
+    if(t) t.status='in_progress';
+    document.getElementById('ticket-reply').value='';
+    renderTicketMsgs(currentTicketId);
+    renderSupport();
+    renderDashboard();
+  }catch(e){toast('Error: '+e.message);}
+}
+
+async function updateTicketStatus(){
+  const status=document.getElementById('ticket-status-sel').value;
+  if(!currentTicketId) return;
+  try{
+    await sb.from('support_tickets').update({status,updated_at:new Date().toISOString()}).eq('id',currentTicketId);
+    const t=TICKETS.find(x=>x.id===currentTicketId);
+    if(t) t.status=status;
+    renderSupport();
+    renderDashboard();
+    toast('Status updated ✓');
+  }catch(e){}
+}
+
+// ── EXPENSES ──────────────────────────────────────────────────
+function setExpenseFilter(f,el){
+  expenseFilter=f;
+  document.querySelectorAll('#exp-cat-chips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderExpenses();
+}
+
+function renderExpenses(){
+  const now=new Date();
+  const curPeriod=now.toISOString().slice(0,7);
+  const search=(document.getElementById('exp-search')?.value||'').toLowerCase();
+
+  // All expenses for metrics (no filter)
+  const thisMonth=EXPENSES.filter(e=>e.period===curPeriod||(e.date&&e.date.slice(0,7)===curPeriod));
+  const totalMonth=thisMonth.reduce((s,e)=>s+(e.amount||0),0);
+  const totalAll=EXPENSES.reduce((s,e)=>s+(e.amount||0),0);
+  const recurring=EXPENSES.filter(e=>e.recurring).reduce((s,e)=>s+(e.amount||0),0);
+  const mrr=BILLING.filter(b=>b.status==='paid'&&b.period===curPeriod).reduce((s,b)=>s+(b.amount||0),0);
+  const profit=mrr-totalMonth;
+
+  document.getElementById('exp-sub').textContent=`${EXPENSES.length} records`;
+  document.getElementById('exp-metrics').innerHTML=`
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--red)">€${totalMonth.toFixed(0)}</div>
+      <div class="metric-label">Expenses this month</div>
+      <div class="metric-sub" style="color:var(--text3)">€${totalAll.toFixed(0)} all time</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--warn)">€${recurring.toFixed(0)}</div>
+      <div class="metric-label">Monthly recurring costs</div>
+      <div class="metric-sub" style="color:var(--text3)">subscriptions & tools</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--accent)">€${mrr.toFixed(0)}</div>
+      <div class="metric-label">Revenue this month</div>
+      <div class="metric-sub" style="color:var(--text3)">paid invoices</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:${profit>=0?'var(--green)':'var(--red)'}">
+        ${profit>=0?'+':''}€${profit.toFixed(0)}
+      </div>
+      <div class="metric-label">Profit this month</div>
+      <div class="metric-sub" style="color:var(--text3)">revenue − expenses</div>
+    </div>`;
+
+  // Category breakdown
+  const cats={};
+  EXPENSES.forEach(e=>{cats[e.category]=(cats[e.category]||0)+(e.amount||0);});
+  const sortedCats=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  const maxCat=sortedCats[0]?.[1]||1;
+  document.getElementById('exp-categories').innerHTML=sortedCats.length
+    ?sortedCats.map(([cat,amt])=>`
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span>${CAT_EMOJI[cat]||'📦'}</span>
+            <span style="font-size:12px;font-weight:500;color:var(--text)">${cat}</span>
+          </div>
+          <span style="font-size:12px;font-weight:600;color:var(--text2)">€${amt.toFixed(0)}</span>
+        </div>
+        <div style="height:6px;background:var(--bg2);border-radius:3px;overflow:hidden">
+          <div style="height:100%;background:var(--accent);border-radius:3px;width:${(amt/maxCat*100).toFixed(0)}%;opacity:0.7"></div>
+        </div>
+      </div>`).join('')
+    :'<div style="color:var(--text3);font-size:12px">No expenses yet</div>';
+
+  // P&L
+  const mrrPrev=BILLING.filter(b=>b.status==='paid'&&b.period===prevPeriod()).reduce((s,b)=>s+(b.amount||0),0);
+  const expPrev=EXPENSES.filter(e=>e.period===prevPeriod()||(e.date&&e.date.slice(0,7)===prevPeriod())).reduce((s,e)=>s+(e.amount||0),0);
+  document.getElementById('exp-pnl').innerHTML=`
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">This month (${curPeriod})</div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border2)">
+        <span style="font-size:12px;color:var(--text2)">Revenue</span>
+        <span style="font-size:12px;font-weight:600;color:var(--green)">+€${mrr.toFixed(0)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border2)">
+        <span style="font-size:12px;color:var(--text2)">Expenses</span>
+        <span style="font-size:12px;font-weight:600;color:var(--red)">−€${totalMonth.toFixed(0)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0">
+        <span style="font-size:13px;font-weight:600;color:var(--text)">Profit</span>
+        <span style="font-size:13px;font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">${profit>=0?'+':''}€${profit.toFixed(0)}</span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Previous month (${prevPeriod()})</div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span style="font-size:12px;color:var(--text2)">Revenue</span>
+        <span style="font-size:12px;color:var(--green)">+€${mrrPrev.toFixed(0)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span style="font-size:12px;color:var(--text2)">Expenses</span>
+        <span style="font-size:12px;color:var(--red)">−€${expPrev.toFixed(0)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span style="font-size:12px;font-weight:600;color:var(--text)">Profit</span>
+        <span style="font-size:12px;font-weight:700;color:${(mrrPrev-expPrev)>=0?'var(--green)':'var(--red)'}">${(mrrPrev-expPrev)>=0?'+':''}€${(mrrPrev-expPrev).toFixed(0)}</span>
+      </div>
+    </div>`;
+
+  // Table
+  let list=EXPENSES.filter(e=>{
+    if(expenseFilter!=='all'&&e.category!==expenseFilter) return false;
+    if(search&&!e.description.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  document.getElementById('exp-tbody').innerHTML=list.map(e=>`
+    <tr>
+      <td style="color:var(--text3)">${e.date||'—'}</td>
+      <td>
+        <div style="font-weight:500;color:var(--text)">${e.description}</div>
+        ${e.notes?`<div style="font-size:11px;color:var(--text3)">${e.notes}</div>`:''}
+      </td>
+      <td><span class="badge ${e.category}">${CAT_EMOJI[e.category]||''} ${e.category}</span></td>
+      <td style="font-weight:600;color:var(--red)">€${(e.amount||0).toFixed(2)}</td>
+      <td style="color:var(--text3)">${e.period?fmtPeriod(e.period):'—'}</td>
+      <td>${e.recurring?'<span style="font-size:11px;color:var(--accent)">🔄 yes</span>':'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
+      <td><button class="btn sm ghost" onclick="openExpenseModal('${e.id}')">Edit</button></td>
+    </tr>`).join('')||
+    `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3)">No expenses found</td></tr>`;
+}
+
+function prevPeriod(){
+  const d=new Date(); d.setMonth(d.getMonth()-1);
+  return d.toISOString().slice(0,7);
+}
+
+function openExpenseModal(id){
+  const e=id?EXPENSES.find(x=>x.id===id):null;
+  document.getElementById('expense-modal-title').textContent=e?'Edit expense':'Add expense';
+  document.getElementById('em-id').value=id||'';
+  document.getElementById('em-desc').value=e?.description||'';
+  document.getElementById('em-amount').value=e?.amount||'';
+  document.getElementById('em-cat').value=e?.category||'other';
+  document.getElementById('em-date').value=e?.date||new Date().toISOString().slice(0,10);
+  document.getElementById('em-period').value=e?.period||new Date().toISOString().slice(0,7);
+  document.getElementById('em-recurring').checked=e?.recurring||false;
+  document.getElementById('em-notes').value=e?.notes||'';
+  document.getElementById('em-delete-btn').style.display=id?'':'none';
+  document.getElementById('expense-modal').classList.add('open');
+}
+
+async function saveExpense(){
+  const id=document.getElementById('em-id').value;
+  const desc=document.getElementById('em-desc').value.trim();
+  const amt=parseFloat(document.getElementById('em-amount').value);
+  if(!desc||!amt){toast('Enter description and amount');return;}
+  const payload={
+    description:desc,
+    amount:amt,
+    category:document.getElementById('em-cat').value,
+    date:document.getElementById('em-date').value,
+    period:document.getElementById('em-period').value||null,
+    recurring:document.getElementById('em-recurring').checked,
+    notes:document.getElementById('em-notes').value.trim()||null
+  };
+  try{
+    if(id){
+      await sb.from('platform_expenses').update(payload).eq('id',id);
+      const i=EXPENSES.findIndex(e=>e.id===id);
+      if(i>=0) EXPENSES[i]={...EXPENSES[i],...payload};
+    } else {
+      const {data}=await sb.from('platform_expenses').insert(payload).select().single();
+      if(data) EXPENSES.unshift(data);
+    }
+    closeModal('expense-modal');
+    renderExpenses();
+    renderDashboard();
+    toast(id?'Expense updated ✓':'Expense added ✓');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+async function deleteExpense(){
+  const id=document.getElementById('em-id').value;
+  if(!id) return;
+  if(!confirm('Delete this expense?')) return;
+  try{
+    await sb.from('platform_expenses').delete().eq('id',id);
+    EXPENSES=EXPENSES.filter(e=>e.id!==id);
+    closeModal('expense-modal');
+    renderExpenses();
+    renderDashboard();
+    toast('Deleted ✓');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+// ── STUDIO DETAIL ─────────────────────────────────────────────
+function renderStudioDetail(id){
+  const s=STUDIOS.find(x=>x.id===id);
+  if(!s) return;
+  const stBilling=BILLING.filter(b=>b.studio_id===id);
+  const stTickets=TICKETS.filter(t=>t.studio_id===id);
+
+  // Header
+  document.getElementById('detail-title').textContent=s.name;
+  document.getElementById('detail-sub').textContent=s.city||'';
+  document.getElementById('detail-avatar').textContent=studioInitials(s.name);
+  document.getElementById('detail-avatar').style.background=studioColor(s.name);
+  document.getElementById('detail-name').textContent=s.name;
+  document.getElementById('detail-city-plan').textContent=
+    [s.city, (s.plan||'business').toUpperCase(), s.source?'via '+s.source:''].filter(Boolean).join(' · ');
+  document.getElementById('detail-health-sel').value=s.health||'onboarding';
+
+  // Action buttons
+  const wa=s.whatsapp||s.phone||'';
+  document.getElementById('detail-actions').innerHTML=`
+    ${wa?`<a href="https://wa.me/${wa.replace(/[^0-9]/g,'')}" target="_blank" class="btn wa" style="text-decoration:none">💬 WhatsApp</a>`:''}
+    <button class="btn" onclick="openStudioModal('${id}')">Edit info</button>`;
+
+  // Stats
+  const totalPaid=stBilling.filter(b=>b.status==='paid').reduce((s,b)=>s+(b.amount||0),0);
+  const openTix=stTickets.filter(t=>t.status!=='closed').length;
+  const lastPaid=stBilling.filter(b=>b.status==='paid').sort((a,b)=>new Date(b.paid_at||0)-new Date(a.paid_at||0))[0];
+  const memberSince=s.created_at?new Date(s.created_at).toLocaleDateString('en-GB',{month:'short',year:'numeric'}):'—';
+  document.getElementById('detail-stats').innerHTML=`
+    <div class="detail-stat">
+      <div class="detail-stat-val" style="color:var(--green)">€${totalPaid.toFixed(0)}</div>
+      <div class="detail-stat-label">Total paid</div>
+    </div>
+    <div class="detail-stat">
+      <div class="detail-stat-val">${stBilling.length}</div>
+      <div class="detail-stat-label">Invoices</div>
+    </div>
+    <div class="detail-stat">
+      <div class="detail-stat-val" style="color:${openTix?'var(--warn)':'var(--green)'}">${openTix}</div>
+      <div class="detail-stat-label">Open tickets</div>
+    </div>
+    <div class="detail-stat">
+      <div class="detail-stat-val" style="font-size:14px">${memberSince}</div>
+      <div class="detail-stat-label">Client since</div>
+    </div>`;
+
+  // Contact info
+  document.getElementById('detail-contacts').innerHTML=`
+    <div class="info-row"><span class="info-icon">👤</span><div><div class="info-label">Contact person</div><div class="info-val">${s.contact_name||'—'}</div></div></div>
+    <div class="info-row"><span class="info-icon">📱</span><div><div class="info-label">WhatsApp</div><div class="info-val">${s.whatsapp||s.phone||'—'}</div></div></div>
+    <div class="info-row"><span class="info-icon">📧</span><div><div class="info-label">Email</div><div class="info-val">${s.email||'—'}</div></div></div>
+    <div class="info-row"><span class="info-icon">📸</span><div><div class="info-label">Instagram</div><div class="info-val">${s.instagram||'—'}</div></div></div>`;
+
+  // Plan
+  const trialStr=s.trial_ends_at?`Trial ends ${fmtDate(s.trial_ends_at)}`:'No trial';
+  const nextB=s.next_billing_at?fmtDate(s.next_billing_at):'Not set';
+  const overdueB=s.next_billing_at&&new Date(s.next_billing_at)<new Date();
+  document.getElementById('detail-plan').innerHTML=`
+    <div class="info-row"><span class="info-icon">📦</span><div><div class="info-label">Plan</div><div class="info-val">${(s.plan||'business').toUpperCase()}</div></div></div>
+    <div class="info-row"><span class="info-icon">🗓</span><div><div class="info-label">Next billing</div><div class="info-val" style="color:${overdueB?'var(--red)':'var(--text)'}">${overdueB?'⚠ ':''}${nextB}</div></div></div>
+    <div class="info-row"><span class="info-icon">🎁</span><div><div class="info-label">Trial</div><div class="info-val">${trialStr}</div></div></div>
+    <div class="info-row"><span class="info-icon">💡</span><div><div class="info-label">Source</div><div class="info-val">${s.source||'—'}</div></div></div>`;
+
+  // Notes
+  const notes=s.platform_notes||'';
+  document.getElementById('detail-notes-view').innerHTML=notes
+    ?notes.replace(/\n/g,'<br>')
+    :'<span style="color:var(--text3)">No notes yet</span>';
+  document.getElementById('detail-notes-ta').value=notes;
+  document.getElementById('detail-notes-edit').style.display='none';
+  document.getElementById('detail-notes-view').style.display='';
+
+  // Billing history
+  document.getElementById('detail-billing').innerHTML=stBilling.length
+    ?stBilling.slice(0,8).map(b=>`
+      <div class="timeline-item">
+        <div class="timeline-dot ${b.status}"></div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:500">${fmtPeriod(b.period)}</span>
+            <span style="font-size:12px;font-weight:600;color:${b.status==='paid'?'var(--green)':'var(--text2)'}">€${(b.amount||0).toFixed(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">
+            <span class="badge ${b.status}" style="font-size:9px">${b.status}</span>
+            ${b.status!=='paid'?`<button class="btn sm primary" style="padding:2px 8px;font-size:10px" onclick="markPaid('${b.id}');renderStudioDetail('${id}')">Mark paid</button>`:''}
+          </div>
+          ${b.notes?`<div style="font-size:10px;color:var(--text3);margin-top:2px">${b.notes}</div>`:''}
+        </div>
+      </div>`).join('')
+    :'<div style="color:var(--text3);font-size:12px;padding:8px 0">No billing records yet</div>';
+
+  // Tickets
+  document.getElementById('detail-tickets').innerHTML=stTickets.length
+    ?stTickets.map(t=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2);cursor:pointer" onclick="openTicket('${t.id}')">
+        <span class="badge ${t.status}" style="flex-shrink:0">${t.status.replace('_',' ')}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</div>
+          <div style="font-size:10px;color:var(--text3)">${fmtDate(t.updated_at)}</div>
+        </div>
+        ${t.priority==='high'?'<span class="badge high" style="font-size:9px">High</span>':''}
+      </div>`).join('')
+    :'<div style="color:var(--text3);font-size:12px;padding:8px 0">No tickets yet</div>';
+}
+
+async function updateStudioHealth(){
+  if(!currentStudioId) return;
+  const health=document.getElementById('detail-health-sel').value;
+  try{
+    await sb.from('studios').update({health}).eq('id',currentStudioId);
+    const s=STUDIOS.find(x=>x.id===currentStudioId);
+    if(s) s.health=health;
+    renderDashboard();
+    toast('Status updated ✓');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+function toggleEditNotes(){
+  const view=document.getElementById('detail-notes-view');
+  const edit=document.getElementById('detail-notes-edit');
+  const isEditing=edit.style.display!=='none';
+  edit.style.display=isEditing?'none':'';
+  view.style.display=isEditing?'':'none';
+}
+
+async function saveNotes(){
+  if(!currentStudioId) return;
+  const notes=document.getElementById('detail-notes-ta').value.trim();
+  try{
+    await sb.from('studios').update({platform_notes:notes}).eq('id',currentStudioId);
+    const s=STUDIOS.find(x=>x.id===currentStudioId);
+    if(s) s.platform_notes=notes;
+    document.getElementById('detail-notes-view').innerHTML=notes
+      ?notes.replace(/\n/g,'<br>')
+      :'<span style="color:var(--text3)">No notes yet</span>';
+    toggleEditNotes();
+    toast('Notes saved ✓');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+function openBillingModalForStudio(){
+  openBillingModal();
+  if(currentStudioId){
+    const sel=document.getElementById('bm-studio');
+    sel.value=currentStudioId;
+  }
+}
+
+function openNewTicketModal(){
+  document.getElementById('nt-title').value='';
+  document.getElementById('nt-priority').value='normal';
+  document.getElementById('nt-status').value='open';
+  document.getElementById('nt-msg').value='';
+  document.getElementById('new-ticket-modal').classList.add('open');
+}
+
+async function saveNewTicket(){
+  if(!currentStudioId) return;
+  const title=document.getElementById('nt-title').value.trim();
+  if(!title){toast('Enter ticket subject');return;}
+  try{
+    const {data:t}=await sb.from('support_tickets').insert({
+      studio_id:currentStudioId,
+      title,
+      priority:document.getElementById('nt-priority').value,
+      status:document.getElementById('nt-status').value
+    }).select().single();
+    if(t){
+      TICKETS.unshift(t);
+      const msg=document.getElementById('nt-msg').value.trim();
+      if(msg){
+        await sb.from('support_messages').insert({ticket_id:t.id,sender:'platform',text:msg});
+      }
+    }
+    closeModal('new-ticket-modal');
+    renderStudioDetail(currentStudioId);
+    renderSupport();
+    renderDashboard();
+    toast('Ticket created ✓');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+sb?.auth.getSession().then(({data})=>{
+  if(data?.session) {
+    sb.from('platform_admins').select('name').eq('user_id',data.session.user.id).single()
+      .then(({data:pa})=>{
+        if(pa){
+          document.getElementById('sidebar-name').textContent=pa.name||data.session.user.email.split('@')[0];
+          document.getElementById('sidebar-avatar').textContent=(pa.name||data.session.user.email)[0].toUpperCase();
+          document.getElementById('login-screen').style.display='none';
+          document.getElementById('app').style.display='flex';
+          loadAll().then(()=>renderDashboard());
+        }
+      });
+  }
+});
+</script>
+</body>
+</html>
