@@ -2615,11 +2615,11 @@ function renderCatsEditorContent(){
           style="width:32px;text-align:center;font-size:17px;border:0.5px solid var(--border);border-radius:7px;background:var(--bg2);padding:3px"
           oninput="CATS['${key}'].icon=this.value;saveCats()">
         <input class="cat-name-input" value="${cat.name}" oninput="CATS['${key}'].name=this.value;saveCats()" style="flex:1;font-weight:500">
-        <button onclick="deleteCat('${key}')" style="font-size:11px;padding:3px 8px;border:0.5px solid var(--border);border-radius:7px;background:transparent;cursor:pointer;color:var(--red);flex-shrink:0">Удалить</button>
+        <button onclick="deleteCat('${key}')" style="font-size:11px;padding:3px 8px;border:0.5px solid var(--border);border-radius:7px;background:transparent;cursor:pointer;color:var(--red);flex-shrink:0">${L('Διαγραφή','Delete','Удалить')}</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding-left:2px">
-        <span style="font-size:11px;color:var(--text3);white-space:nowrap">Бюджет на месяц €</span>
-        <input type="number" min="0" value="${cat.budget||''}" placeholder="не задан"
+        <span style="font-size:11px;color:var(--text3);white-space:nowrap">${L('Μηνιαίος προϋπολογισμός €','Monthly budget €','Бюджет на месяц €')}</span>
+        <input type="number" min="0" value="${cat.budget||''}" placeholder="${L('δεν ορίστηκε','not set','не задан')}"
           style="flex:1;padding:5px 9px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px"
           oninput="CATS['${key}'].budget=parseFloat(this.value)||0;saveCats()">
         <span style="font-size:11px;color:var(--text3);white-space:nowrap">${L('δαπανήθηκε','spent','потрачено')} €${spent}</span>
@@ -2635,11 +2635,25 @@ function renderCatsEditorContent(){
     <div style="display:flex;flex-direction:column;gap:8px">${rows}</div>
     <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
       <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">${L('Προσθήκη κατηγορίας','Add category','Добавить категорию')}</div>
-      <div style="display:flex;gap:7px;align-items:center">
-        <input type="text" id="new-cat-icon" value="📦" maxlength="2"
-          style="width:36px;text-align:center;font-size:17px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);padding:4px">
+      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+        <div style="position:relative">
+          <button id="new-cat-icon-btn" onclick="toggleEmojiPicker()" style="width:40px;height:38px;font-size:20px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center" title="${L('Επιλογή εικονιδίου','Choose icon','Выбрать иконку')}">📦</button>
+          <input type="hidden" id="new-cat-icon" value="📦">
+          <div id="emoji-picker" style="display:none;position:absolute;top:44px;left:0;z-index:100;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);width:228px">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+              ${['🏢','🏠','💡','💧','🔥','🌐','📶',
+                 '👤','👥','🧑‍💼','💼','🎓','🧘','🏋️',
+                 '📣','📢','📱','💻','🖥️','🖨️','📷',
+                 '🎨','✏️','📝','📋','📂','🗂️','🗃️',
+                 '🚗','🚕','✈️','🚂','⛽','🅿️','🗺️',
+                 '💰','💳','🏦','💵','📈','📉','🧾',
+                 '🛒','🛍️','📦','🎁','🔑','🔧','🔩',
+                 '🍕','☕','🍽️','🥗','🧃','🍰','🎂'].map(e=>`<button onclick="pickEmoji('${e}')" style="font-size:18px;border:none;background:none;cursor:pointer;padding:3px;border-radius:6px;line-height:1" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='none'">${e}</button>`).join('')}
+            </div>
+          </div>
+        </div>
         <input type="text" id="new-cat-name" placeholder="${L('Όνομα','Name','Название')}"
-          style="flex:1;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
+          style="flex:1;min-width:120px;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
         <input type="number" id="new-cat-budget" placeholder="${L('Προϋπολογισμός €','Budget €','Бюджет €')}" min="0"
           style="width:100px;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
         <button class="btn primary" onclick="addNewCat()" style="white-space:nowrap;padding:7px 14px">+ ${L('Προσθήκη','Add','Добавить')}</button>
@@ -2659,8 +2673,21 @@ function deleteCat(key){
   renderExpenses();
 }
 
+function toggleEmojiPicker(){
+  const p=document.getElementById('emoji-picker');
+  if(p) p.style.display=p.style.display==='none'?'block':'none';
+}
+function pickEmoji(e){
+  const btn=document.getElementById('new-cat-icon-btn');
+  const inp=document.getElementById('new-cat-icon');
+  if(btn) btn.textContent=e;
+  if(inp) inp.value=e;
+  const p=document.getElementById('emoji-picker');
+  if(p) p.style.display='none';
+}
+
 function addNewCat(){
-  const icon=document.getElementById('new-cat-icon')?.value.trim()||'📦';
+  const icon=document.getElementById('new-cat-icon')?.value||'📦';
   const name=document.getElementById('new-cat-name')?.value.trim();
   const budget=parseFloat(document.getElementById('new-cat-budget')?.value||'0')||0;
   if(!name) return;
