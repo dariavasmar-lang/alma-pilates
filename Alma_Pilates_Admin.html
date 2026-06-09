@@ -877,7 +877,7 @@ function renderClients(search=''){
   const ff=document.getElementById('client-filters');
   if(ff) ff.innerHTML=`
     <button class="fp ${clientFilter==='all'?'active':''}" onclick="setClientFilter('all',this)">${t.allClients||'All'}</button>
-    <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">${t.warningClients||'⚠ Expiring'}</button>
+    <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">${t.warningClients||'⚠ Expiring'}${(()=>{const n=CLIENTS.filter(c=>c.status==='warn'||c.status==='danger').length;return n?` (${n})`:''})()}</button>
     <button class="fp ${clientFilter==='active'?'active':''}" onclick="setClientFilter('active',this)">${t.activeClients||'Active'}</button>
     <button class="fp ${clientFilter==='inactive'?'active':''}" onclick="setClientFilter('inactive',this)">${t.inactiveClients||'Inactive'}</button>`;
 
@@ -2866,7 +2866,7 @@ const ADMIN_I18N={
     incomeUp:'+12% από Απρίλιο', expSub:'ενοίκιο · μισθός · άλλα', profSub:'πριν φόρους', clientsSub:'3 λήγουν σύντομα',
     newPayment:'+ Νέα πληρωμή', addExpense:'+ Προσθήκη εξόδου',
     alertText:'3 πελάτες με 1–2 μαθήματα — χρειάζονται ανανέωση →',
-    allClients:'Όλοι', warningClients:'⚠ Λήγουν (3)', activeClients:'Ενεργοί', inactiveClients:'Ανενεργοί',
+    allClients:'Όλοι', warningClients:'⚠ Λήγουν', activeClients:'Ενεργοί', inactiveClients:'Ανενεργοί',
     searchPlaceholder:'Αναζήτηση ονόματος, τηλεφώνου...',
     newClient:'+ Νέος πελάτης', clientsSub2:' ενεργοί · 3 χρειάζονται προσοχή',
     colClient:'Πελάτης', colSub:'Συνδρομή', colLeft:'Απομένουν', colNextPayment:'Επόμενη πληρωμή', colPaid:'Πληρώθηκε', colStatus:'Κατάσταση',
@@ -2913,7 +2913,7 @@ const ADMIN_I18N={
     incomeUp:'+12% vs April', expSub:'this month', profSub:'this month', clientsSub:'3 expiring soon',
     newPayment:'+ New payment', addExpense:'+ Add expense',
     alertText:'3 clients with 1–2 classes left — need renewal →',
-    allClients:'All', warningClients:'⚠ Expiring (3)', activeClients:'Active', inactiveClients:'Inactive',
+    allClients:'All', warningClients:'⚠ Expiring', activeClients:'Active', inactiveClients:'Inactive',
     searchPlaceholder:'Search by name, phone...',
     newClient:'+ New client', clientsSub2:' active · 3 need attention',
     colClient:'Client', colSub:'Membership', colLeft:'Remaining', colNextPayment:'Next payment', colPaid:'Paid', colStatus:'Status',
@@ -2960,7 +2960,7 @@ const ADMIN_I18N={
     incomeUp:'+12% к апрелю', expSub:'в этом месяце', profSub:'в этом месяце', clientsSub:'3 заканчивается',
     newPayment:'+ Новый платёж', addExpense:'+ Добавить расход',
     alertText:'clients with 1–2 classes — renewal needed →',
-    allClients:'Все', warningClients:'⚠ Заканчивается (3)', activeClients:'Активные', inactiveClients:'Неактивные',
+    allClients:'Все', warningClients:'⚠ Заканчивается', activeClients:'Активные', inactiveClients:'Неактивные',
     searchPlaceholder:'Поиск по имени, телефону...',
     newClient:'+ Новый клиент', clientsSub2:' активных · 3 требуют внимания',
     colClient:'Клиент', colSub:'Абонемент', colLeft:'Осталось', colNextPayment:'След. оплата', colPaid:'Оплачен', colStatus:'Статус',
