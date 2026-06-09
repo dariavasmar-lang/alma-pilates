@@ -613,7 +613,10 @@ const CATS_DEFAULT = {
   other:  {name:'Прочее',       color:'#8E8E93', icon:'📦', budget:100},
 };
 let CATS = (()=>{try{const s=localStorage.getItem('alma_cats');return s?JSON.parse(s):CATS_DEFAULT;}catch(e){return CATS_DEFAULT;}})();
-function saveCats(){try{localStorage.setItem('alma_cats',JSON.stringify(CATS));}catch(e){}}
+async function saveCats(){
+  try{localStorage.setItem('alma_cats',JSON.stringify(CATS));}catch(e){}
+  try{if(sb) await sb.from('studios').update({expense_cats:CATS}).eq('id',STUDIO_ID);}catch(e){console.warn('saveCats:',e);}
+}
 
 let expCatFilter = 'all';
 
@@ -2507,9 +2510,13 @@ function filterExpCat(key){
   renderExpenses();
 }
 
-function deleteExpense(id){
+async function deleteExpense(id){
+  try{
+    await sb.from('studio_expenses').delete().eq('id',id);
+  }catch(e){console.warn('deleteExpense:',e);}
   EXPENSES=EXPENSES.filter(e=>e.id!==id);
   renderExpenses();
+  renderDashboard();
 }
 
 function openExpModal(){
@@ -2563,16 +2570,24 @@ function openExpModal(){
   setTimeout(()=>document.getElementById('eam-amt')?.focus(),100);
 }
 
-function saveExpense(){
+async function saveExpense(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const cat=document.getElementById('eam-cat')?.value||'other';
   const amt=parseFloat(document.getElementById('eam-amt')?.value||'0');
   const desc=document.getElementById('eam-desc')?.value.trim()||'';
   const date=document.getElementById('eam-date')?.value||localDateStr(new Date());
   const freq=document.getElementById('eam-freq')?.value||'';
-  if(!amt||!desc) return toast('Заполни сумму и описание');
-  EXPENSES.push({id:_expNextId++, cat, desc, amt, date, recurring:!!freq});
+  if(!amt||!desc) return toast(L('Συμπλήρωσε ποσό και περιγραφή','Fill amount and description','Заполни сумму и описание'));
+  try{
+    const {data,error}=await sb.from('studio_expenses').insert({
+      studio_id:STUDIO_ID, cat, description:desc, amount:amt, date, recurring:!!freq, freq:freq||''
+    }).select().single();
+    if(error) throw error;
+    EXPENSES.unshift({id:data.id, cat, desc, amt, date, recurring:!!freq});
+  }catch(e){toast('Error: '+e.message);return;}
   closeModal('exp-add-modal');
   renderExpenses();
+  renderDashboard();
 }
 
 function openCatsEditor(){
@@ -3528,6 +3543,28 @@ async function dbLoad(){
     renderClients(); renderDashboard();
     await dbLoadScheduleData();
     dbLoadBookings();
+
+    // Load expense categories from DB (overrides localStorage)
+    try{
+      const {data:stConf}=await sb.from('studios').select('expense_cats').eq('id',STUDIO_ID).single();
+      if(stConf?.expense_cats&&Object.keys(stConf.expense_cats).length){
+        CATS=stConf.expense_cats;
+        try{localStorage.setItem('alma_cats',JSON.stringify(CATS));}catch(e){}
+      }
+    }catch(e){console.warn('load expense_cats:',e);}
+
+    // Load expenses from DB
+    try{
+      const {data:expRows}=await sb.from('studio_expenses').select('*').eq('studio_id',STUDIO_ID).order('date',{ascending:false});
+      if(expRows){
+        EXPENSES=expRows.map(e=>({
+          id:e.id, cat:e.cat, desc:e.description,
+          amt:parseFloat(e.amount), date:e.date, recurring:e.recurring
+        }));
+        renderExpenses();
+      }
+    }catch(e){console.warn('load expenses:',e);}
+
   }catch(e){console.error('dbLoad:',e.message);}
 }
 
