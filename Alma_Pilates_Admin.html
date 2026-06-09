@@ -698,9 +698,10 @@ function showPage(id){
   if(id==='expenses') renderExpenses();
   if(id==='taxes') renderTaxChart();
   if(id==='settings') renderSettings();
-
   if(id==='cancellations'){ renderHolidayChips(); renderCancelList(); }
   if(id==='dashboard') renderDashboard();
+  // Remember current page in URL hash
+  history.replaceState(null,'','#'+id);
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────
@@ -3468,6 +3469,9 @@ function showApp(){
   const app=document.getElementById('main-app');
   app.style.display='flex';
   app.style.flexDirection='row';
+  const validPages=['dashboard','clients','schedule','payments','expenses','taxes','settings','cancellations'];
+  const hash=location.hash.replace('#','');
+  if(hash&&validPages.includes(hash)) showPage(hash);
   dbLoad();
 }
 
