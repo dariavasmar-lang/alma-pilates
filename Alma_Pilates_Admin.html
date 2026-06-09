@@ -868,12 +868,17 @@ function renderClients(search=''){
 
   // Page header
   const ph=document.getElementById('clients-page-header');
+  const archivedCount=CLIENTS.filter(c=>c.isArchived).length;
   if(ph) ph.innerHTML=`
     <div>
       <div class="page-title">${t.clients}</div>
-      <div class="page-sub">${CLIENTS.filter(c=>c.status!=='inactive').length} ${L('ενεργοί','active','активных')} · ${CLIENTS.filter(c=>c.status==='warn'||c.status==='danger').length} ${L('προσοχή','need attention','требуют внимания')}</div>
+      <div class="page-sub">${CLIENTS.filter(c=>!c.isArchived&&c.status!=='inactive').length} ${L('ενεργοί','active','активных')} · ${CLIENTS.filter(c=>!c.isArchived&&(c.status==='warn'||c.status==='danger')).length} ${L('προσοχή','need attention','требуют внимания')}${archivedCount?` · ${archivedCount} ${L('αρχείο','archived','в архиве')}`:''}
+      </div>
     </div>
-    <button class="btn primary" onclick="openNewClientModal()">${t.newClient||'+ New client'}</button>`;
+    <div style="display:flex;gap:6px">
+      ${clientFilter==='archive'?`<button class="btn" onclick="openNewClientModal(true)">${L('+ Αρχειοθέτηση','+ Add to archive','+ В архив')}</button>`:''}
+      <button class="btn primary" onclick="openNewClientModal()">${t.newClient||'+ New client'}</button>
+    </div>`;
 
   // Search placeholder
   const si=document.getElementById('client-search');
@@ -885,7 +890,8 @@ function renderClients(search=''){
     <button class="fp ${clientFilter==='all'?'active':''}" onclick="setClientFilter('all',this)">${t.allClients||'All'}</button>
     <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">${t.warningClients||'⚠ Expiring'}${(()=>{const n=CLIENTS.filter(c=>c.status==='warn'||c.status==='danger').length;return n?` (${n})`:''})()}</button>
     <button class="fp ${clientFilter==='active'?'active':''}" onclick="setClientFilter('active',this)">${t.activeClients||'Active'}</button>
-    <button class="fp ${clientFilter==='inactive'?'active':''}" onclick="setClientFilter('inactive',this)">${t.inactiveClients||'Inactive'}</button>`;
+    <button class="fp ${clientFilter==='inactive'?'active':''}" onclick="setClientFilter('inactive',this)">${t.inactiveClients||'Inactive'}</button>
+    <button class="fp ${clientFilter==='archive'?'active':''}" onclick="setClientFilter('archive',this)">📁 ${L('Αρχείο','Archive','Архив')}${archivedCount?` (${archivedCount})`:''}</button>`;
 
   // Table head
   const thead=document.getElementById('clients-thead');
@@ -902,6 +908,8 @@ function renderClients(search=''){
   const filtered=CLIENTS.filter(c=>{
     const q=(search||'').toLowerCase();
     const ms=c.name.toLowerCase().includes(q)||(c.phone||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))||( q.startsWith('+')&&(c.phone||'').includes(q.slice(1)));
+    if(clientFilter==='archive') return ms&&c.isArchived;
+    if(c.isArchived) return false; // hide archived from all other filters
     if(clientFilter==='warn') return ms&&(c.status==='warn'||c.status==='danger');
     if(clientFilter==='active') return ms&&c.status!=='inactive';
     if(clientFilter==='inactive') return ms&&c.status==='inactive';
@@ -913,13 +921,13 @@ function renderClients(search=''){
     const lbl=isActive?t.badgeOk:t.badgeInactive;
     const typeLabel=c.type+(adminLang==='el'?' μαθ.':adminLang==='en'?' cl.':' зан.');
     const isSoon=isActive&&c.expiresDate&&new Date(c.expiresDate)<=new Date(Date.now()+14*864e5);
-    return `<tr onclick="selectClient(${c.id})" id="row-${c.id}">
-      <td><span style="width:26px;height:26px;border-radius:50%;background:var(--bg3);color:var(--accent);font-size:9px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;margin-right:7px;vertical-align:middle">${c.initials}</span><span style="font-size:12px;font-weight:500">${c.name}</span>${c.isNew?`<span class="badge new-client">NEW</span>`:''}</td>
+    return `<tr onclick="selectClient(${c.id})" id="row-${c.id}" style="${c.isArchived?'opacity:.6':''}">
+      <td><span style="width:26px;height:26px;border-radius:50%;background:var(--bg3);color:${c.isArchived?'var(--text3)':'var(--accent)'};font-size:9px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;margin-right:7px;vertical-align:middle">${c.initials}</span><span style="font-size:12px;font-weight:500;color:${c.isArchived?'var(--text2)':'var(--text)'}">${c.name}</span>${c.isNew?`<span class="badge new-client">NEW</span>`:''}${c.isArchived?`<span style="font-size:9px;color:var(--text3);margin-left:5px">📁</span>`:''}</td>
       <td style="color:var(--text2)">${typeLabel}</td>
       <td><span style="font-weight:500">${c.left}</span><span style="color:var(--text3)"> / ${c.total}</span><div class="progress" style="min-width:50px"><div class="progress-fill" style="width:${pct}%;background:${BAR_COLOR[c.status]}"></div></div></td>
       <td style="font-size:11px"><span style="color:${isSoon?'var(--warn)':'var(--text2)'}">${fmtDate(c.nextPayment)}</span>${isSoon?`<span style="font-size:9px;display:block;color:var(--warn)">soon</span>`:''}</td>
       <td style="color:var(--text3);font-size:11px">${fmtDate(c.paid)}</td>
-      <td><span class="badge ${BADGE_CLS[c.status]}">${lbl}</span></td>
+      <td><span class="badge ${c.isArchived?'inactive':BADGE_CLS[c.status]}">${c.isArchived?L('Αρχείο','Archived','Архив'):lbl}</span></td>
     </tr>`;
   }).join('');
 }
@@ -944,6 +952,27 @@ function selectClient(id){
 function closeClientDetail(){
   document.getElementById('client-detail')?.classList.remove('open');
   document.querySelectorAll('#clients-table tr').forEach(r=>r.classList.remove('selected'));
+}
+
+async function archiveClient(id, archive){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const c=CLIENTS.find(x=>x.id===id); if(!c) return;
+  const msg=archive
+    ?L(`Μετακίνηση «${c.name}» στο αρχείο;`,`Move «${c.name}» to archive?`,`Переместить «${c.name}» в архив?`)
+    :L(`Επαναφορά «${c.name}»;`,`Restore «${c.name}» from archive?`,`Восстановить «${c.name}» из архива?`);
+  if(!confirm(msg)) return;
+  try{
+    await sb.from('clients').update({
+      is_archived:archive,
+      archived_at:archive?new Date().toISOString():null
+    }).eq('id',c._uuid);
+    c.isArchived=archive;
+    closeClientDetail();
+    renderClients();
+    toast(archive
+      ?L('Μετακινήθηκε στο αρχείο','Moved to archive','Перемещён в архив')
+      :L('Επαναφέρθηκε','Restored','Восстановлен'));
+  }catch(e){toast('Error: '+e.message);}
 }
 
 let clientCalOffset={};
@@ -1070,6 +1099,13 @@ function renderClientCard(c){
     <button class="btn" onclick="sendWhatsApp(${c.id},'booking')" style="width:100%;justify-content:center">📱 WhatsApp — ${L('υπενθύμιση κράτησης','booking reminder','напоминание о записи')}</button>
     <button class="btn" onclick="sendWhatsApp(${c.id},'payment')" style="width:100%;justify-content:center;${isExpiringSoon?'background:var(--warn-bg);border-color:#D4B870;color:var(--warn)':''}">💰 WhatsApp — ${L('υπενθύμιση πληρωμής','payment reminder','напоминание об оплате')}</button>
     <button class="btn dark" onclick="generateRevolutLink(${c.id})" style="width:100%;justify-content:center">⚡ ${L('Σύνδεσμος Revolut','Generate Revolut link','Ссылка Revolut')}</button>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border);padding-top:12px">
+    ${c.isArchived
+      ? `<button class="btn" onclick="archiveClient(${c.id},false)" style="width:100%;justify-content:center;color:var(--green)">↩ ${L('Επαναφορά από αρχείο','Restore from archive','Восстановить из архива')}</button>`
+      : `<button class="btn" onclick="archiveClient(${c.id},true)" style="width:100%;justify-content:center;color:var(--text3)">📁 ${L('Μετακίνηση στο αρχείο','Move to archive','Переместить в архив')}</button>`
+    }
   </div>`;
 
   renderClientCalendar(c.id);
@@ -3568,6 +3604,7 @@ async function dbLoad(){
         expiresDate:sub?.expires_at||null,
         paidAmt:sub?'€'+sub.price:'—',
         status:!c.is_active?'inactive':!sub?'inactive':left<=1?'danger':left<=2?'warn':'ok',
+        isArchived:!!c.is_archived,
         history:[]
       });
     });
@@ -4096,8 +4133,9 @@ async function bookFromWaitlist(key,idx,name,di,time,dateStr){
 }
 
 // ── NEW CLIENT MODAL ──────────────────────────────────────────
-function openNewClientModal(){
+function openNewClientModal(toArchive=false){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  window._newClientToArchive=!!toArchive;
   let m=document.getElementById('new-client-modal');
   if(!m){
     m=document.createElement('div'); m.className='modal-overlay'; m.id='new-client-modal';
@@ -4129,7 +4167,9 @@ function openNewClientModal(){
     </div>`;
     document.body.appendChild(m);
   }
-  document.getElementById('ncm-title').textContent=L('Νέος πελάτης','New client','Новый клиент');
+  document.getElementById('ncm-title').textContent=toArchive
+    ?L('Προσθήκη στο αρχείο','Add to archive','Добавить в архив')
+    :L('Νέος πελάτης','New client','Новый клиент');
   document.getElementById('ncm-name-lbl').textContent=L('Όνομα (Latin)','Name (Latin)','Имя (латиница)');
   document.getElementById('ncm-name-hint').textContent=L('Μόνο λατινικοί χαρακτήρες','Latin characters only','Только латинские буквы');
   document.getElementById('ncm-phone-lbl').textContent=L('Τηλέφωνο','Phone','Телефон');
@@ -4165,9 +4205,11 @@ async function saveNewClient(){
   try{
     let uuid=null;
     if(sb){
+      const toArchive=!!window._newClientToArchive;
       const {data,error}=await sb.from('clients').insert({
         studio_id:STUDIO_ID,full_name:name,phone:phone||null,
-        language:lang,is_active:true,gdpr_consent:true,gdpr_consent_at:new Date().toISOString()
+        language:lang,is_active:true,gdpr_consent:true,gdpr_consent_at:new Date().toISOString(),
+        is_archived:toArchive, archived_at:toArchive?new Date().toISOString():null
       }).select().single();
       if(!error&&data){
         uuid=data.id;
@@ -4206,7 +4248,8 @@ async function saveNewClient(){
       nextPayment:subType==='none'?'—':ep[2]+'/'+ep[1],
       expiresDate:subType==='none'?null:endD.toISOString().split('T')[0],
       paidAmt:subType==='none'?'—':{8:'€120',12:'€160',single:'€25'}[subType],
-      status:subType==='none'?'inactive':'ok',history:[],isNew:true
+      status:subType==='none'?'inactive':'ok',history:[],isNew:true,
+      isArchived:!!window._newClientToArchive
     });
     closeModal('new-client-modal');
     toast(L('Αποθηκεύτηκε!','Saved!','Клиент добавлен!'));
