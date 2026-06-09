@@ -604,7 +604,7 @@ const PAYMENTS = [];
 let EXPENSES = [];
 let _expNextId = 1;
 
-const CATS = {
+const CATS_DEFAULT = {
   rent:   {name:'Аренда',       color:'#E24B4A', icon:'🏢', budget:700},
   salary: {name:'Зарплата',     color:'#EF9F27', icon:'👤', budget:900},
   equip:  {name:'Оборудование', color:'#378ADD', icon:'🏋️', budget:200},
@@ -612,6 +612,8 @@ const CATS = {
   market: {name:'Маркетинг',    color:'#7B6EF6', icon:'📣', budget:150},
   other:  {name:'Прочее',       color:'#8E8E93', icon:'📦', budget:100},
 };
+let CATS = (()=>{try{const s=localStorage.getItem('alma_cats');return s?JSON.parse(s):CATS_DEFAULT;}catch(e){return CATS_DEFAULT;}})();
+function saveCats(){try{localStorage.setItem('alma_cats',JSON.stringify(CATS));}catch(e){}}
 
 let expCatFilter = 'all';
 
@@ -2592,19 +2594,19 @@ function renderCatsEditorContent(){
     return `<div class="cat-item" style="flex-direction:column;gap:8px;align-items:stretch">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="cat-swatch" style="background:${cat.color}">
-          <input type="color" value="${cat.color}" oninput="CATS['${key}'].color=this.value;this.parentElement.style.background=this.value">
+          <input type="color" value="${cat.color}" oninput="CATS['${key}'].color=this.value;this.parentElement.style.background=this.value;saveCats()">
         </div>
         <input type="text" value="${cat.icon}" maxlength="2"
           style="width:32px;text-align:center;font-size:17px;border:0.5px solid var(--border);border-radius:7px;background:var(--bg2);padding:3px"
-          oninput="CATS['${key}'].icon=this.value">
-        <input class="cat-name-input" value="${cat.name}" oninput="CATS['${key}'].name=this.value" style="flex:1;font-weight:500">
+          oninput="CATS['${key}'].icon=this.value;saveCats()">
+        <input class="cat-name-input" value="${cat.name}" oninput="CATS['${key}'].name=this.value;saveCats()" style="flex:1;font-weight:500">
         <button onclick="deleteCat('${key}')" style="font-size:11px;padding:3px 8px;border:0.5px solid var(--border);border-radius:7px;background:transparent;cursor:pointer;color:var(--red);flex-shrink:0">Удалить</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding-left:2px">
         <span style="font-size:11px;color:var(--text3);white-space:nowrap">Бюджет на месяц €</span>
         <input type="number" min="0" value="${cat.budget||''}" placeholder="не задан"
           style="flex:1;padding:5px 9px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px"
-          oninput="CATS['${key}'].budget=parseFloat(this.value)||0">
+          oninput="CATS['${key}'].budget=parseFloat(this.value)||0;saveCats()">
         <span style="font-size:11px;color:var(--text3);white-space:nowrap">${L('δαπανήθηκε','spent','потрачено')} €${spent}</span>
       </div>
     </div>`;
@@ -2637,6 +2639,7 @@ function renderCatsEditorContent(){
 function deleteCat(key){
   if(!confirm(L('Διαγραφή κατηγορίας «','Delete category «','Удалить категорию «')+CATS[key]?.name+'»? '+L('Τα έξοδα θα παραμείνουν χωρίς κατηγορία.','Expenses will remain without a category.','Расходы останутся, но без категории.'))) return;
   delete CATS[key];
+  saveCats();
   renderCatsEditorContent();
   renderExpenses();
 }
@@ -2649,6 +2652,7 @@ function addNewCat(){
   const key='cat_'+Date.now();
   const colors=['#E24B4A','#EF9F27','#378ADD','#1D9E75','#7B6EF6','#E879A3','#06B6D4','#F97316'];
   CATS[key]={name, icon, color:colors[Object.keys(CATS).length%colors.length], budget};
+  saveCats();
   renderCatsEditorContent();
   renderExpenses();
 }
