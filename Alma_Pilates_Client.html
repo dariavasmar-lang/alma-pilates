@@ -1283,7 +1283,22 @@ async function doOtp(){
     p_lang:lang
   });
   if(linkErr){toast2('Error linking profile: '+linkErr.message);return;}
-  if(clientData) sbProfile=clientData;
+  if(!clientData){
+    // Номер не найден в базе — доступ запрещён
+    await sb.auth.signOut();
+    sbUser=null;
+    go('welcome');
+    setTimeout(()=>{
+      const msg=lang==='ru'
+        ?'Доступ закрыт. Обратитесь в Alma Pilates для регистрации.'
+        :lang==='el'
+        ?'Δεν έχετε πρόσβαση. Επικοινωνήστε με την Alma Pilates.'
+        :'Access denied. Contact Alma Pilates to register.';
+      toast2(msg);
+    },300);
+    return;
+  }
+  sbProfile=clientData;
   startApp();
 }
 
