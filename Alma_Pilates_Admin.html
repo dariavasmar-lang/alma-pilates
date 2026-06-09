@@ -999,7 +999,7 @@ function renderClientCard(c){
       <button class="btn primary" onclick="openRecurringModal(${c.id})" style="justify-content:center">${L('Επαναλαμβανόμενα','Recurring','Повторяющиеся')}</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      <button class="btn success" onclick="openPayModal('${c.name.replace(/'/g,"\\'")}')">+ ${L('Πληρωμή','Payment','Оплата')}</button>
+      <button class="btn success" onclick="openPayModalForClient(${c.id})" style="justify-content:center">+ ${L('Πληρωμή','Payment','Оплата')}</button>
       <button class="btn danger" onclick="cancelAllFutureBookings(${c.id})" style="justify-content:center">${L('Ακύρωση όλων','Cancel all future','Отменить все будущие')}</button>
     </div>
   </div>
@@ -1139,8 +1139,8 @@ function renderClientCalendarModal(clientId){
     const isPast=date<today&&!isToday;
     const dow=(date.getDay()+6)%7;
     const isSun=dow===6;
-    const slots=!isCur||isPast?[]:[...(SCH[dow]||[]),(dateExtraSlots[dateStr]||[]).map(s=>s.time)].flat().filter((v,i,a)=>a.indexOf(v)===i).sort();
     const dateStr=localDateStr(date);
+    const slots=!isCur||isPast?[]:[...(SCH[dow]||[]),(dateExtraSlots[dateStr]||[]).map(s=>s.time)].flat().filter((v,i,a)=>a.indexOf(v)===i).sort();
     let slotsHtml='';
     slots.forEach(t=>{
       const key=dow+'_'+t;
@@ -1193,7 +1193,6 @@ function renderClientCalendarModal(clientId){
       <div style="display:flex;gap:8px">
         <button class="btn primary" onclick="confirmClientBookings(${clientId})" style="flex:1;justify-content:center" ${!pending.length?'disabled style="flex:1;justify-content:center;opacity:.4;cursor:default"':''}>Подтвердить запись</button>
         <button class="btn" onclick="clearPendingSelections(${clientId})" style="justify-content:center">Сбросить выбор</button>
-        <button onclick="closeClientCalModal()" class="btn" style="justify-content:center">Закрыть</button>
       </div>
       <div id="ccal-confirm-bar" style="display:${pending.length?'block':'none'}"></div>
     </div>
@@ -1293,8 +1292,8 @@ function renderClientCalendar(clientId){
     const isPast=date<today&&!isToday;
     const dow=(date.getDay()+6)%7;
     const isSun=dow===6;
-    const slots=!isCur||isPast?[]:[...(SCH[dow]||[]),(dateExtraSlots[dateStr]||[]).map(s=>s.time)].flat().filter((v,i,a)=>a.indexOf(v)===i).sort();
     const dateStr=localDateStr(date);
+    const slots=!isCur||isPast?[]:[...(SCH[dow]||[]),(dateExtraSlots[dateStr]||[]).map(s=>s.time)].flat().filter((v,i,a)=>a.indexOf(v)===i).sort();
     let slotsHtml='';
     slots.forEach(t=>{
       const key=dow+'_'+t;
@@ -2012,13 +2011,15 @@ function openBookModal(di, time){
 let currentPM='revolut';
 function selPM(m){
   currentPM=m;
+  const t=AL();
   ['revolut','cash','bank','card'].forEach(id=>{
     const el=document.getElementById('pm-'+id);
+    if(!el) return;
     el.classList.toggle('selected',id===m);
     el.classList.toggle('rev',id===m&&m==='revolut');
   });
-  document.getElementById('pay-submit-btn').textContent=
-    m==='revolut'?'Создать Revolut Payment Link ↗':'Сохранить платёж и активировать';
+  const sb=document.getElementById('pay-submit-btn');
+  if(sb) sb.textContent=m==='revolut'?t.paySubmitRev:t.paySubmit;
 }
 
 function updatePayAmt(){
@@ -2030,18 +2031,6 @@ function submitPayment(){
   const t=AL();
   if(currentPM==='revolut') toast(t.toastRevLink);
   else toast(t.toastPaySaved);
-}
-
-function selPM(m){
-  currentPM=m;
-  const t=AL();
-  ['revolut','cash','bank','card'].forEach(id=>{
-    const el=document.getElementById('pm-'+id);
-    el.classList.toggle('selected',id===m);
-    el.classList.toggle('rev',id===m&&m==='revolut');
-  });
-  const sb=document.getElementById('pay-submit-btn');
-  if(sb) sb.textContent=m==='revolut'?t.paySubmitRev:t.paySubmit;
 }
 
 function setPayFilter(f,btn){
@@ -2178,6 +2167,11 @@ function deletePayment(visIdx){
   renderPayments();
 }
 
+function openPayModalForClient(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId);
+  if(c) openPayModal(c.name);
+}
+
 function openPayModal(prefilledClient){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const sortedClients=CLIENTS.filter(c=>c.is_active!==false).sort((a,b)=>a.name.localeCompare(b.name));
@@ -2300,7 +2294,7 @@ function pamUpdateAmt(){
   if(val&&val!=='0') amt.value=val;
 }
 
-function submitPayModal(){
+async function submitPayModal(){
   const client=document.getElementById('pam-client')?.value||'';
   const typeVal=document.getElementById('pam-type')?.value||'8|120';
   const amt=parseFloat(document.getElementById('pam-amt')?.value||'0');
@@ -2316,15 +2310,45 @@ function submitPayModal(){
   const dateLabel=d.getDate()+' '+ruMo[d.getMonth()];
   const detail=(detailMap[classes]||'Другое')+(note?' · '+note:'');
   const isRevolut=window._pamMethod==='revolut';
-  PAYMENTS.unshift({
-    name:client, init, detail,
-    method:window._pamMethod||'cash',
-    amt, date:dateLabel,
-    status:isRevolut?'pending':'paid'
-  });
+  const method=window._pamMethod||'cash';
+  const clientRec=CLIENTS.find(x=>x.name===client);
+  const clientUuid=clientRec?._uuid||null;
+  if(sb && clientUuid){
+    try{
+      const subTypeMap={'8':'8','12':'12','1':'single'};
+      const totalMap={'8':8,'12':12,'1':1};
+      const subType=subTypeMap[classes]||null;
+      const totalClasses=totalMap[classes]||null;
+      let subUuid=null;
+      if(subType && totalClasses){
+        const expDate=new Date(date); expDate.setDate(expDate.getDate()+30);
+        const {data:sub}=await sb.from('subscriptions').insert({
+          studio_id:STUDIO_ID, client_id:clientUuid, type:subType,
+          total_classes:totalClasses, used_classes:0, price:amt,
+          paid_at:new Date().toISOString(), starts_at:date,
+          expires_at:expDate.toISOString().split('T')[0],
+          payment_method:method, is_active:true
+        }).select().single();
+        if(sub){
+          subUuid=sub.id;
+          if(clientRec && subType!=='single'){
+            clientRec._subUuid=subUuid; clientRec.type=subType;
+            clientRec.total=totalClasses; clientRec.left=totalClasses; clientRec.status='ok';
+          }
+        }
+      }
+      await sb.from('payments').insert({
+        studio_id:STUDIO_ID, client_id:clientUuid, subscription_id:subUuid,
+        amount:amt, method, status:isRevolut?'pending':'paid',
+        paid_at:isRevolut?null:new Date().toISOString(), notes:note||null
+      });
+    }catch(e){console.error('submitPayModal:',e.message);}
+  }
+  PAYMENTS.unshift({name:client,init,detail,method,amt,date:dateLabel,status:isRevolut?'pending':'paid'});
   closeModal('pay-add-modal');
   renderPayments();
-  toast(isRevolut?'Ссылка Revolut создана':'Платёж записан');
+  renderClients();
+  toast(isRevolut?L('Σύνδεσμος Revolut','Revolut link created','Ссылка Revolut создана'):L('Αποθηκεύτηκε','Payment saved','Платёж сохранён'));
 }
 
 // ── EXPENSES ─────────────────────────────────────────────────
