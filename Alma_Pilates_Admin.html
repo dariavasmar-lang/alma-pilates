@@ -698,7 +698,7 @@ function showPage(id){
   if(id==='expenses') renderExpenses();
   if(id==='taxes') renderTaxChart();
   if(id==='settings') renderSettings();
-  if(id==='cancellations'){ renderHolidayChips(); renderCancelList(); }
+  if(id==='cancellations'){ renderHolidayChips(); renderCancelInline(); }
   if(id==='dashboard') renderDashboard();
   // Remember current page in URL hash
   history.replaceState(null,'','#'+id);
@@ -954,6 +954,23 @@ function closeClientDetail(){
   document.querySelectorAll('#clients-table tr').forEach(r=>r.classList.remove('selected'));
 }
 
+async function deleteClient(id){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const c=CLIENTS.find(x=>x.id===id); if(!c) return;
+  if(!confirm(L(`Διαγραφή «${c.name}» οριστικά;`,`Permanently delete «${c.name}»?`,`Удалить «${c.name}» навсегда? Это действие нельзя отменить.`))) return;
+  try{
+    if(c._uuid&&sb){
+      const {error}=await sb.from('clients').delete().eq('id',c._uuid);
+      if(error) throw error;
+    }
+    const idx=CLIENTS.findIndex(x=>x.id===id);
+    if(idx>=0) CLIENTS.splice(idx,1);
+    closeClientDetail();
+    renderClients(); renderDashboard();
+    toast(L('Διαγράφηκε','Deleted','Удалён'));
+  }catch(e){toast('Error: '+e.message);}
+}
+
 async function archiveClient(id, archive){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const c=CLIENTS.find(x=>x.id===id); if(!c) return;
@@ -962,10 +979,12 @@ async function archiveClient(id, archive){
     :L(`Επαναφορά «${c.name}»;`,`Restore «${c.name}» from archive?`,`Восстановить «${c.name}» из архива?`);
   if(!confirm(msg)) return;
   try{
-    await sb.from('clients').update({
+    if(!sb||!c._uuid) throw new Error('Client not saved to DB yet');
+    const {error}=await sb.from('clients').update({
       is_archived:archive,
       archived_at:archive?new Date().toISOString():null
     }).eq('id',c._uuid);
+    if(error) throw error;
     c.isArchived=archive;
     closeClientDetail();
     renderClients();
@@ -1101,11 +1120,12 @@ function renderClientCard(c){
     <button class="btn dark" onclick="generateRevolutLink(${c.id})" style="width:100%;justify-content:center">⚡ ${L('Σύνδεσμος Revolut','Generate Revolut link','Ссылка Revolut')}</button>
   </div>
 
-  <div style="border-top:0.5px solid var(--border);padding-top:12px">
+  <div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
     ${c.isArchived
       ? `<button class="btn" onclick="archiveClient(${c.id},false)" style="width:100%;justify-content:center;color:var(--green)">↩ ${L('Επαναφορά από αρχείο','Restore from archive','Восстановить из архива')}</button>`
       : `<button class="btn" onclick="archiveClient(${c.id},true)" style="width:100%;justify-content:center;color:var(--text3)">📁 ${L('Μετακίνηση στο αρχείο','Move to archive','Переместить в архив')}</button>`
     }
+    <button class="btn danger" onclick="deleteClient(${c.id})" style="width:100%;justify-content:center">🗑 ${L('Διαγραφή πελάτη','Delete client','Удалить клиента')}</button>
   </div>`;
 
   renderClientCalendar(c.id);
@@ -1178,7 +1198,7 @@ function updateConfirmBar(clientId){
   const lbl=document.getElementById('ccal-confirm-lbl');
   if(!bar) return;
   if(pending.length===0){bar.style.display='none';}
-  else{bar.style.display='block';if(lbl)lbl.textContent=`Выбрано: ${pending.length} зан.`;}
+  else{bar.style.display='block';if(lbl){const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;lbl.textContent=`${L('Επιλεγμένα:','Selected:','Выбрано:')} ${pending.length} ${L('μαθ.','cl.','зан.')}`;} }
   refreshClientStats(clientId);
 }
 
@@ -1194,18 +1214,24 @@ function refreshClientStats(clientId){
 }
 
 function renderClientCalendarModal(clientId){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
   const modal=document.getElementById('client-cal-modal'); if(!modal) return;
   const offset=clientCalOffset[clientId]||0;
   const today=todayCY();
   const ref=new Date(today.getFullYear(),today.getMonth()+offset,1);
   const curM=ref.getMonth(), curY=ref.getFullYear();
-  const mn=ref.toLocaleString('ru-RU',{month:'long',year:'numeric'});
+  const locale=adminLang==='el'?'el-GR':adminLang==='en'?'en-US':'ru-RU';
+  const mn=ref.toLocaleString(locale,{month:'long',year:'numeric'});
   const monthLabel=mn.charAt(0).toUpperCase()+mn.slice(1);
   const pending=Object.keys(pendingSelections).filter(k=>k.startsWith(clientId+'_')&&pendingSelections[k]);
 
   const SCH=GSCHED;
-  const DAYS7=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const DAYS7=adminLang==='el'
+    ?['Δε','Τρ','Τε','Πε','Πα','Σα','Κυ']
+    :adminLang==='en'
+    ?['Mo','Tu','We','Th','Fr','Sa','Su']
+    :['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   const first=new Date(curY,curM,1);
   const startDow=(first.getDay()+6)%7;
   const cells=[];
@@ -1257,8 +1283,8 @@ function renderClientCalendarModal(clientId){
   modal.innerHTML=`<div style="background:var(--card);border-radius:16px;width:900px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.18)">
     <div style="padding:16px 20px;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
       <div>
-        <div style="font-size:14px;font-weight:500;color:var(--text)">Записать на занятия — ${c.name}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">Кликните на слоты → выберите нужные → Подтвердить</div>
+        <div style="font-size:14px;font-weight:500;color:var(--text)">${L(`Κράτηση μαθήματος — ${c.name}`,`Book a class — ${c.name}`,`Записать на занятия — ${c.name}`)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${L('Κάντε κλικ στις θέσεις → επιλέξτε → Επιβεβαίωση','Click slots → select → Confirm','Кликните на слоты → выберите нужные → Подтвердить')}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <button class="btn sm" onclick="shiftClientCal(-1,${clientId})" style="padding:4px 10px">‹</button>
@@ -1270,15 +1296,15 @@ function renderClientCalendarModal(clientId){
     <div style="overflow-y:auto;flex:1;padding:16px">${grid}</div>
     <div style="padding:12px 20px;border-top:0.5px solid var(--border);flex-shrink:0">
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent);display:inline-block"></span><span style="font-size:11px;color:var(--text2)">Записан</span></div>
-        <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:var(--warn-bg);border:1.5px dashed #D4B870;display:inline-block"></span><span style="font-size:11px;color:var(--text2)">Выбран</span></div>
-        <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:var(--red-bg);display:inline-block"></span><span style="font-size:11px;color:var(--text2)">Заполнено</span></div>
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent);display:inline-block"></span><span style="font-size:11px;color:var(--text2)">${L('Κρατημένο','Booked','Записан')}</span></div>
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:var(--warn-bg);border:1.5px dashed #D4B870;display:inline-block"></span><span style="font-size:11px;color:var(--text2)">${L('Επιλεγμένο','Selected','Выбран')}</span></div>
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:var(--red-bg);display:inline-block"></span><span style="font-size:11px;color:var(--text2)">${L('Γεμάτο','Full','Заполнено')}</span></div>
         <div style="flex:1"></div>
-        ${pending.length?`<span style="font-size:12px;color:var(--warn);font-weight:500" id="ccal-confirm-lbl">Выбрано: ${pending.length} зан.</span>`:'<span style="font-size:11px;color:var(--text3)" id="ccal-confirm-lbl">Выберите занятия в календаре</span>'}
+        ${pending.length?`<span style="font-size:12px;color:var(--warn);font-weight:500" id="ccal-confirm-lbl">${L('Επιλεγμένα:','Selected:','Выбрано:')} ${pending.length} ${L('μαθ.','cl.','зан.')}</span>`:`<span style="font-size:11px;color:var(--text3)" id="ccal-confirm-lbl">${L('Επιλέξτε μαθήματα','Select classes','Выберите занятия в календаре')}</span>`}
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn primary" onclick="confirmClientBookings(${clientId})" style="flex:1;justify-content:center" ${!pending.length?'disabled style="flex:1;justify-content:center;opacity:.4;cursor:default"':''}>Подтвердить запись</button>
-        <button class="btn" onclick="clearPendingSelections(${clientId})" style="justify-content:center">Сбросить выбор</button>
+        <button class="btn primary" onclick="confirmClientBookings(${clientId})" style="flex:1;justify-content:center" ${!pending.length?'disabled style="flex:1;justify-content:center;opacity:.4;cursor:default"':''}>${L('Επιβεβαίωση κράτησης','Confirm booking','Подтвердить запись')}</button>
+        <button class="btn" onclick="clearPendingSelections(${clientId})" style="justify-content:center">${L('Επαναφορά','Clear selection','Сбросить выбор')}</button>
       </div>
       <div id="ccal-confirm-bar" style="display:${pending.length?'block':'none'}"></div>
     </div>
@@ -1352,11 +1378,16 @@ function renderClientCalendar(clientId){
   const ref=new Date(today.getFullYear(),today.getMonth()+offset,1);
   const curM=ref.getMonth(), curY=ref.getFullYear();
   if(labelEl){
-    const mn=ref.toLocaleString('ru-RU',{month:'long',year:'numeric'});
+    const lLocale=adminLang==='el'?'el-GR':adminLang==='en'?'en-US':'ru-RU';
+    const mn=ref.toLocaleString(lLocale,{month:'long',year:'numeric'});
     labelEl.textContent=mn.charAt(0).toUpperCase()+mn.slice(1);
   }
   const SCH=GSCHED;
-  const DAYS7=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const DAYS7=adminLang==='el'
+    ?['Δε','Τρ','Τε','Πε','Πα','Σα','Κυ']
+    :adminLang==='en'
+    ?['Mo','Tu','We','Th','Fr','Sa','Su']
+    :['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   const first=new Date(curY,curM,1);
   const startDow=(first.getDay()+6)%7;
   const cells=[];
@@ -1475,13 +1506,20 @@ function generateRevolutLink(clientId){
   setTimeout(()=>el.remove(),5000);
 }
 
-function updateClientSubType(clientId,type){
+async function updateClientSubType(clientId,type){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const newTotal={8:8,12:12,single:1}[type]||8;
   const used=c.total-c.left;
-  c.type=type;
-  c.total={8:8,12:12,single:1}[type]||8;
-  c.left=Math.max(0,c.total-used);
-  toast('Тип абонемента обновлён');
+  const newLeft=Math.max(0,newTotal-used);
+  if(sb&&c._subUuid){
+    try{
+      const {error}=await sb.from('subscriptions').update({type,total_classes:newTotal,used_classes:Math.min(used,newTotal)}).eq('id',c._subUuid);
+      if(error) throw error;
+    }catch(e){toast('Error: '+e.message);return;}
+  }
+  c.type=type; c.total=newTotal; c.left=newLeft;
+  toast(L('Ενημερώθηκε','Subscription updated','Тип абонемента обновлён'));
   renderClientCard(c);
   renderClients();
 }
@@ -1846,7 +1884,10 @@ async function removeFromSlot(key,idx){
       }catch(e){console.error('booking delete:',e.message);}
     }
   }
-  if(currentSlot) openSlotDetail(currentSlot.di,currentSlot.time,currentSlot.dateStr);
+  if(currentSlot){
+    notifyWaitlistFirst(currentSlot.di, currentSlot.time, currentSlot.dateStr);
+    openSlotDetail(currentSlot.di, currentSlot.time, currentSlot.dateStr);
+  }
   renderSchedule();
   toast(adminLang==='ru'?'Запись удалена':adminLang==='en'?'Booking removed':'Αφαιρέθηκε');
 }
@@ -2316,7 +2357,7 @@ function openPayModal(prefilledClient){
   // Pre-fill client if provided
   if(prefilledClient){
     const si=document.getElementById('pam-client-search');
-    const hi=document.getElementById('pam-client-hidden');
+    const hi=document.getElementById('pam-client');
     if(si) si.value=prefilledClient;
     if(hi) hi.value=prefilledClient;
     pamFilterClients(prefilledClient);
@@ -2537,7 +2578,7 @@ function renderExpenses(){
         <div style="font-size:11px;color:var(--text3);margin-top:1px">${cat.name} · ${fmtISO(e.date)}</div>
       </div>
       <div style="font-size:13px;font-weight:600;color:var(--red);flex-shrink:0">−€${e.amt}</div>
-      <button onclick="deleteExpense(${e.id})" style="font-size:11px;padding:3px 7px;border:0.5px solid var(--border);border-radius:7px;background:transparent;cursor:pointer;color:var(--text3);flex-shrink:0">✕</button>
+      <button onclick="deleteExpense('${e.id}')" style="font-size:11px;padding:3px 7px;border:0.5px solid var(--border);border-radius:7px;background:transparent;cursor:pointer;color:var(--text3);flex-shrink:0">✕</button>
     </div>`;
   }).join('');
 }
@@ -2548,9 +2589,11 @@ function filterExpCat(key){
 }
 
 async function deleteExpense(id){
+  if(!sb){toast('DB not connected');return;}
   try{
-    await sb.from('studio_expenses').delete().eq('id',id);
-  }catch(e){console.warn('deleteExpense:',e);}
+    const {error}=await sb.from('studio_expenses').delete().eq('id',id);
+    if(error) throw error;
+  }catch(e){toast('Error: '+e.message);return;}
   EXPENSES=EXPENSES.filter(e=>e.id!==id);
   renderExpenses();
   renderDashboard();
@@ -3260,7 +3303,7 @@ function saveCancellation(){
   closeModal('cancel-modal');
   toast('Отмена добавлена!');
   renderHolidayChips();
-  renderCancelList();
+  renderCancelInline();
   renderSchedule();
 }
 
@@ -3347,15 +3390,7 @@ function closeSlotDetail(){
 }
 
 
-function removeFromSlot(slotKey, idx){
-  if(slotBookingsMap[slotKey]) slotBookingsMap[slotKey].splice(idx,1);
-  renderSchedule();
-  if(currentSlot){
-    notifyWaitlistFirst(currentSlot.di, currentSlot.time, currentSlot.dateStr);
-    openSlotDetail(currentSlot.di, currentSlot.time, currentSlot.dateStr);
-  }
-  toast(adminLang==='ru'?'Запись удалена':adminLang==='en'?'Removed':'Αφαιρέθηκε');
-}
+// removeFromSlot defined earlier (async, with DB delete + subscription restore)
 
 function openBookFromSlot(){
   if(!currentSlot){
@@ -3585,7 +3620,7 @@ async function dbLoad(){
       .select('*,subscriptions(*)')
       .eq('studio_id',STUDIO_ID)
       .order('created_at',{ascending:false});
-    if(error||!data||!data.length) return;
+    if(!error && data && data.length){
     CLIENTS.length=0;
     data.forEach((c,i)=>{
       const sub=c.subscriptions?.find(s=>s.is_active)||c.subscriptions?.[0];
@@ -3611,6 +3646,7 @@ async function dbLoad(){
     renderClients(); renderDashboard();
     await dbLoadScheduleData();
     dbLoadBookings();
+    } // end if(clients loaded)
 
     // Load expense categories from DB (overrides localStorage)
     try{
@@ -3668,29 +3704,43 @@ function isoFmt(iso){
 }
 
 // ── BALANCE ADJUST ────────────────────────────────────────────
-function adjustBalance(id,delta){
+async function adjustBalance(id,delta){
   const c=CLIENTS.find(x=>x.id===id); if(!c) return;
   const newLeft=Math.max(0,Math.min(c.total,c.left+delta));
   if(newLeft===c.left) return;
+  const newUsed=c.total-newLeft;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(sb&&c._subUuid){
+    try{
+      const {error}=await sb.from('subscriptions').update({used_classes:newUsed}).eq('id',c._subUuid);
+      if(error) throw error;
+    }catch(e){toast('Error: '+e.message);return;}
+  }
   c.left=newLeft;
   c.status=newLeft===0?'inactive':newLeft<=1?'danger':newLeft<=2?'warn':'ok';
-  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   toast(L(`Υπόλοιπο: ${newLeft}μ`,`Balance: ${newLeft}`,`Баланс: ${newLeft}`));
   selectClient(id); renderClients();
 }
 
 // ── UPDATE START DATE (end = start+30 auto) ───────────────────
-function updateClientStart(id,isoDate){
+async function updateClientStart(id,isoDate){
   const c=CLIENTS.find(x=>x.id===id); if(!c||!isoDate) return;
-  const p=isoDate.split('-');
-  c.start=p[2]+'/'+p[1];
   const end=new Date(isoDate); end.setDate(end.getDate()+30);
-  const ep=end.toISOString().split('T')[0].split('-');
-  c.nextPayment=ep[2]+'/'+ep[1]; c.expiresDate=end.toISOString().split('T')[0];
+  const expiresIso=end.toISOString().split('T')[0];
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(sb&&c._subUuid){
+    try{
+      const {error}=await sb.from('subscriptions').update({starts_at:isoDate,expires_at:expiresIso}).eq('id',c._subUuid);
+      if(error) throw error;
+    }catch(e){toast('Error: '+e.message);return;}
+  }
+  const p=isoDate.split('-');
+  c.start=p[2]+'/'+p[1]; c.startIso=isoDate;
+  const ep=expiresIso.split('-');
+  c.nextPayment=ep[2]+'/'+ep[1]; c.expiresDate=expiresIso;
   const days=Math.ceil((end-new Date())/(864e5));
   c.status=!c.left||c.left===0?'inactive':days<=7?'danger':days<=14?'warn':'ok';
   renderClients(); selectClient(id);
-  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   toast(L(`${c.start}→${c.nextPayment}`,`${c.start}→${c.nextPayment}`,`${c.start}→${c.nextPayment}`));
 }
 
@@ -4204,21 +4254,32 @@ async function saveNewClient(){
   saveBtn.disabled=true; saveBtn.textContent=L('...','...','...');
   try{
     let uuid=null;
+    let archiveSavedToDB=false;
     if(sb){
       const toArchive=!!window._newClientToArchive;
-      const {data,error}=await sb.from('clients').insert({
-        studio_id:STUDIO_ID,full_name:name,phone:phone||null,
-        language:lang,is_active:true,gdpr_consent:true,gdpr_consent_at:new Date().toISOString(),
-        is_archived:toArchive, archived_at:toArchive?new Date().toISOString():null
+      const baseFields={studio_id:STUDIO_ID,full_name:name,phone:phone||null,
+        language:lang,is_active:true,gdpr_consent:true,gdpr_consent_at:new Date().toISOString()};
+      // Try insert with archive fields; fall back without them if column doesn't exist yet
+      let data=null;
+      const r1=await sb.from('clients').insert({
+        ...baseFields, is_archived:toArchive, archived_at:toArchive?new Date().toISOString():null
       }).select().single();
-      if(!error&&data){
+      if(r1.error){
+        console.warn('saveNewClient insert w/ archive fields failed:',r1.error.message,'; retrying without');
+        const r2=await sb.from('clients').insert(baseFields).select().single();
+        if(r2.error){ console.error('saveNewClient insert failed:',r2.error.message); throw new Error(r2.error.message); }
+        data=r2.data;
+        // archive columns don't exist yet — keep client as active in DB
+        archiveSavedToDB=false;
+      } else { data=r1.data; archiveSavedToDB=toArchive; }
+      if(data){
         uuid=data.id;
         if(subType!=='none'){
           const priceMap={'8':120,'12':160,'single':25};
-          const total={'8':8,'12':12,'single':1}[subType]||8;
+          const totalCl={'8':8,'12':12,'single':1}[subType]||8;
           const end=new Date(startDate); end.setDate(end.getDate()+30);
           const {data:sub}=await sb.from('subscriptions').insert({
-            studio_id:STUDIO_ID,client_id:uuid,type:subType,total_classes:total,
+            studio_id:STUDIO_ID,client_id:uuid,type:subType,total_classes:totalCl,
             used_classes:0,price:priceMap[subType],paid_at:new Date().toISOString(),
             starts_at:startDate,expires_at:end.toISOString().split('T')[0],
             payment_method:method,is_active:true
@@ -4232,7 +4293,7 @@ async function saveNewClient(){
         }
       }
     }
-    // Add to local array
+    // Add to local array — numeric id for onclick safety, real UUID in _uuid for DB ops
     const sp=startDate.split('-');
     const endD=new Date(startDate); endD.setDate(endD.getDate()+30);
     const ep=endD.toISOString().split('T')[0].split('-');
@@ -4249,7 +4310,7 @@ async function saveNewClient(){
       expiresDate:subType==='none'?null:endD.toISOString().split('T')[0],
       paidAmt:subType==='none'?'—':{8:'€120',12:'€160',single:'€25'}[subType],
       status:subType==='none'?'inactive':'ok',history:[],isNew:true,
-      isArchived:!!window._newClientToArchive
+      isArchived:archiveSavedToDB
     });
     closeModal('new-client-modal');
     toast(L('Αποθηκεύτηκε!','Saved!','Клиент добавлен!'));
@@ -4263,7 +4324,7 @@ async function saveNewClient(){
 }
 
 let currentBookSlot=null;
-function confirmBooking(){
+async function confirmBooking(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   if(_bmTab==='new'){
     const name=(document.getElementById('bm-new-name')?.value||'').trim();
@@ -4272,8 +4333,19 @@ function confirmBooking(){
     const errEl=document.getElementById('bm-new-err');
     if(!name){errEl.textContent=L('Εισάγετε όνομα','Enter name','Введите имя');errEl.style.display='block';return;}
     errEl.style.display='none';
+    let newUuid=null;
+    if(sb){
+      try{
+        const {data,error}=await sb.from('clients').insert({
+          studio_id:STUDIO_ID,full_name:name,phone:phone||null,
+          language:lang,is_active:true,gdpr_consent:true,gdpr_consent_at:new Date().toISOString()
+        }).select().single();
+        if(error) throw error;
+        newUuid=data.id;
+      }catch(e){console.warn('confirmBooking new client save:',e.message);}
+    }
     CLIENTS.unshift({
-      id:Date.now()%99999, name,
+      id:Date.now()%99999, _uuid:newUuid, name,
       initials:name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
       phone, lang:lang.toUpperCase(),
       type:'—', left:0, total:0,

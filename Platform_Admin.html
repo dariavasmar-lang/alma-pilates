@@ -695,6 +695,7 @@ async function platformLogin(){
   const err=document.getElementById('adm-err');
   err.style.display='none';
   if(!email||!pass){err.textContent='Enter email and password';err.style.display='block';return;}
+  if(!sb){err.textContent='Database not available. Check internet connection.';err.style.display='block';return;}
   const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
   if(error){err.textContent='Wrong email or password';err.style.display='block';return;}
   const {data:pa}=await sb.from('platform_admins').select('name').eq('user_id',data.user.id).single();
@@ -1135,13 +1136,14 @@ async function updateTicketStatus(){
   const status=document.getElementById('ticket-status-sel').value;
   if(!currentTicketId) return;
   try{
-    await sb.from('support_tickets').update({status,updated_at:new Date().toISOString()}).eq('id',currentTicketId);
+    const {error}=await sb.from('support_tickets').update({status,updated_at:new Date().toISOString()}).eq('id',currentTicketId);
+    if(error) throw error;
     const t=TICKETS.find(x=>x.id===currentTicketId);
     if(t) t.status=status;
     renderSupport();
     renderDashboard();
     toast('Status updated ✓');
-  }catch(e){}
+  }catch(e){toast('Error: '+e.message);}
 }
 
 // ── EXPENSES ──────────────────────────────────────────────────
@@ -1304,11 +1306,13 @@ async function saveExpense(){
   };
   try{
     if(id){
-      await sb.from('platform_expenses').update(payload).eq('id',id);
+      const {error}=await sb.from('platform_expenses').update(payload).eq('id',id);
+      if(error) throw error;
       const i=EXPENSES.findIndex(e=>e.id===id);
       if(i>=0) EXPENSES[i]={...EXPENSES[i],...payload};
     } else {
-      const {data}=await sb.from('platform_expenses').insert(payload).select().single();
+      const {data,error}=await sb.from('platform_expenses').insert(payload).select().single();
+      if(error) throw error;
       if(data) EXPENSES.unshift(data);
     }
     closeModal('expense-modal');
@@ -1323,7 +1327,8 @@ async function deleteExpense(){
   if(!id) return;
   if(!confirm('Delete this expense?')) return;
   try{
-    await sb.from('platform_expenses').delete().eq('id',id);
+    const {error}=await sb.from('platform_expenses').delete().eq('id',id);
+    if(error) throw error;
     EXPENSES=EXPENSES.filter(e=>e.id!==id);
     closeModal('expense-modal');
     renderExpenses();

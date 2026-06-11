@@ -955,7 +955,7 @@ const CAP=4;
 // ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
-let lang='el', curTab='home', wkOff=0, monthOff=0, schView='week', selOpt=null, selSlot=null, obStep=0;
+let lang=(()=>{try{return localStorage.getItem('alma_lang')||'el';}catch(e){return 'el';}})(), curTab='home', wkOff=0, monthOff=0, schView='week', selOpt=null, selSlot=null, obStep=0;
 let bkCounts={};
 
 // ═══════════════════════════════════════════════════════════════
@@ -1074,6 +1074,7 @@ function toast2(msg){
 // ═══════════════════════════════════════════════════════════════
 function setLang(l){
   lang=l;
+  try{localStorage.setItem('alma_lang',l);}catch(e){}
   // update all lang buttons
   document.querySelectorAll('.lb').forEach(b=>{
     b.classList.toggle('on', b.textContent.toLowerCase()===l);
@@ -1282,7 +1283,10 @@ async function doOtp(){
     p_name:window._regName||'',
     p_lang:lang
   });
-  if(linkErr){toast2('Error linking profile: '+linkErr.message);return;}
+  if(linkErr){
+    await sb.auth.signOut(); sbUser=null;
+    toast2('Error linking profile: '+linkErr.message);return;
+  }
   if(!clientData){
     // Номер не найден в базе — доступ запрещён
     await sb.auth.signOut();
@@ -1530,6 +1534,8 @@ async function confirmBook(){
     if(!slot){toast2('Error: slot not found');return;}
     const clientId=sbProfile?.id;
     if(!clientId){toast2('Error: no client profile');return;}
+    const left=Math.max(0,sbBal.total-sbBal.used);
+    if(left<=0&&sbBal.subId){toast2(t().noClassesLeft||'No classes left');return;}
     const {error}=await sb.from('bookings').insert({client_id:clientId,slot_id:slot.id,studio_id:STUDIO_ID,subscription_id:sbBal.subId||null,class_date:dateStr,status:'booked'});
     if(error){toast2('Error: '+error.message);return;}
     if(sbBal.subId){
@@ -1588,7 +1594,7 @@ async function confirmCancel(){
     }
     toast2(selSlot.late?T.cancelLateOk:T.cancelOk);
     await refreshSchedule();
-    loadBalance();
+    await loadBalance();
   } else {
     const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
     if(!selSlot.late&&bkCounts[key]>0) bkCounts[key]--;
