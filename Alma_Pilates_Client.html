@@ -2,7 +2,13 @@
 <html lang="el">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<script>
+// Точная высота экрана — обходит iOS Safari баг с 100vh
+function setAppH(){document.documentElement.style.setProperty('--app-h',window.innerHeight+'px')}
+setAppH();
+window.addEventListener('resize',setAppH);
+</script>
 <title>Alma Pilates</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
@@ -17,8 +23,35 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display:flex;justify-content:center;padding:16px;min-height:100vh}
-.phone{width:390px;background:var(--bg);border-radius:20px;border:0.5px solid var(--border);overflow:hidden;display:flex;flex-direction:column;min-height:780px;position:relative;box-shadow:0 4px 32px rgba(44,35,24,.12)}
-.sbar{padding:10px 18px 4px;display:flex;justify-content:space-between;font-size:11px;color:var(--text3);flex-shrink:0}
+.phone{width:390px;background:var(--bg);border-radius:20px;border:0.5px solid var(--border);overflow:hidden;display:flex;flex-direction:column;height:780px;position:relative;box-shadow:0 4px 32px rgba(44,35,24,.12)}
+
+/* ── Mobile ── */
+@media (max-width:480px){
+  body{
+    display:block;
+    margin:0;padding:0;
+    background:var(--bg);
+  }
+  .phone{
+    width:100%;
+    border-radius:0;border:none;box-shadow:none;
+    /* высота задаётся через JS (--app-h) чтобы обойти iOS Safari баг */
+    height:var(--app-h,100vh);
+  }
+  .scroll{
+    flex:1;
+    min-height:0;
+    overflow-y:scroll;
+    -webkit-overflow-scrolling:touch;
+  }
+  .bnav{
+    flex-shrink:0;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .sbar{display:none}
+  .scr.center{min-height:0}
+}
+.sbar{display:none}
 .hdr{padding:10px 16px 11px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid var(--border);background:var(--card);flex-shrink:0}
 .logo{font-family:var(--serif);font-size:17px;color:var(--text)}
 .logo em{font-style:italic;color:var(--accent2)}
@@ -26,12 +59,12 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 .lb{font-size:10px;padding:2px 7px;border:0.5px solid var(--border);border-radius:20px;cursor:pointer;color:var(--text2);background:transparent;transition:all .15s}
 .lb.on{background:var(--accent);color:var(--bg);border-color:var(--accent)}
 .av{width:28px;height:28px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;border:0.5px solid var(--border);cursor:pointer}
-.scroll{flex:1;overflow-y:auto}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
 
 /* screens */
 .scr{display:none;flex-direction:column;gap:10px;padding:14px 16px}
 .scr.on{display:flex}
-.scr.center{justify-content:center;align-items:center;min-height:600px}
+.scr.center{justify-content:center;align-items:center;min-height:500px}
 #scr-schedule,#scr-profile{gap:8px;padding:12px 14px}
 
 /* bottom nav */
@@ -367,7 +400,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 
     <!-- PROFILE -->
     <div class="scr" id="scr-profile">
-      <div style="text-align:center;padding:2px 0 8px">
+      <div style="text-align:center;padding:2px 0 4px">
         <div style="width:50px;height:50px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:500;margin:0 auto 6px;border:0.5px solid var(--border)" id="pf-av">ΜΚ</div>
         <div style="font-family:var(--serif);font-size:16px;color:var(--text)" id="pf-name"></div>
         <div style="font-size:12px;color:var(--text3);margin-top:3px" id="pf-phone">+357 99 111222</div>
@@ -393,11 +426,11 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
       </div>
 
       <!-- MAP -->
-      <div style="margin-top:6px">
+      <div style="margin-top:2px">
         <div style="font-size:11px;font-weight:500;color:var(--text2);margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em" id="pf-map-lbl">Η τοποθεσία μας</div>
         <!-- Static map preview -->
         <div style="border-radius:12px;overflow:hidden;border:0.5px solid var(--border);position:relative;cursor:pointer" onclick="openSheet('sh-map')">
-          <div style="background:#E8E4DC;height:95px;display:flex;align-items:center;justify-content:center;position:relative">
+          <div style="background:#E8E4DC;height:70px;display:flex;align-items:center;justify-content:center;position:relative">
             <!-- Stylized map background -->
             <svg width="100%" height="95" viewBox="0 0 354 95" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0">
               <rect width="354" height="140" fill="#EDE7DA"/>
@@ -441,7 +474,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
       </div>
 
       <!-- FOOTER -->
-      <div style="margin-top:8px;padding:12px 0;border-top:0.5px solid var(--border)">
+      <div style="margin-top:4px;padding:8px 0;border-top:0.5px solid var(--border)">
         <div style="display:flex;justify-content:center;gap:16px;margin-bottom:8px">
           <a onclick="openSheet('sh-privacy')" style="font-size:11px;color:var(--accent);text-decoration:underline;cursor:pointer" id="ft-privacy">Privacy Policy</a>
           <a onclick="openSheet('sh-legal')" style="font-size:11px;color:var(--accent);text-decoration:underline;cursor:pointer" id="ft-legal">Legal Notice</a>
