@@ -335,7 +335,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
         <div class="slabel" id="h-sub-lbl"></div>
         <div class="stype" id="h-sub-type"></div>
         <div class="sdots" id="h-dots"></div>
-        <div class="smeta"><span id="h-left"></span><span>€120</span></div>
+        <div class="smeta"><span id="h-left"></span><span id="h-price">€120</span></div>
       </div>
       <div class="warn" id="h-warn"><div class="wi">!</div><span style="font-size:11px;color:var(--warn)" id="h-warn-txt"></span></div>
 
@@ -981,7 +981,8 @@ const SCH = {
   5:[{t:'09:30',tp:'mo'},{t:'10:30',tp:'mo'}],
 };
 const HIST=[{di:1,t:'07:00–08:00',date:'6 мая / 6 Μαΐου / May 6',s:'att'},{di:3,t:'17:30–18:30',date:'1 мая / 1 Μαΐου / May 1',s:'mis'},{di:1,t:'07:00–08:00',date:'29 апр / 29 Απρ / Apr 29',s:'att'}];
-const MINE_SET=new Set(['1_07:00','4_17:30']);
+const MINE_SET=new Set();
+let mineByDate={}; // "dateStr_time" → true, for month view
 const WAITLIST_SET=new Set();
 const CAP=4;
 
@@ -1038,6 +1039,25 @@ async function loadWeekBookings(){
   });
 }
 
+async function loadMonthBookings(){
+  if(!sbUser||sbUser.id==='demo') return;
+  const clientId=sbProfile?.id; if(!clientId) return;
+  const now=new Date(); const base=new Date(now.getFullYear(),now.getMonth()+monthOff,1);
+  const firstDay=localDateStr(new Date(base.getFullYear(),base.getMonth(),1));
+  const lastDay=localDateStr(new Date(base.getFullYear(),base.getMonth()+1,0));
+  const {data}=await sb.from('bookings')
+    .select('slot_id,class_date').eq('client_id',clientId)
+    .gte('class_date',firstDay).lte('class_date',lastDay)
+    .in('status',['booked','attended']);
+  mineByDate={};
+  (data||[]).forEach(b=>{
+    for(const [,slots] of Object.entries(SCH)){
+      const slot=slots.find(s=>s.id===b.slot_id);
+      if(slot){mineByDate[b.class_date+'_'+slot.t]=true;break;}
+    }
+  });
+}
+
 async function loadProfile(){
   if(!sbUser||sbUser.id==='demo') return;
   const {data}=await sb.from('clients').select('*').eq('user_id',sbUser.id).single();
@@ -1067,13 +1087,20 @@ async function loadBalance(){
   const total=sub?.total_classes||8;
   const used=sub?.used_classes||0;
   const left=Math.max(0,total-used);
-  sbBal={used,total,subId:sub?.id,startsAt:sub?.starts_at};
+  sbBal={used,total,subId:sub?.id,startsAt:sub?.starts_at,expiresAt:sub?.expires_at};
   const dots=$('h-dots');
   if(dots) dots.innerHTML=Array.from({length:total},(_,i)=>`<div class="sd ${i<used?'u':'l'}"></div>`).join('');
   const T=t();
   const since=sub?.starts_at?new Date(sub.starts_at+'T12:00:00').toLocaleDateString(lang==='el'?'el-GR':lang==='en'?'en-GB':'ru-RU',{day:'numeric',month:'long'}):'';
   tx('h-sub-type',total+' '+(lang==='el'?'μαθήματα':lang==='en'?'classes':'занятий')+(since?' · '+since:''));
   tx('h-left',left+T.subLeft);
+  const priceEl=$('h-price');
+  if(priceEl) priceEl.textContent=total===1?'€25':total===12?'€160':'€120';
+  const burnEl=document.getElementById('h-burn');
+  if(burnEl){
+    const daysLeft=sbBal.expiresAt?Math.ceil((new Date(sbBal.expiresAt+'T12:00:00')-new Date())/864e5):null;
+    burnEl.style.display=(left>0&&daysLeft!==null&&daysLeft<=14)?'flex':'none';
+  }
   const pfRows=$('pf-rows');
   if(pfRows){
     const rows=pfRows.querySelectorAll('.prow span:last-child');
@@ -1144,7 +1171,7 @@ function applyLang(){
   // burn warning - show when <= 14 days left on subscription
   const burnEl=document.getElementById('h-burn');
   const burnTxt=document.getElementById('h-burn-txt');
-  if(burnEl&&burnTxt){burnTxt.textContent=T.hBurn||'';burnEl.style.display='flex';}
+  if(burnEl&&burnTxt){burnTxt.textContent=T.hBurn||'';}
   tx('h-book',T.hBook); tx('h-book-s',T.hBookS);
   tx('h-pay',T.hPay); tx('h-pay-s',T.hPayS); tx('h-upcoming-lbl',T.hUpcoming);
   // rebuild greeting
@@ -1392,7 +1419,7 @@ function goTab(tab){
   });
   const sc=$('scroll'); if(sc&&tab!=='schedule') sc.scrollTop=0;
   if(tab==='home') buildUpcomingAsync();
-  if(tab==='schedule') loadWeekBookings().then(buildSchedule);
+  if(tab==='schedule'){ if(schView==='month') loadMonthBookings().then(buildMonthView); else loadWeekBookings().then(buildSchedule); }
   if(tab==='pay') buildPayOpts();
   if(tab==='profile'){ applyProfileUI(); buildProfileRows(); }
 }
@@ -1412,7 +1439,7 @@ function getWeekDates(){
 }
 
 async function shiftW(d){
-  if(schView==='month'){ monthOff+=d; buildMonthView(); }
+  if(schView==='month'){ monthOff+=d; await loadMonthBookings(); buildMonthView(); }
   else { wkOff+=d; await loadWeekBookings(); buildSchedule(); }
 }
 
@@ -1423,7 +1450,7 @@ function setSchView(mode){
   const leg=$('sch-legend');
   if(leg) leg.style.display=mode==='week'?'flex':'none';
   if(mode==='week') buildSchedule();
-  else buildMonthView();
+  else loadMonthBookings().then(buildMonthView);
 }
 
 function buildMonthView(){
@@ -1451,7 +1478,7 @@ function buildMonthView(){
     const dow=(date.getDay()+6)%7;
     const isSun=dow===6;
     const slots=isCur&&!isSun?(SCH[dow]||[]):[];
-    const hasMine=slots.some(s=>MINE_SET.has(dow+'_'+s.t));
+    const dateKey=localDateStr(date); const hasMine=slots.some(s=>mineByDate[dateKey+'_'+s.t]);
     const hasSlots=slots.length>0;
     const numColor=isSun?'var(--red)':'var(--text)';
     const onclick=isCur&&!isSun?`openDaySlots(${dow},new Date(${date.getTime()}))`:'';
@@ -1479,9 +1506,10 @@ function openDaySlots(dow,date){
   tx('shd-title',dateLabel);
   const dateMs=date.getTime();
   const isPastDay=localDateStr(date)<localDateStr(new Date());
+  const dayDateKey=localDateStr(date);
   const slotsHTML=slots.map(s=>{
     const key=dow+'_'+s.t;
-    const mine=MINE_SET.has(key);
+    const mine=MINE_SET.has(key)||!!mineByDate[dayDateKey+'_'+s.t];
     const onWait=WAITLIST_SET.has(key);
     const bk=bkCounts[wkOff+'_'+key]||0;
     const free=CAP-bk;
@@ -1812,10 +1840,13 @@ function buildProfileRows(){
   const T=t();
   const el=$('pf-rows');
   if(!el) return;
+  const _left=Math.max(0,sbBal.total-sbBal.used);
+  const _subTxt=sbBal.subId?(sbBal.total+' '+(lang==='el'?'μαθ.':lang==='en'?'cl.':'зан.')+' · '+_left+T.subLeft.trim()):'—';
+  const _startTxt=sbBal.startsAt?new Date(sbBal.startsAt+'T12:00:00').toLocaleDateString(lang==='el'?'el-GR':lang==='en'?'en-GB':'ru-RU',{day:'numeric',month:'long',year:'numeric'}):'—';
   const rows=[
-    [T.pfSub,'8 '+(lang==='el'?'μαθ.':lang==='en'?'cl.':'зан.')+' · 2'+T.subLeft.trim()],
-    [T.pfStart,lang==='el'?'2 Μαΐου 2026':lang==='en'?'May 2, 2026':'2 мая 2026'],
-    [T.pfAtt,'6'],
+    [T.pfSub,_subTxt],
+    [T.pfStart,_startTxt],
+    [T.pfAtt,sbBal.used>0?String(sbBal.used):'—'],
     [T.pfLang,lang==='el'?'Ελληνικά':lang==='en'?'English':'Русский'],
     [T.pfPay,'Revolut'],
   ];
