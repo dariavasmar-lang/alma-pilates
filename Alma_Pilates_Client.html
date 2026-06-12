@@ -1110,8 +1110,8 @@ async function loadBalance(){
 }
 
 async function refreshSchedule(){
-  await loadWeekBookings();
-  if(schView==='month') buildMonthView(); else buildSchedule();
+  if(schView==='month'){ await loadMonthBookings(); buildMonthView(); }
+  else { await loadWeekBookings(); buildSchedule(); }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1509,7 +1509,7 @@ function openDaySlots(dow,date){
   const dayDateKey=localDateStr(date);
   const slotsHTML=slots.map(s=>{
     const key=dow+'_'+s.t;
-    const mine=MINE_SET.has(key)||!!mineByDate[dayDateKey+'_'+s.t];
+    const mine=!!mineByDate[dayDateKey+'_'+s.t];
     const onWait=WAITLIST_SET.has(key);
     const bk=bkCounts[wkOff+'_'+key]||0;
     const free=CAP-bk;
@@ -1651,6 +1651,20 @@ async function confirmCancel(){
       await sb.from('bookings').update({status:'cancelled'}).eq('id',bk.id);
       if(!selSlot.late&&sbBal.subId){
         await sb.from('subscriptions').update({used_classes:Math.max(0,(sbBal.used||1)-1)}).eq('id',sbBal.subId);
+      }
+    } else if(selSlot.dateMs){
+      // Cancel from month view — bookingByKey only covers current week, query by date+slot
+      const dateStr=localDateStr(new Date(selSlot.dateMs));
+      const slot=SCH[selSlot.di]?.find(s=>s.t===selSlot.time);
+      const clientId=sbProfile?.id;
+      if(slot&&clientId){
+        const {data:bks}=await sb.from('bookings').select('id,subscription_id').eq('client_id',clientId).eq('slot_id',slot.id).eq('class_date',dateStr).eq('status','booked').limit(1);
+        if(bks&&bks[0]){
+          await sb.from('bookings').update({status:'cancelled'}).eq('id',bks[0].id);
+          if(!selSlot.late&&sbBal.subId){
+            await sb.from('subscriptions').update({used_classes:Math.max(0,(sbBal.used||1)-1)}).eq('id',sbBal.subId);
+          }
+        }
       }
     }
     toast2(selSlot.late?T.cancelLateOk:T.cancelOk);

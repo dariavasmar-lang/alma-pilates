@@ -693,7 +693,7 @@ function showPage(id){
   page.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>{if(n.textContent.trim().toLowerCase().includes(id.slice(0,4))||n.getAttribute('onclick')?.includes(id)) n.classList.add('active')});
   if(id==='clients') renderClients();
-  if(id==='schedule') renderSchedule();
+  if(id==='schedule'){ renderSchedule(); dbLoadBookings(); }
   if(id==='payments') renderPayments();
   if(id==='expenses') renderExpenses();
   if(id==='taxes') renderTaxChart();
@@ -3572,6 +3572,11 @@ function showApp(){
   const hash=location.hash.replace('#','');
   if(hash&&validPages.includes(hash)) showPage(hash);
   dbLoad();
+  // Auto-refresh bookings every 60s when schedule page is active
+  setInterval(()=>{
+    const active=document.querySelector('.page.active')?.id;
+    if(active==='page-schedule') dbLoadBookings();
+  },60000);
 }
 
 function adminLogout(){
