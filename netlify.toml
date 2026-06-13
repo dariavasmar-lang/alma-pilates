@@ -1,34 +1,42 @@
 [build]
   publish = "."
 
-# Clean URLs — serve HTML files without .html extension
-[[redirects]]
-  from = "/"
-  to = "/Alma_Pilates_Client.html"
-  status = 200
-
-[[redirects]]
-  from = "/admin"
-  to = "/Alma_Pilates_Admin.html"
-  status = 200
-
+# Platform Admin
 [[redirects]]
   from = "/platform"
   to = "/Platform_Admin.html"
   status = 200
 
-# Redirect old .html URLs to clean ones
+# Studio admin panel: /alma-pilates/admin → Admin HTML
+[[redirects]]
+  from = "/:slug/admin"
+  to = "/Alma_Pilates_Admin.html"
+  status = 200
+
+# Studio client app: /alma-pilates → Client HTML
+[[redirects]]
+  from = "/:slug"
+  to = "/Alma_Pilates_Client.html"
+  status = 200
+
+# Legacy redirects — old direct .html URLs → clean URLs
 [[redirects]]
   from = "/Alma_Pilates_Client.html"
-  to = "/"
+  to = "/alma-pilates"
   status = 301
 
 [[redirects]]
   from = "/Alma_Pilates_Admin.html"
-  to = "/admin"
+  to = "/alma-pilates/admin"
   status = 301
 
 [[redirects]]
   from = "/Platform_Admin.html"
   to = "/platform"
+  status = 301
+
+# Old clean URLs from before multi-studio
+[[redirects]]
+  from = "/admin"
+  to = "/alma-pilates/admin"
   status = 301
