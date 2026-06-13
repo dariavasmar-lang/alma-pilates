@@ -104,7 +104,10 @@
 <div id="page-clients" class="page" style="padding:0;display:none;flex-direction:row">
   <div style="flex:1;padding:24px;overflow-y:auto">
     <div class="page-header" id="clients-page-header"></div>
-    <input class="search-input" id="client-search" type="text" oninput="filterClients(this.value)">
+    <div style="position:relative;margin-bottom:10px">
+      <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none">🔍</span>
+      <input class="search-input" id="client-search" type="text" oninput="filterClients(this.value)" style="padding-left:32px;margin-bottom:0">
+    </div>
     <div class="filter-row" id="client-filters"></div>
     <div class="table-wrap">
       <table>
@@ -726,12 +729,14 @@ function renderClients(search=''){
   const filtered=CLIENTS.filter(c=>{
     const q=(search||'').toLowerCase();
     const ms=c.name.toLowerCase().includes(q)||(c.phone||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))||( q.startsWith('+')&&(c.phone||'').includes(q.slice(1)));
-    if(clientFilter==='archive') return ms&&c.isArchived;
-    if(c.isArchived) return false; // hide archived from all other filters
-    if(clientFilter==='warn') return ms&&(c.status==='warn'||c.status==='danger');
-    if(clientFilter==='active') return ms&&c.status!=='inactive';
-    if(clientFilter==='inactive') return ms&&c.status==='inactive';
-    return ms;
+    if(!ms) return false;
+    if(q) return true; // when searching — show ALL matching clients incl. archived
+    if(clientFilter==='archive') return c.isArchived;
+    if(c.isArchived) return false;
+    if(clientFilter==='warn') return c.status==='warn'||c.status==='danger';
+    if(clientFilter==='active') return c.status!=='inactive';
+    if(clientFilter==='inactive') return c.status==='inactive';
+    return true;
   });
   if(tbody) tbody.innerHTML=filtered.map(c=>{
     const pct=Math.round(c.left/c.total*100);
@@ -2055,7 +2060,7 @@ function renderPayments(){
             <div style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:10px;padding:10px 12px;border:0.5px solid #F59E0B44">
               <div style="width:36px;height:36px;border-radius:50%;background:#FEF3C7;color:#92400E;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.init}</div>
               <div style="flex:1;min-width:0">
-                <div style="font-size:13px;font-weight:500;color:var(--text)">${p.name}</div>
+                <div style="font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-decoration:underline;text-decoration-color:var(--border)" onclick="goToClient('${p.name}')">${p.name}</div>
                 <div style="font-size:11px;color:var(--text3);margin-top:1px">${p.detail}</div>
               </div>
               <div style="font-size:14px;font-weight:600;color:#92400E;flex-shrink:0">€${p.amt}</div>
@@ -2095,7 +2100,7 @@ function renderPayments(){
     <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:38px;height:38px;border-radius:50%;background:var(--bg3);color:var(--accent);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.init}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;color:var(--text)">${p.name}</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-decoration:underline;text-decoration-color:var(--border)" onclick="goToClient('${p.name}')">${p.name}</div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">${p.detail}</div>
       </div>
       <span style="font-size:10px;font-weight:500;padding:3px 9px;border-radius:20px;background:${mBg[p.method]||'var(--bg2)'};color:${mColor[p.method]||'var(--text2)'};flex-shrink:0">${mLabel[p.method]||p.method}</span>
@@ -2107,13 +2112,27 @@ function renderPayments(){
     </div>`).join('');
 }
 
+function goToClient(name){
+  const c=CLIENTS.find(x=>x.name===name||x.name.toLowerCase()===name.toLowerCase());
+  if(!c) return;
+  showPage('clients');
+  setTimeout(()=>selectClient(c.id),50);
+}
+
 function markPendingPaid(idx){
   const pending=PAYMENTS.filter(p=>p.status==='pending');
   const p=pending[idx];
   if(!p) return;
+  const now=new Date();
+  const ruMo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
   p.status='paid';
-  p.date=localDateStr(new Date());
+  p.date=now.getDate()+' '+ruMo[now.getMonth()];
   renderPayments();
+  if(sb && p._uuid){
+    sb.from('payments').update({status:'paid',paid_at:now.toISOString()}).eq('id',p._uuid).then(({error})=>{
+      if(error) console.warn('markPendingPaid DB:',error.message);
+    });
+  }
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   toast(p.name+' — '+L('πληρωμή επιβεβαιώθηκε','payment confirmed','платёж подтверждён'));
 }
@@ -2131,6 +2150,11 @@ function deletePayment(visIdx){
   const i=PAYMENTS.indexOf(target);
   if(i>-1) PAYMENTS.splice(i,1);
   renderPayments();
+  if(sb && target._uuid){
+    sb.from('payments').delete().eq('id',target._uuid).then(({error})=>{
+      if(error) console.warn('deletePayment DB:',error.message);
+    });
+  }
 }
 
 function openPayModalForClient(clientId){
@@ -2303,14 +2327,15 @@ async function submitPayModal(){
           }
         }
       }
-      await sb.from('payments').insert({
+      const {data:payInserted}=await sb.from('payments').insert({
         studio_id:STUDIO_ID, client_id:clientUuid, subscription_id:subUuid,
         amount:amt, method, status:isRevolut?'pending':'paid',
         paid_at:isRevolut?null:new Date().toISOString(), notes:note||null
-      });
+      }).select('id').single();
+      window._lastPayUuid=payInserted?.id||null;
     }catch(e){console.error('submitPayModal:',e.message);}
   }
-  PAYMENTS.unshift({name:client,init,detail,method,amt,date:dateLabel,status:isRevolut?'pending':'paid'});
+  PAYMENTS.unshift({name:client,init,detail,method,amt,date:dateLabel,status:isRevolut?'pending':'paid',_uuid:window._lastPayUuid||null});
   closeModal('pay-add-modal');
   renderPayments();
   renderClients();
@@ -3515,6 +3540,34 @@ async function dbLoad(){
         renderExpenses();
       }
     }catch(e){console.warn('load expenses:',e);}
+
+    // Load payments from DB
+    try{
+      const {data:payRows}=await sb.from('payments')
+        .select('id,amount,method,status,paid_at,notes,created_at,clients(full_name)')
+        .eq('studio_id',STUDIO_ID)
+        .order('created_at',{ascending:false})
+        .limit(300);
+      if(payRows){
+        const ruMo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+        const fmtPayDate=iso=>{if(!iso)return'—';const d=new Date(iso);return d.getDate()+' '+ruMo[d.getMonth()];};
+        PAYMENTS.length=0;
+        payRows.forEach(p=>{
+          const name=p.clients?.full_name||'—';
+          const init=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+          PAYMENTS.push({
+            _uuid:p.id,
+            name,init,
+            detail:p.notes||'',
+            method:p.method||'cash',
+            amt:parseFloat(p.amount)||0,
+            date:fmtPayDate(p.paid_at||p.created_at),
+            status:p.status||'paid'
+          });
+        });
+        renderPayments();
+      }
+    }catch(e){console.warn('load payments:',e);}
 
   }catch(e){console.error('dbLoad:',e.message);}
 }
