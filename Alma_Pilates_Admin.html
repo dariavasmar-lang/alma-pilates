@@ -2852,7 +2852,7 @@ const ADMIN_I18N = I18N;
 
 
 // ── SUPABASE — см. js/supabase-init.js ───────────────────────
-const STUDIO_ID='a0000000-0000-0000-0000-000000000001';
+let STUDIO_ID = null; // resolved after login via my_studio_id() RPC
 
 async function adminLogin(){
   const email=document.getElementById('adm-email').value.trim();
@@ -2863,8 +2863,9 @@ async function adminLogin(){
   const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
   if(error){err.textContent='Неверный email или пароль';err.style.display='block';return;}
   // Check admin_users
-  const {data:admin}=await sb.from('admin_users').select('role').eq('user_id',data.user.id).single();
+  const {data:admin}=await sb.from('admin_users').select('role,studio_id').eq('user_id',data.user.id).single();
   if(!admin){await sb.auth.signOut();err.textContent='Нет доступа к панели управления';err.style.display='block';return;}
+  STUDIO_ID = admin.studio_id;
   showApp();
 }
 
@@ -2898,8 +2899,9 @@ async function checkAdminSession(){
     return;
   }
   // Verify user is an admin
-  const {data}=await sb.from('admin_users').select('role').eq('user_id',session.user.id).single();
+  const {data}=await sb.from('admin_users').select('role,studio_id').eq('user_id',session.user.id).single();
   if(data){
+    STUDIO_ID = data.studio_id;
     showApp();
   } else {
     await sb.auth.signOut();
@@ -2921,7 +2923,7 @@ async function testConnection(){
 }
 
 async function dbLoad(){
-  if(!sb) return;
+  if(!sb || !STUDIO_ID) return;
   try{
     // Load schedule slots: rebuild GSCHED + scheduleSlotIds
     // Try with valid_from (if migration ran), fallback without it
