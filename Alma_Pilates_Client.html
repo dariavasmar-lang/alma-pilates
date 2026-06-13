@@ -545,7 +545,23 @@ window.addEventListener('resize',setAppH);
 <script>
 // ═══════════════════════════════════════════════════════════════
 // SUPABASE — см. js/supabase-init.js
-const STUDIO_ID='a0000000-0000-0000-0000-000000000001';
+let STUDIO_ID = null;
+let STUDIO_CONFIG = null; // full studio row from DB
+
+// Resolve studio from URL slug: /alma-pilates → slug = 'alma-pilates'
+async function resolveStudio(){
+  const slug = location.pathname.split('/').filter(Boolean)[0];
+  if(!slug || !sb) return false;
+  try{
+    const {data, error} = await sb.rpc('get_studio_by_slug', {p_slug: slug});
+    if(error || !data) return false;
+    const studio = typeof data === 'string' ? JSON.parse(data) : data;
+    STUDIO_ID = studio.id;
+    STUDIO_CONFIG = studio;
+    return true;
+  }catch(e){ console.error('resolveStudio:', e); return false; }
+}
+
 let sbUser=null, sbProfile=null, sbPhone='', isNewUser=false;
 let sbBal={used:0,total:8};
 let bookingByKey=new Map(); // "dow_time" → {id,class_id,date}
@@ -931,7 +947,8 @@ async function doOtp(){
     p_phone:sbPhone,
     p_user_id:sbUser.id,
     p_name:window._regName||'',
-    p_lang:lang
+    p_lang:lang,
+    p_studio_id:STUDIO_ID
   });
   if(linkErr){
     await sb.auth.signOut(); sbUser=null;
@@ -1494,6 +1511,13 @@ window.onOtp=function(el,idx){
 // ═══════════════════════════════════════════════════════════════
 sb.auth.onAuthStateChange(async(event,session)=>{
   if(event==='INITIAL_SESSION'){
+    // Resolve studio from URL before doing anything
+    const studioOk = await resolveStudio();
+    if(!studioOk){
+      // Studio not found — show error
+      document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#888">Studio not found</div>';
+      return;
+    }
     if(session){
       // Only restore session for phone-auth users (not admin email sessions)
       if(session.user.phone){
