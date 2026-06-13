@@ -1214,10 +1214,18 @@ async function confirmBook(){
     if(sbBal.subId){
       const newUsed=(sbBal.used||0)+1;
       await sb.from('subscriptions').update({used_classes:newUsed}).eq('id',sbBal.subId);
-      sbBal.used=newUsed; // immediately update local balance so UI reflects change
+      sbBal.used=newUsed;
+      // Update UI directly from local sbBal — avoid re-fetching stale DB data
+      const _T=tr();
+      const _left=Math.max(0,sbBal.total-sbBal.used);
+      const _dots=$('h-dots');
+      if(_dots) _dots.innerHTML=Array.from({length:sbBal.total},(_,i)=>`<div class="sd ${i<sbBal.used?'u':'l'}"></div>`).join('');
+      tx('h-left',_left+_T.subLeft);
     }
     toast2(tr().bookOk);
-    await Promise.all([refreshSchedule(), loadBalance()]);
+    await refreshSchedule();
+    // Sync balance with DB in background after short delay
+    setTimeout(()=>loadBalance(), 1500);
   } else {
     const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
     bkCounts[key]=(bkCounts[key]||0)+1;
