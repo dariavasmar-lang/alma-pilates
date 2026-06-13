@@ -764,7 +764,7 @@ function renderClients(search=''){
   const tbody=document.getElementById('clients-table');
   const filtered=CLIENTS.filter(c=>{
     const q=(search||'').toLowerCase();
-    const ms=c.name.toLowerCase().includes(q)||(c.phone||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))||( q.startsWith('+')&&(c.phone||'').includes(q.slice(1)));
+    const ms=(c.name||'').toLowerCase().includes(q)||(c.phone||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))||( q.startsWith('+')&&(c.phone||'').includes(q.slice(1)));
     if(!ms) return false;
     if(q) return true; // when searching — show ALL matching clients incl. archived
     if(clientFilter==='archive') return c.isArchived;
@@ -2969,8 +2969,8 @@ async function dbLoad(){
       CLIENTS.push({
         id:i+1,_uuid:c.id,
         _subUuid:sub?.id||null,
-        name:c.full_name,
-        initials:c.full_name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+        name:c.full_name||'',
+        initials:(c.full_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
         phone:c.phone||'',lang:(c.language||'el').toUpperCase(),
         type:sub?.type||'8',left,total,
         start:sub?.starts_at?isoFmt(sub.starts_at):'—',
@@ -2980,6 +2980,7 @@ async function dbLoad(){
         paidAmt:sub?'€'+sub.price:'—',
         status:!c.is_active?'inactive':!sub?'inactive':left<=1?'danger':left<=2?'warn':'ok',
         isArchived:!!c.is_archived,
+        isNew:i===0,
         history:[]
       });
     });
