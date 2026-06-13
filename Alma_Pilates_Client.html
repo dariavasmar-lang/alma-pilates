@@ -1014,7 +1014,6 @@ async function loadWeekBookings(){
   if(!clientId) return;
   const dates=getWeekDates().map(d=>localDateStr(d));
   const {data:myBks}=await sb.from('bookings').select('id,slot_id,class_date,subscription_id,status').eq('client_id',clientId).in('class_date',dates).in('status',['booked','attended']);
-  console.log('[loadWeekBookings] wkOff='+wkOff+' dates='+dates[0]+'..'+dates[dates.length-1]+' found='+(myBks||[]).length, myBks||[]);
   MINE_SET.clear(); bookingByKey.clear();
   (myBks||[]).forEach(b=>{
     for(const [dow,slots] of Object.entries(SCH)){
@@ -1441,7 +1440,12 @@ function getWeekDates(){
 
 async function shiftW(d){
   if(schView==='month'){ monthOff+=d; await loadMonthBookings(); buildMonthView(); }
-  else { wkOff+=d; await loadWeekBookings(); buildSchedule(); }
+  else {
+    wkOff+=d;
+    if(!sbUser||sbUser.id==='demo') MINE_SET.clear(); // demo: bookings don't persist across weeks
+    else await loadWeekBookings();
+    buildSchedule();
+  }
 }
 
 function setSchView(mode){
