@@ -680,7 +680,7 @@ async function loadBalance(){
   sbBal={used,total,subId:sub?.id,startsAt:sub?.starts_at,expiresAt:sub?.expires_at};
   const dots=$('h-dots');
   if(dots) dots.innerHTML=Array.from({length:total},(_,i)=>`<div class="sd ${i<used?'u':'l'}"></div>`).join('');
-  const T=t();
+  const T=tr();
   const since=sub?.starts_at?new Date(sub.starts_at+'T12:00:00').toLocaleDateString(lang==='el'?'el-GR':lang==='en'?'en-GB':'ru-RU',{day:'numeric',month:'long'}):'';
   tx('h-sub-type',total+' '+(lang==='el'?'μαθήματα':lang==='en'?'classes':'занятий')+(since?' · '+since:''));
   tx('h-left',left+T.subLeft);
@@ -733,7 +733,7 @@ function setLang(l){
 }
 
 function applyLang(){
-  const T=t();
+  const T=tr();
   // Welcome
   tx('w-city',T.wCity); tx('w-desc',T.wDesc);
   tx('w-reg-btn',T.wReg); tx('w-login-btn',T.wLogin);
@@ -854,7 +854,7 @@ function go(name){
 // AUTH
 // ═══════════════════════════════════════════════════════════════
 async function doRegister(){
-  const T=t();
+  const T=tr();
   const name=$('r-name').value.trim();
   const rawPhone=$('r-phone').value.trim();
   const termsOk=$('cb-terms').checked, gdprOk=$('cb-gdpr').checked;
@@ -1049,7 +1049,7 @@ function setSchView(mode){
 }
 
 function buildMonthView(){
-  const T=t();
+  const T=tr();
   const now=new Date(); const base=new Date(now.getFullYear(),now.getMonth()+monthOff,1);
   const year=base.getFullYear(), month=base.getMonth();
   const mn=base.toLocaleString(lang==='el'?'el-GR':lang==='en'?'en-GB':'ru-RU',{month:'long',year:'numeric'});
@@ -1095,7 +1095,7 @@ function buildMonthView(){
 }
 
 function openDaySlots(dow,date){
-  const T=t();
+  const T=tr();
   const slots=SCH[dow]||[];
   const dateLabel=T.days[dow]+', '+date.getDate()+' '+T.months[date.getMonth()];
   tx('shd-title',dateLabel);
@@ -1124,7 +1124,7 @@ function openDaySlots(dow,date){
 }
 
 function buildSchedule(){
-  const T=t();
+  const T=tr();
   const dates=getWeekDates();
   const d0=dates[0], d5=dates[5];
   tx('w-lbl', d0.getDate()+' '+T.months[d0.getMonth()]+' — '+d5.getDate()+' '+T.months[d5.getMonth()]);
@@ -1171,7 +1171,7 @@ async function openBookSheet(di,time,free,dateMs){
   const date=dateMs?new Date(dateMs):getWeekDates()[di];
   if(localDateStr(date)<localDateStr(new Date())){return;}
   selSlot={di,time,free,dateMs};
-  const T=t();
+  const T=tr();
   tx('shb-title',T.shbTitle);
   tx('shb-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
   openSheet('sh-book');
@@ -1222,7 +1222,7 @@ function openCancelSheet(di,time,dateMs){
   const date=dateMs?new Date(dateMs):getWeekDates()[di];
   const late=isLateCancellation(date,time);
   selSlot={di,time,dateMs,late};
-  const T=t();
+  const T=tr();
   tx('shc-title',T.shcTitle);
   tx('shc-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
   const warn=$('shc-warn');
@@ -1241,7 +1241,7 @@ function openCancelSheet(di,time,dateMs){
 
 async function confirmCancel(){
   closeSheet('sh-cancel');
-  const T=t();
+  const T=tr();
   if(sbUser&&sbUser.id!=='demo'){
     const bk=bookingByKey.get(selSlot.di+'_'+selSlot.time);
     if(bk){
@@ -1296,7 +1296,7 @@ async function joinWaitlist(di,time){
 // PAY
 // ═══════════════════════════════════════════════════════════════
 function buildPayOpts(){
-  const T=t();
+  const T=tr();
   const opts=[
     {k:'single',price:25,title:T.pSingle,sub:T.pSingleS},
     {k:'sub8',price:120,title:T.p8,sub:T.p8S},
@@ -1315,7 +1315,7 @@ function buildPayOpts(){
 
 function selPay(k,title,price){
   selOpt=k;
-  const T=t();
+  const T=tr();
   tx('shp-desc',title);
   tx('shp-price','€'+price);
   buildPayOpts();
@@ -1356,7 +1356,7 @@ function getUpcomingClasses(){
 }
 
 function buildUpcoming(){
-  const T=t();
+  const T=tr();
   const el=$('h-upcoming');
   if(!el) return;
   const upcoming=getUpcomingClasses();
@@ -1379,7 +1379,7 @@ function buildUpcoming(){
 
 async function buildUpcomingAsync(){
   if(!sbUser||sbUser.id==='demo'){buildUpcoming();return;}
-  const T=t();const el=$('h-upcoming');if(!el) return;
+  const T=tr();const el=$('h-upcoming');if(!el) return;
   const clientId=sbProfile?.id;
   if(!clientId){buildUpcoming();return;}
   const today=localDateStr(new Date());
@@ -1416,7 +1416,7 @@ function setPfTab(tab){
 }
 
 function buildHistPanel(){
-  const T=t(); const el=$('pf-hist'); if(!el) return;
+  const T=tr(); const el=$('pf-hist'); if(!el) return;
   el.innerHTML=HIST.map(h=>`<div class="hrow">
     <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${h.s==='att'?'var(--green)':'var(--red)'}"></div>
     <div style="flex:1"><div style="font-size:12px;color:var(--text)">${h.t} · ${T.days[h.di]}</div>
@@ -1427,7 +1427,7 @@ function buildHistPanel(){
 
 async function buildHistPanelAsync(){
   if(!sbUser||sbUser.id==='demo'){buildHistPanel();return;}
-  const T=t();const el=$('pf-hist');if(!el) return;
+  const T=tr();const el=$('pf-hist');if(!el) return;
   const clientId=sbProfile?.id;if(!clientId) return;
   const today=localDateStr(new Date());
   const {data}=await sb.from('bookings').select('slot_id,class_date,status').eq('client_id',clientId).lt('class_date',today).order('class_date',{ascending:false}).limit(10);
@@ -1448,7 +1448,7 @@ async function buildHistPanelAsync(){
 }
 
 function buildProfileRows(){
-  const T=t();
+  const T=tr();
   const el=$('pf-rows');
   if(!el) return;
   const _left=Math.max(0,sbBal.total-sbBal.used);
