@@ -1,0 +1,34 @@
+[build]
+  publish = "."
+
+# Clean URLs — serve HTML files without .html extension
+[[redirects]]
+  from = "/"
+  to = "/Alma_Pilates_Client.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin"
+  to = "/Alma_Pilates_Admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/platform"
+  to = "/Platform_Admin.html"
+  status = 200
+
+# Redirect old .html URLs to clean ones
+[[redirects]]
+  from = "/Alma_Pilates_Client.html"
+  to = "/"
+  status = 301
+
+[[redirects]]
+  from = "/Alma_Pilates_Admin.html"
+  to = "/admin"
+  status = 301
+
+[[redirects]]
+  from = "/Platform_Admin.html"
+  to = "/platform"
+  status = 301
