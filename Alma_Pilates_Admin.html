@@ -764,7 +764,8 @@ function renderClients(search=''){
   const tbody=document.getElementById('clients-table');
   const filtered=CLIENTS.filter(c=>{
     const q=(search||'').toLowerCase();
-    const ms=(c.name||'').toLowerCase().includes(q)||(c.phone||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))||( q.startsWith('+')&&(c.phone||'').includes(q.slice(1)));
+    const phoneQuery=q.replace(/\D/g,'');
+    const ms=(c.name||'').toLowerCase().includes(q)||(phoneQuery.length>0&&(c.phone||'').replace(/\D/g,'').includes(phoneQuery))||( q.startsWith('+')&&(c.phone||'').includes(q.slice(1)));
     if(!ms) return false;
     if(q) return true; // when searching — show ALL matching clients incl. archived
     if(clientFilter==='archive') return c.isArchived;
