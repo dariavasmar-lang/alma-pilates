@@ -417,7 +417,7 @@ const I18N = {
 
 // Returns translation for key in given language.
 // Falls back to [key] so missing translations are visible immediately.
-function t(key, lang) {
+function i18n(key, lang) {
   const locale = I18N[lang] || I18N['en'];
   return locale[key] !== undefined ? locale[key] : `[${key}]`;
 }
