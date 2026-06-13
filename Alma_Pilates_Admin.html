@@ -709,7 +709,7 @@ function renderClients(search=''){
   const ff=document.getElementById('client-filters');
   if(ff) ff.innerHTML=`
     <button class="fp ${clientFilter==='all'?'active':''}" onclick="setClientFilter('all',this)">${t.allClients||'All'}</button>
-    <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">${t.warningClients||'⚠ Expiring'}${(()=>{const n=CLIENTS.filter(c=>c.status==='warn'||c.status==='danger').length;return n?` (${n})`:''})()}</button>
+    <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">${t.warningClients||'⚠ Expiring'}${(()=>{const n=CLIENTS.filter(c=>!c.isArchived&&(c.status==='warn'||c.status==='danger')).length;return n?` (${n})`:''})()}</button>
     <button class="fp ${clientFilter==='active'?'active':''}" onclick="setClientFilter('active',this)">${t.activeClients||'Active'}</button>
     <button class="fp ${clientFilter==='inactive'?'active':''}" onclick="setClientFilter('inactive',this)">${t.inactiveClients||'Inactive'}</button>
     <button class="fp ${clientFilter==='archive'?'active':''}" onclick="setClientFilter('archive',this)">📁 ${L('Αρχείο','Archive','Архив')}${archivedCount?` (${archivedCount})`:''}</button>`;
@@ -3224,7 +3224,11 @@ function openSlotDetail(di, time, dateStr){
   const cancelled = isSlotCancelled(di, time, new Date(dateStr));
   const btnCancel = document.getElementById('sdp-btn-cancel');
   const btnBook = document.getElementById('sdp-btn-book');
+  const isPastDate = dateStr < localDateStr(new Date());
   btnBook.textContent = adminLang==='el'?'+ Προσθήκη κράτησης':adminLang==='en'?'+ Add booking':'+ Записать клиента';
+  btnBook.disabled = isPastDate;
+  btnBook.style.opacity = isPastDate ? '0.4' : '';
+  btnBook.style.cursor = isPastDate ? 'not-allowed' : '';
   
   if(cancelled){
     btnCancel.textContent = adminLang==='el'?'Αναίρεση ακύρωσης':adminLang==='en'?'Restore class':'Восстановить занятие';
@@ -4255,6 +4259,10 @@ async function saveNewClient(){
 let currentBookSlot=null;
 async function confirmBooking(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(currentSlot && currentSlot.dateStr < localDateStr(new Date())){
+    toast(L('Δεν μπορείτε να κάνετε κράτηση για παρελθοντική ημερομηνία','Cannot book a past date','Нельзя записать на прошедшую дату'));
+    return;
+  }
   if(_bmTab==='new'){
     const name=(document.getElementById('bm-new-name')?.value||'').trim();
     const phone=(document.getElementById('bm-new-phone')?.value||'').trim();
