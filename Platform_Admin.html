@@ -263,6 +263,16 @@
         <!-- Left col -->
         <div>
           <div class="card">
+            <div class="card-head">App URLs</div>
+            <div id="detail-urls"></div>
+          </div>
+          <div class="card">
+            <div class="card-head">Admin users
+              <button class="btn sm primary" onclick="openAdminUserModal()">+ Add admin</button>
+            </div>
+            <div id="detail-admin-users"><div style="color:var(--text3);font-size:12px;padding:8px 0">Loading...</div></div>
+          </div>
+          <div class="card">
             <div class="card-head">Contact info</div>
             <div id="detail-contacts"></div>
           </div>
@@ -314,8 +324,12 @@
     </div>
     <input type="hidden" id="sm-id">
     <div class="form-grid" style="margin-bottom:10px">
-      <div class="ff"><label>Studio name *</label><input id="sm-name" placeholder="Alma Pilates Studio"></div>
+      <div class="ff"><label>Studio name *</label><input id="sm-name" placeholder="Alma Pilates Studio" oninput="autoSlug()"></div>
       <div class="ff"><label>City</label><input id="sm-city" placeholder="Limassol, Cyprus"></div>
+    </div>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="ff"><label>URL slug *</label><input id="sm-slug" placeholder="alma-pilates"></div>
+      <div class="ff"><label>Logo URL</label><input id="sm-logo" placeholder="https://..."></div>
     </div>
     <div class="form-grid" style="margin-bottom:10px">
       <div class="ff"><label>Contact person</label><input id="sm-contact" placeholder="Name, role"></div>
@@ -511,6 +525,37 @@
   </div>
 </div>
 
+<!-- ADMIN USER MODAL -->
+<div class="modal-overlay" id="admin-user-modal">
+  <div class="modal" style="width:420px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-family:var(--serif);font-size:17px">Add admin user</div>
+      <button onclick="closeModal('admin-user-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
+    </div>
+    <div class="ff" style="margin-bottom:10px">
+      <label>Email *</label>
+      <input id="aum-email" type="email" placeholder="admin@studio.com">
+    </div>
+    <div class="ff" style="margin-bottom:10px">
+      <label>Temporary password *</label>
+      <input id="aum-password" type="password" placeholder="Min 6 characters">
+    </div>
+    <div class="ff" style="margin-bottom:16px">
+      <label>Role</label>
+      <select id="aum-role">
+        <option value="owner">Owner</option>
+        <option value="admin" selected>Admin</option>
+        <option value="trainer">Trainer</option>
+      </select>
+    </div>
+    <div id="aum-err" style="display:none;color:var(--red);font-size:12px;margin-bottom:12px;padding:8px;background:rgba(220,50,50,.08);border-radius:8px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('admin-user-modal')">Cancel</button>
+      <button class="btn primary" onclick="createAdminUser()">Create user</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -536,10 +581,11 @@ async function platformLogin(){
   if(!sb){err.textContent='Database not available. Check internet connection.';err.style.display='block';return;}
   const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
   if(error){err.textContent='Wrong email or password';err.style.display='block';return;}
-  const {data:pa}=await sb.from('platform_admins').select('name').eq('user_id',data.user.id).single();
+  const {data:pa}=await sb.from('platform_admins').select('user_id').eq('user_id',data.user.id).single();
   if(!pa){err.textContent='No platform admin access';err.style.display='block';await sb.auth.signOut();return;}
-  document.getElementById('sidebar-name').textContent=pa.name||email.split('@')[0];
-  document.getElementById('sidebar-avatar').textContent=(pa.name||email)[0].toUpperCase();
+  const displayName=email.split('@')[0];
+  document.getElementById('sidebar-name').textContent=displayName;
+  document.getElementById('sidebar-avatar').textContent=displayName[0].toUpperCase();
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   await loadAll();
@@ -613,6 +659,16 @@ function fmtPeriod(p){
   const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return (mo[parseInt(m)-1]||m)+' '+y;
 }
+function autoSlug(){
+  // Auto-fill slug from name only if slug is empty or was auto-generated
+  const nameEl=document.getElementById('sm-name');
+  const slugEl=document.getElementById('sm-slug');
+  if(!document.getElementById('sm-id').value) { // only on new studio
+    slugEl.value=nameEl.value.trim().toLowerCase()
+      .replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-');
+  }
+}
+
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function toast(msg){
   const t=document.getElementById('toast');
@@ -753,6 +809,8 @@ function openStudioModal(id){
   document.getElementById('sm-id').value=id||'';
   document.getElementById('sm-name').value=s?.name||'';
   document.getElementById('sm-city').value=s?.city||'';
+  document.getElementById('sm-slug').value=s?.slug||'';
+  document.getElementById('sm-logo').value=s?.logo_url||'';
   document.getElementById('sm-contact').value=s?.contact_name||'';
   document.getElementById('sm-whatsapp').value=s?.whatsapp||s?.phone||'';
   document.getElementById('sm-email').value=s?.email||'';
@@ -768,8 +826,11 @@ function openStudioModal(id){
 
 async function saveStudio(){
   const id=document.getElementById('sm-id').value;
+  const slug=document.getElementById('sm-slug').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-');
   const payload={
     name:document.getElementById('sm-name').value.trim(),
+    slug:slug,
+    logo_url:document.getElementById('sm-logo').value.trim()||null,
     city:document.getElementById('sm-city').value.trim(),
     contact_name:document.getElementById('sm-contact').value.trim(),
     whatsapp:document.getElementById('sm-whatsapp').value.trim(),
@@ -783,13 +844,13 @@ async function saveStudio(){
     platform_notes:document.getElementById('sm-notes').value.trim()
   };
   if(!payload.name){toast('Studio name is required');return;}
+  if(!payload.slug){toast('URL slug is required');return;}
   try{
     if(id){
       await sb.from('studios').update(payload).eq('id',id);
       const i=STUDIOS.findIndex(s=>s.id===id);
       if(i>=0) STUDIOS[i]={...STUDIOS[i],...payload};
     } else {
-      payload.subdomain=payload.name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-');
       const {data}=await sb.from('studios').insert(payload).select().single();
       if(data) STUDIOS.unshift(data);
     }
@@ -1238,6 +1299,37 @@ function renderStudioDetail(id){
     <div class="info-row"><span class="info-icon">🎁</span><div><div class="info-label">Trial</div><div class="info-val">${trialStr}</div></div></div>
     <div class="info-row"><span class="info-icon">💡</span><div><div class="info-label">Source</div><div class="info-val">${s.source||'—'}</div></div></div>`;
 
+  // App URLs
+  const baseUrl=window.location.origin;
+  const clientUrl=s.slug?`${baseUrl}/${s.slug}`:'—';
+  const adminUrl=s.slug?`${baseUrl}/${s.slug}/admin`:'—';
+  document.getElementById('detail-urls').innerHTML=`
+    <div class="info-row">
+      <span class="info-icon">📱</span>
+      <div style="flex:1">
+        <div class="info-label">Client app</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="info-val" style="font-family:monospace;font-size:11px">${clientUrl}</div>
+          ${s.slug?`<button class="btn sm" onclick="navigator.clipboard.writeText('${clientUrl}');toast('Copied!')">Copy</button>
+          <a href="${clientUrl}" target="_blank" class="btn sm">Open ↗</a>`:''}
+        </div>
+      </div>
+    </div>
+    <div class="info-row">
+      <span class="info-icon">🔧</span>
+      <div style="flex:1">
+        <div class="info-label">Admin panel</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="info-val" style="font-family:monospace;font-size:11px">${adminUrl}</div>
+          ${s.slug?`<button class="btn sm" onclick="navigator.clipboard.writeText('${adminUrl}');toast('Copied!')">Copy</button>
+          <a href="${adminUrl}" target="_blank" class="btn sm">Open ↗</a>`:''}
+        </div>
+      </div>
+    </div>`;
+
+  // Admin users
+  loadAdminUsers(id);
+
   // Notes
   const notes=s.platform_notes||'';
   document.getElementById('detail-notes-view').innerHTML=notes
@@ -1278,6 +1370,76 @@ function renderStudioDetail(id){
         ${t.priority==='high'?'<span class="badge high" style="font-size:9px">High</span>':''}
       </div>`).join('')
     :'<div style="color:var(--text3);font-size:12px;padding:8px 0">No tickets yet</div>';
+}
+
+async function loadAdminUsers(studioId){
+  const el=document.getElementById('detail-admin-users');
+  if(!el) return;
+  try{
+    const {data,error}=await sb.from('admin_users').select('user_id,role,created_at').eq('studio_id',studioId);
+    if(error) throw error;
+    if(!data||!data.length){
+      el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px 0">No admin users yet</div>';
+      return;
+    }
+    el.innerHTML=data.map(u=>`
+      <div class="info-row" style="justify-content:space-between">
+        <div>
+          <div class="info-val" style="font-family:monospace;font-size:11px">${u.user_id}</div>
+          <div class="info-label">${u.role} · added ${fmtDate(u.created_at)}</div>
+        </div>
+        <button class="btn sm danger" onclick="removeAdminUser('${u.user_id}','${studioId}')">Remove</button>
+      </div>`).join('');
+  }catch(e){
+    el.innerHTML=`<div style="color:var(--red);font-size:12px">${e.message}</div>`;
+  }
+}
+
+function openAdminUserModal(){
+  document.getElementById('aum-email').value='';
+  document.getElementById('aum-password').value='';
+  document.getElementById('aum-role').value='admin';
+  document.getElementById('aum-err').style.display='none';
+  document.getElementById('admin-user-modal').classList.add('open');
+}
+
+async function createAdminUser(){
+  const email=document.getElementById('aum-email').value.trim();
+  const password=document.getElementById('aum-password').value;
+  const role=document.getElementById('aum-role').value;
+  const errEl=document.getElementById('aum-err');
+  errEl.style.display='none';
+  if(!email||!password){errEl.textContent='Email and password are required';errEl.style.display='block';return;}
+  if(password.length<6){errEl.textContent='Password must be at least 6 characters';errEl.style.display='block';return;}
+  try{
+    // Sign up new admin user
+    const {data,error}=await sb.auth.signUp({email,password});
+    if(error) throw error;
+    const userId=data.user?.id;
+    if(!userId) throw new Error('User creation failed');
+    // Add to admin_users for current studio
+    const {error:err2}=await sb.from('admin_users').insert({
+      user_id:userId,
+      studio_id:currentStudioId,
+      role
+    });
+    if(err2) throw err2;
+    closeModal('admin-user-modal');
+    toast('Admin user created ✓');
+    loadAdminUsers(currentStudioId);
+  }catch(e){
+    errEl.textContent='Error: '+e.message;
+    errEl.style.display='block';
+  }
+}
+
+async function removeAdminUser(userId, studioId){
+  if(!confirm('Remove this admin user?')) return;
+  try{
+    await sb.from('admin_users').delete().eq('user_id',userId).eq('studio_id',studioId);
+    toast('Admin user removed');
+    loadAdminUsers(studioId);
+  }catch(e){toast('Error: '+e.message);}
 }
 
 async function updateStudioHealth(){
