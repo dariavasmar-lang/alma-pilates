@@ -140,6 +140,7 @@ const I18N = {
     taxNote:'⚠ Συμβουλευτείτε λογιστή: οι εκπαιδευτικές υπηρεσίες ενδέχεται να απαλλάσσονται ΦΠΑ στην Κύπρο',
     adminDays:['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ'],
     bookModalClasses:'μαθ.', bookModalNoSub:'Χωρίς συνδρομή', bookModalNoClients:'Κανένας',
+    noClassesLeft:'Δεν υπάρχουν μαθήματα',
   },
 
   en: {
@@ -276,6 +277,7 @@ const I18N = {
     taxNote:'⚠ Check with accountant: educational services may be VAT-exempt in Cyprus',
     adminDays:['Mon','Tue','Wed','Thu','Fri','Sat'],
     bookModalClasses:'classes', bookModalNoSub:'No subscription', bookModalNoClients:'No clients available',
+    noClassesLeft:'No classes left',
   },
 
   ru: {
@@ -412,6 +414,7 @@ const I18N = {
     taxNote:'⚠ Уточни у бухгалтера: образовательные услуги могут быть освобождены от НДС на Кипре',
     adminDays:['Пн','Вт','Ср','Чт','Пт','Сб'],
     bookModalClasses:'зан. осталось', bookModalNoSub:'Без абонемента', bookModalNoClients:'Нет доступных клиентов',
+    noClassesLeft:'Нет занятий',
   }
 };
 

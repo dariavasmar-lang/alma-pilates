@@ -418,6 +418,36 @@
 </div>
 
 <script>
+// ── LANGUAGE ─────────────────────────────────────────────────
+let adminLang = (()=>{ try{ return localStorage.getItem('alma_admin_lang')||'en'; }catch(e){ return 'en'; } })();
+
+function AL(){ return I18N[adminLang] || I18N['en']; }
+
+function setLang(lang, btn){
+  adminLang = lang;
+  try{ localStorage.setItem('alma_admin_lang', lang); }catch(e){}
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  else {
+    document.querySelectorAll('.lang-btn').forEach(b => {
+      if(b.textContent.toLowerCase() === lang) b.classList.add('active');
+    });
+  }
+  applyAdminLang();
+}
+
+function applyAdminLang(){
+  const active = document.querySelector('.page.active');
+  if(!active) return;
+  const id = active.id.replace('page-','');
+  if(id==='dashboard') renderDashboard();
+  else if(id==='clients') renderClients();
+  else if(id==='schedule') renderSchedule();
+  else if(id==='payments') renderPayments();
+  else if(id==='expenses') renderExpenses();
+  else if(id==='settings') renderSettings();
+}
+
 // ── DATA ──────────────────────────────────────────────────────
 const CLIENTS = [];
 
@@ -518,7 +548,6 @@ function showPage(id){
   if(id==='schedule'){ renderSchedule(); dbLoadBookings(); }
   if(id==='payments') renderPayments();
   if(id==='expenses') renderExpenses();
-  if(id==='taxes') renderTaxChart();
   if(id==='settings') renderSettings();
   if(id==='cancellations'){ renderHolidayChips(); renderCancelInline(); }
   if(id==='dashboard') renderDashboard();
@@ -1474,8 +1503,6 @@ function getWeekDates(){
   base.setHours(12,0,0,0);
   return Array.from({length:7},(_,i)=>{const d=new Date(base);d.setDate(d.getDate()+i);return d;});
 }
-function shiftWeek(d){ weekOffset+=d; renderSchedule(); dbLoadBookings(); }
-
 function localDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
 // Convert "HH:MM" → "H:MM AM/PM"
@@ -2651,46 +2678,6 @@ function addNewCat(){
   renderExpenses();
 }
 
-// ── TAXES ────────────────────────────────────────────────────
-function renderTaxChart(){
-  const t=AL();
-  // Update page header
-  const ph=document.querySelector('#page-taxes .page-header');
-  if(ph){
-    const title=ph.querySelector('.page-title');
-    const sub=ph.querySelector('.page-sub');
-    if(title)title.textContent=t.taxTitle;
-    if(sub)sub.textContent=t.taxSub;
-    const btn=ph.querySelector('.btn');
-    if(btn)btn.textContent=t.taxDownload;
-  }
-  // Update metric labels
-  const mcs=document.querySelectorAll('#page-taxes .metric');
-  const mlabels=[t.taxIncome,t.taxVat,t.taxCorpTax,t.taxNet];
-  mcs.forEach((mc,i)=>{const l=mc.querySelector('.metric-label');if(l&&mlabels[i])l.textContent=mlabels[i];});
-  // Update tax note
-  const tn=document.querySelector('#page-taxes .warn-note');
-  if(tn)tn.textContent=t.taxNote;
-  // Chart
-  const months=t.taxMonths||['Jan','Feb','Mar','Apr','May'];
-  const incomes=[2100,1800,2300,2650,2840];
-  const expenses=[1600,1500,1700,1750,1820];
-  const chart=document.getElementById('tax-chart');
-  if(!chart)return;
-  chart.innerHTML='<div style="display:flex;flex-direction:column;gap:8px">'+
-    months.map((m,i)=>{
-      const net=incomes[i]-expenses[i];
-      const w=Math.round(net/1500*100);
-      return `<div style="display:flex;align-items:center;gap:10px">
-        <div style="width:36px;font-size:11px;color:var(--text2)">${m}</div>
-        <div style="flex:1;height:18px;background:var(--bg2);border-radius:4px;overflow:hidden">
-          <div style="height:100%;width:${w}%;background:${i===4?'var(--accent)':'var(--border)'};border-radius:4px;transition:width .3s"></div>
-        </div>
-        <div style="width:50px;font-size:11px;font-weight:500;color:var(--text);text-align:right">€${net}</div>
-      </div>`;
-    }).join('')+'</div>';
-}
-
 // ── SCHEDULE SETTINGS ────────────────────────────────────────
 function openSchedModal(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
@@ -2880,7 +2867,7 @@ function showApp(){
   const app=document.getElementById('main-app');
   app.style.display='flex';
   app.style.flexDirection='row';
-  const validPages=['dashboard','clients','schedule','payments','expenses','taxes','settings','cancellations'];
+  const validPages=['dashboard','clients','schedule','payments','expenses','settings','cancellations'];
   const hash=location.hash.replace('#','');
   if(hash&&validPages.includes(hash)) showPage(hash);
   dbLoad();
@@ -3079,12 +3066,6 @@ async function dbLoadBookings(){
     });
     renderSchedule();
   }catch(e){console.error('dbLoadBookings:',e.message);}
-}
-
-function isoFmt(iso){
-  if(!iso||iso==='—') return '—';
-  const p=iso.split('-');
-  return p.length>=3?p[2].slice(0,2)+'/'+p[1]:iso;
 }
 
 // ── BALANCE ADJUST ────────────────────────────────────────────
