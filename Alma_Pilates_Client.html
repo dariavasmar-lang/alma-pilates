@@ -549,8 +549,12 @@ let STUDIO_ID = null;
 let STUDIO_CONFIG = null; // full studio row from DB
 
 // Resolve studio from URL slug: /alma-pilates → slug = 'alma-pilates'
+// On localhost with no valid slug (e.g. /Alma_Pilates_Client.html), falls back to 'alma-pilates'
 async function resolveStudio(){
-  const slug = location.pathname.split('/').filter(Boolean)[0];
+  const rawSlug = location.pathname.split('/').filter(Boolean)[0] || '';
+  const isHtmlFile = rawSlug.endsWith('.html') || rawSlug === '';
+  const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  const slug = (isHtmlFile && isLocalhost) ? 'alma-pilates' : rawSlug;
   if(!slug || !sb) return false;
   try{
     const {data, error} = await sb.rpc('get_studio_by_slug', {p_slug: slug});
