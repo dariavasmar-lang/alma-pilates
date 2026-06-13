@@ -665,7 +665,7 @@ function applyProfileUI(){
   if($('av-init')) $('av-init').textContent=initials||'?';
   const firstName=name.trim().split(/\s+/)[0]||name;
   const g=$('h-greet');
-  if(g) g.innerHTML=t().hGreet+' <em style="font-style:italic;color:var(--accent2)">'+firstName+'</em>';
+  if(g) g.innerHTML=tr().hGreet+' <em style="font-style:italic;color:var(--accent2)">'+firstName+'</em>';
 }
 
 async function loadBalance(){
@@ -707,7 +707,7 @@ async function refreshSchedule(){
 // ═══════════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
-const t=()=>TR[lang];
+const tr=()=>TR[lang];
 const $=id=>document.getElementById(id);
 function tx(id,val){ const e=$(id); if(e&&val!==undefined) e.textContent=val; }
 function txh(id,val){ const e=$(id); if(e&&val!==undefined) e.innerHTML=val; }
@@ -1191,7 +1191,7 @@ async function confirmBook(){
     const clientId=sbProfile?.id;
     if(!clientId){toast2('Error: no client profile');return;}
     const left=Math.max(0,sbBal.total-sbBal.used);
-    if(left<=0&&sbBal.subId){toast2(t().noClassesLeft||'No classes left');return;}
+    if(left<=0&&sbBal.subId){toast2(tr().noClassesLeft||'No classes left');return;}
     const {error}=await sb.from('bookings').insert({client_id:clientId,slot_id:slot.id,studio_id:STUDIO_ID,subscription_id:sbBal.subId||null,class_date:dateStr,status:'booked'});
     if(error){toast2('Error: '+error.message);return;}
     if(sbBal.subId){
@@ -1199,14 +1199,14 @@ async function confirmBook(){
       await sb.from('subscriptions').update({used_classes:newUsed}).eq('id',sbBal.subId);
       sbBal.used=newUsed; // immediately update local balance so UI reflects change
     }
-    toast2(t().bookOk);
+    toast2(tr().bookOk);
     await Promise.all([refreshSchedule(), loadBalance()]);
   } else {
     const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
     bkCounts[key]=(bkCounts[key]||0)+1;
     MINE_SET.add(selSlot.di+'_'+selSlot.time);
     WAITLIST_SET.delete(selSlot.di+'_'+selSlot.time);
-    toast2(t().bookOk);
+    toast2(tr().bookOk);
     buildSchedule();
   }
 }
@@ -1288,7 +1288,7 @@ async function joinWaitlist(di,time){
     }
   }
   WAITLIST_SET.add(key);
-  toast2(t().waitlistOk);
+  toast2(tr().waitlistOk);
   if(schView==='month') buildMonthView(); else buildSchedule();
 }
 
@@ -1328,7 +1328,7 @@ function openPaySheet(){
 
 function doRevPay(){
   closeSheet('sh-pay');
-  toast2(t().payOk);
+  toast2(tr().payOk);
   selOpt=null;
   setTimeout(()=>buildPayOpts(),400);
 }
