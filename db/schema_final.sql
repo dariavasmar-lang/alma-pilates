@@ -1,137 +1,143 @@
 -- ============================================================
--- ALMA PILATES — Финальная схема базы данных
--- Этот файл = единственный источник правды
--- Запускать ТОЛЬКО на чистой базе (drop + recreate)
--- На существующей базе — см. комментарии "ALTER (если уже есть)"
+-- ALMA PILATES PLATFORM — Database schema
+-- Single source of truth. Run on a clean database only.
+-- For existing databases — use db/migrations/*.sql
 -- ============================================================
 
--- ─── РАСШИРЕНИЯ ─────────────────────────────────────────────
-create extension if not exists "uuid-ossp";
+-- ─── EXTENSIONS ─────────────────────────────────────────────
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ─── STUDIOS ────────────────────────────────────────────────
-create table if not exists studios (
-  id              uuid primary key default uuid_generate_v4(),
-  created_at      timestamptz default now(),
-  name            text not null,
-  subdomain       text unique not null,
-  city            text default 'Limassol',
+CREATE TABLE IF NOT EXISTS studios (
+  id              uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  created_at      timestamptz DEFAULT now(),
+  name            text NOT NULL,
+  slug            text UNIQUE NOT NULL,       -- URL identifier: alma-pilates
+  subdomain       text UNIQUE,               -- legacy, kept for compatibility
+  city            text DEFAULT 'Limassol',
   phone           text,
   email           text,
-  plan            text default 'business'
-                  check (plan in ('starter','business','multi')),
-  is_active       boolean default true,
-  price_8         numeric(10,2) default 120,
-  price_12        numeric(10,2) default 160,
-  price_single    numeric(10,2) default 25,
-  capacity        int default 4,
+  logo_url        text,                      -- studio logo
+  plan            text DEFAULT 'business'
+                  CHECK (plan IN ('starter','business','multi')),
+  is_active       boolean DEFAULT true,
+  price_8         numeric(10,2) DEFAULT 120,
+  price_12        numeric(10,2) DEFAULT 160,
+  price_single    numeric(10,2) DEFAULT 25,
+  capacity        int DEFAULT 4,
   revolut_api_key text,
-  config          jsonb default '{}'
+  config          jsonb DEFAULT '{}'
+);
+
+-- ─── PLATFORM ADMINS ────────────────────────────────────────
+-- Platform-level operators who can manage all studios
+CREATE TABLE IF NOT EXISTS platform_admins (
+  user_id    uuid REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  email      text,
+  created_at timestamptz DEFAULT now()
 );
 
 -- ─── ADMIN USERS ────────────────────────────────────────────
-create table if not exists admin_users (
-  user_id   uuid references auth.users(id) on delete cascade primary key,
-  studio_id uuid references studios(id) on delete cascade not null,
-  role      text default 'admin'
-            check (role in ('owner','admin','trainer')),
-  created_at timestamptz default now()
+-- Studio-level admins — each belongs to one studio
+CREATE TABLE IF NOT EXISTS admin_users (
+  user_id    uuid REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  studio_id  uuid REFERENCES studios(id) ON DELETE CASCADE NOT NULL,
+  role       text DEFAULT 'admin'
+             CHECK (role IN ('owner','admin','trainer')),
+  created_at timestamptz DEFAULT now()
 );
 
 -- ─── CLIENTS ────────────────────────────────────────────────
-create table if not exists clients (
-  id              uuid primary key default uuid_generate_v4(),
-  created_at      timestamptz default now(),
-  studio_id       uuid references studios(id) on delete cascade not null,
-  user_id         uuid references auth.users(id),   -- привязка к auth
-  full_name       text not null default '',
+CREATE TABLE IF NOT EXISTS clients (
+  id              uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  created_at      timestamptz DEFAULT now(),
+  studio_id       uuid REFERENCES studios(id) ON DELETE CASCADE NOT NULL,
+  user_id         uuid REFERENCES auth.users(id),
+  full_name       text NOT NULL DEFAULT '',
   phone           text,
   email           text,
-  language        text default 'el' check (language in ('ru','el','en')),
+  language        text DEFAULT 'el' CHECK (language IN ('ru','el','en')),
   notes           text,
-  is_active       boolean default true,
-  gdpr_consent    boolean default false,
+  is_active       boolean DEFAULT true,
+  gdpr_consent    boolean DEFAULT false,
   gdpr_consent_at timestamptz
 );
 
--- ALTER (если таблица уже есть, но нет user_id):
--- alter table clients add column if not exists user_id uuid references auth.users(id);
-
 -- ─── SUBSCRIPTIONS ──────────────────────────────────────────
-create table if not exists subscriptions (
-  id              uuid primary key default uuid_generate_v4(),
-  created_at      timestamptz default now(),
-  studio_id       uuid references studios(id) not null,
-  client_id       uuid references clients(id) on delete cascade not null,
-  type            text not null check (type in ('8','12','single')),
-  total_classes   int not null,
-  used_classes    int default 0,
-  price           numeric(10,2) not null,
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id              uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  created_at      timestamptz DEFAULT now(),
+  studio_id       uuid REFERENCES studios(id) NOT NULL,
+  client_id       uuid REFERENCES clients(id) ON DELETE CASCADE NOT NULL,
+  type            text NOT NULL CHECK (type IN ('8','12','single')),
+  total_classes   int NOT NULL,
+  used_classes    int DEFAULT 0,
+  price           numeric(10,2) NOT NULL,
   paid_at         timestamptz,
-  starts_at       date not null,
+  starts_at       date NOT NULL,
   expires_at      date,
-  payment_method  text check (payment_method in ('revolut','cash','bank','card')),
+  payment_method  text CHECK (payment_method IN ('revolut','cash','bank','card')),
   revolut_payment_id text,
-  is_active       boolean default true
+  is_active       boolean DEFAULT true
 );
 
--- Представление с остатком занятий
-create or replace view subscriptions_with_left as
-  select *,
-    (total_classes - used_classes) as classes_left,
-    (expires_at < current_date and is_active) as is_expired
-  from subscriptions;
+CREATE OR REPLACE VIEW subscriptions_with_left AS
+  SELECT *,
+    (total_classes - used_classes) AS classes_left,
+    (expires_at < current_date AND is_active) AS is_expired
+  FROM subscriptions;
 
 -- ─── SCHEDULE SLOTS ─────────────────────────────────────────
-create table if not exists schedule_slots (
-  id          uuid primary key default uuid_generate_v4(),
-  studio_id   uuid references studios(id) on delete cascade not null,
-  day_of_week int not null check (day_of_week between 0 and 5), -- 0=Пн, 5=Сб
-  start_time  time not null,
-  end_time    time not null,
-  capacity    int default 4,
-  is_active   boolean default true,
-  unique(studio_id, day_of_week, start_time)
+CREATE TABLE IF NOT EXISTS schedule_slots (
+  id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  studio_id   uuid REFERENCES studios(id) ON DELETE CASCADE NOT NULL,
+  day_of_week int NOT NULL CHECK (day_of_week BETWEEN 0 AND 5), -- 0=Mon, 5=Sat
+  start_time  time NOT NULL,
+  end_time    time NOT NULL,
+  capacity    int DEFAULT 4,
+  is_active   boolean DEFAULT true,
+  UNIQUE(studio_id, day_of_week, start_time)
 );
 
 -- ─── WAITLIST ───────────────────────────────────────────────
-create table if not exists waitlist (
-  id          uuid primary key default uuid_generate_v4(),
-  created_at  timestamptz default now(),
-  studio_id   uuid references studios(id) not null,
-  client_id   uuid references clients(id) on delete cascade not null,
-  slot_id     uuid references schedule_slots(id),
-  class_date  date not null,
-  unique(client_id, slot_id, class_date)
+CREATE TABLE IF NOT EXISTS waitlist (
+  id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  created_at  timestamptz DEFAULT now(),
+  studio_id   uuid REFERENCES studios(id) NOT NULL,
+  client_id   uuid REFERENCES clients(id) ON DELETE CASCADE NOT NULL,
+  slot_id     uuid REFERENCES schedule_slots(id),
+  class_date  date NOT NULL,
+  UNIQUE(client_id, slot_id, class_date)
 );
 
 -- ─── BOOKINGS ───────────────────────────────────────────────
-create table if not exists bookings (
-  id              uuid primary key default uuid_generate_v4(),
-  created_at      timestamptz default now(),
-  studio_id       uuid references studios(id) not null,
-  client_id       uuid references clients(id) on delete cascade not null,
-  slot_id         uuid references schedule_slots(id),
-  subscription_id uuid references subscriptions(id),
-  class_date      date not null,
-  status          text default 'booked'
-                  check (status in ('booked','attended','missed','cancelled')),
-  is_trial        boolean default false,
+CREATE TABLE IF NOT EXISTS bookings (
+  id              uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  created_at      timestamptz DEFAULT now(),
+  studio_id       uuid REFERENCES studios(id) NOT NULL,
+  client_id       uuid REFERENCES clients(id) ON DELETE CASCADE NOT NULL,
+  slot_id         uuid REFERENCES schedule_slots(id),
+  subscription_id uuid REFERENCES subscriptions(id),
+  class_date      date NOT NULL,
+  status          text DEFAULT 'booked'
+                  CHECK (status IN ('booked','attended','missed','cancelled')),
+  is_trial        boolean DEFAULT false,
   notes           text
 );
 
 -- ─── PAYMENTS ───────────────────────────────────────────────
-create table if not exists payments (
-  id                   uuid primary key default uuid_generate_v4(),
-  created_at           timestamptz default now(),
-  studio_id            uuid references studios(id) not null,
-  client_id            uuid references clients(id),
-  subscription_id      uuid references subscriptions(id),
-  amount               numeric(10,2) not null,
-  method               text check (method in ('revolut','cash','bank','card')),
+CREATE TABLE IF NOT EXISTS payments (
+  id                   uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  created_at           timestamptz DEFAULT now(),
+  studio_id            uuid REFERENCES studios(id) NOT NULL,
+  client_id            uuid REFERENCES clients(id),
+  subscription_id      uuid REFERENCES subscriptions(id),
+  amount               numeric(10,2) NOT NULL,
+  method               text CHECK (method IN ('revolut','cash','bank','card')),
   revolut_payment_id   text,
   revolut_payment_url  text,
-  status               text default 'pending'
-                       check (status in ('pending','paid','failed','refunded')),
+  status               text DEFAULT 'pending'
+                       CHECK (status IN ('pending','paid','failed','refunded')),
   paid_at              timestamptz,
   notes                text
 );
@@ -140,168 +146,188 @@ create table if not exists payments (
 -- ROW LEVEL SECURITY
 -- ============================================================
 
-alter table studios            enable row level security;
-alter table clients            enable row level security;
-alter table subscriptions      enable row level security;
-alter table schedule_slots     enable row level security;
-alter table waitlist           enable row level security;
-alter table bookings           enable row level security;
-alter table payments           enable row level security;
+ALTER TABLE studios         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_users     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clients         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE schedule_slots  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE waitlist        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bookings        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments        ENABLE ROW LEVEL SECURITY;
 
--- ─── ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ────────────────────────────────
+-- ─── HELPER FUNCTIONS ───────────────────────────────────────
 
--- Для admin: получить studio_id текущего пользователя
-create or replace function my_studio_id()
-returns uuid language sql stable as $$
-  select studio_id from admin_users where user_id = auth.uid()
+-- Get studio_id for the logged-in admin
+CREATE OR REPLACE FUNCTION my_studio_id()
+RETURNS uuid LANGUAGE sql STABLE AS $$
+  SELECT studio_id FROM admin_users WHERE user_id = auth.uid()
 $$;
 
--- Для клиента: получить client_id текущего пользователя
-create or replace function my_client_id()
-returns uuid language sql stable security definer as $$
-  select id from clients where user_id = auth.uid() limit 1
+-- Get client_id for the logged-in client
+CREATE OR REPLACE FUNCTION my_client_id()
+RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT id FROM clients WHERE user_id = auth.uid() LIMIT 1
 $$;
 
--- ─── ПОЛИТИКИ для АДМИНИСТРАТОРОВ ───────────────────────────
+-- Resolve studio slug → studio row (called by client app on load)
+CREATE OR REPLACE FUNCTION get_studio_by_slug(p_slug text)
+RETURNS json LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT row_to_json(s)
+  FROM studios s
+  WHERE s.slug = p_slug AND s.is_active = true
+  LIMIT 1;
+$$;
 
-drop policy if exists "Own studio only"             on studios;
-drop policy if exists "Own studio clients"          on clients;
-drop policy if exists "Own studio subscriptions"    on subscriptions;
-drop policy if exists "Own studio schedule"         on schedule_slots;
-drop policy if exists "Own studio waitlist"         on waitlist;
-drop policy if exists "Own studio bookings"         on bookings;
-drop policy if exists "Own studio payments"         on payments;
-
-create policy "Own studio only"
-  on studios for all using (id = my_studio_id());
-
-create policy "Own studio clients"
-  on clients for all using (studio_id = my_studio_id());
-
-create policy "Own studio subscriptions"
-  on subscriptions for all using (studio_id = my_studio_id());
-
-create policy "Own studio schedule"
-  on schedule_slots for all using (studio_id = my_studio_id());
-
-create policy "Own studio waitlist"
-  on waitlist for all using (studio_id = my_studio_id());
-
-create policy "Own studio bookings"
-  on bookings for all using (studio_id = my_studio_id());
-
-create policy "Own studio payments"
-  on payments for all using (studio_id = my_studio_id());
-
--- ─── ПОЛИТИКИ для КЛИЕНТОВ (мобильное приложение) ───────────
-
-drop policy if exists "Client can read own record"            on clients;
-drop policy if exists "Client can update own record"          on clients;
-drop policy if exists "Client can read own subscriptions"     on subscriptions;
-drop policy if exists "Client can update own subscriptions"   on subscriptions;
-drop policy if exists "Client can read own bookings"          on bookings;
-drop policy if exists "Client can insert bookings"            on bookings;
-drop policy if exists "Client can update own bookings"        on bookings;
-drop policy if exists "Client can read own waitlist"          on waitlist;
-drop policy if exists "Client can insert waitlist"            on waitlist;
-drop policy if exists "Client can delete own waitlist"        on waitlist;
-drop policy if exists "Anyone can read schedule"              on schedule_slots;
-
--- Клиент видит и обновляет свой профиль
-create policy "Client can read own record"
-  on clients for select using (user_id = auth.uid());
-
-create policy "Client can update own record"
-  on clients for update using (user_id = auth.uid());
-
--- Клиент видит свои подписки и обновляет used_classes
-create policy "Client can read own subscriptions"
-  on subscriptions for select using (client_id = my_client_id());
-
-create policy "Client can update own subscriptions"
-  on subscriptions for update using (client_id = my_client_id());
-
--- Клиент управляет своими бронированиями
-create policy "Client can read own bookings"
-  on bookings for select using (client_id = my_client_id());
-
-create policy "Client can insert bookings"
-  on bookings for insert with check (client_id = my_client_id());
-
-create policy "Client can update own bookings"
-  on bookings for update using (client_id = my_client_id());
-
--- Клиент управляет листом ожидания
-create policy "Client can read own waitlist"
-  on waitlist for select using (client_id = my_client_id());
-
-create policy "Client can insert waitlist"
-  on waitlist for insert with check (client_id = my_client_id());
-
-create policy "Client can delete own waitlist"
-  on waitlist for delete using (client_id = my_client_id());
-
--- Расписание видят все авторизованные пользователи
-create policy "Anyone can read schedule"
-  on schedule_slots for select using (true);
-
--- ─── ФУНКЦИЯ: привязать клиента при входе ───────────────────
-create or replace function link_user_to_client(
-  p_phone   text,
-  p_user_id uuid,
-  p_name    text,
-  p_lang    text
+-- Register or link client on OTP login (no whitelist)
+CREATE OR REPLACE FUNCTION link_user_to_client(
+  p_phone     text,
+  p_user_id   uuid,
+  p_name      text,
+  p_lang      text,
+  p_studio_id uuid
 )
-returns json language plpgsql security definer as $$
-declare
+RETURNS json LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
   v_client clients%rowtype;
-begin
-  select * into v_client
-  from clients
-  where phone = p_phone
-    and studio_id = 'a0000000-0000-0000-0000-000000000001'
-  limit 1;
+BEGIN
+  SELECT * INTO v_client
+  FROM clients
+  WHERE phone = p_phone AND studio_id = p_studio_id
+  LIMIT 1;
 
-  if found then
-    if v_client.user_id is null then
-      update clients set user_id = p_user_id where id = v_client.id;
+  IF found THEN
+    IF v_client.user_id IS NULL THEN
+      UPDATE clients SET user_id = p_user_id WHERE id = v_client.id;
       v_client.user_id := p_user_id;
-    end if;
-    return row_to_json(v_client);
-  else
-    insert into clients (studio_id, user_id, full_name, phone, language, gdpr_consent, gdpr_consent_at)
-    values ('a0000000-0000-0000-0000-000000000001', p_user_id, p_name, p_phone, p_lang, true, now())
-    returning * into v_client;
-    return row_to_json(v_client);
-  end if;
-end;
+    END IF;
+    RETURN row_to_json(v_client);
+  ELSE
+    INSERT INTO clients (studio_id, user_id, full_name, phone, language, gdpr_consent, gdpr_consent_at)
+    VALUES (p_studio_id, p_user_id, p_name, p_phone, p_lang, true, now())
+    RETURNING * INTO v_client;
+    RETURN row_to_json(v_client);
+  END IF;
+END;
 $$;
 
--- ─── ФУНКЦИЯ: подсчёт занятых мест ──────────────────────────
-create or replace function get_booking_counts(p_dates date[])
-returns table(slot_id uuid, booking_count bigint)
-language sql stable as $$
-  select slot_id, count(*) as booking_count
-  from bookings
-  where class_date = any(p_dates)
-    and status in ('booked','attended')
-  group by slot_id
+-- Count booked seats per slot for given dates
+CREATE OR REPLACE FUNCTION get_booking_counts(p_dates date[])
+RETURNS TABLE(slot_id uuid, booking_count bigint)
+LANGUAGE sql STABLE AS $$
+  SELECT slot_id, count(*) AS booking_count
+  FROM bookings
+  WHERE class_date = ANY(p_dates)
+    AND status IN ('booked','attended')
+  GROUP BY slot_id
 $$;
 
+-- ─── RLS POLICIES: PLATFORM ADMINS ──────────────────────────
+
+-- Platform admins see only their own row
+DROP POLICY IF EXISTS "Platform admin can read own row" ON platform_admins;
+CREATE POLICY "Platform admin can read own row"
+  ON platform_admins FOR SELECT USING (user_id = auth.uid());
+
+-- Platform admins have full access to all studios
+DROP POLICY IF EXISTS "Platform admin full access to studios" ON studios;
+CREATE POLICY "Platform admin full access to studios"
+  ON studios FOR ALL
+  USING (EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid()));
+
+-- ─── RLS POLICIES: STUDIO ADMINS ────────────────────────────
+
+DROP POLICY IF EXISTS "Own studio only"          ON studios;
+DROP POLICY IF EXISTS "Own studio clients"        ON clients;
+DROP POLICY IF EXISTS "Own studio subscriptions"  ON subscriptions;
+DROP POLICY IF EXISTS "Own studio schedule"       ON schedule_slots;
+DROP POLICY IF EXISTS "Own studio waitlist"       ON waitlist;
+DROP POLICY IF EXISTS "Own studio bookings"       ON bookings;
+DROP POLICY IF EXISTS "Own studio payments"       ON payments;
+
+CREATE POLICY "Own studio only"
+  ON studios FOR ALL USING (id = my_studio_id());
+
+CREATE POLICY "Own studio clients"
+  ON clients FOR ALL USING (studio_id = my_studio_id());
+
+CREATE POLICY "Own studio subscriptions"
+  ON subscriptions FOR ALL USING (studio_id = my_studio_id());
+
+CREATE POLICY "Own studio schedule"
+  ON schedule_slots FOR ALL USING (studio_id = my_studio_id());
+
+CREATE POLICY "Own studio waitlist"
+  ON waitlist FOR ALL USING (studio_id = my_studio_id());
+
+CREATE POLICY "Own studio bookings"
+  ON bookings FOR ALL USING (studio_id = my_studio_id());
+
+CREATE POLICY "Own studio payments"
+  ON payments FOR ALL USING (studio_id = my_studio_id());
+
+-- ─── RLS POLICIES: CLIENTS (mobile app) ─────────────────────
+
+DROP POLICY IF EXISTS "Client can read own record"          ON clients;
+DROP POLICY IF EXISTS "Client can update own record"        ON clients;
+DROP POLICY IF EXISTS "Client can insert self"              ON clients;
+DROP POLICY IF EXISTS "Client can read own subscriptions"   ON subscriptions;
+DROP POLICY IF EXISTS "Client can update own subscriptions" ON subscriptions;
+DROP POLICY IF EXISTS "Client can read own bookings"        ON bookings;
+DROP POLICY IF EXISTS "Client can insert bookings"          ON bookings;
+DROP POLICY IF EXISTS "Client can update own bookings"      ON bookings;
+DROP POLICY IF EXISTS "Client can read own waitlist"        ON waitlist;
+DROP POLICY IF EXISTS "Client can insert waitlist"          ON waitlist;
+DROP POLICY IF EXISTS "Client can delete own waitlist"      ON waitlist;
+DROP POLICY IF EXISTS "Anyone can read schedule"            ON schedule_slots;
+
+CREATE POLICY "Client can read own record"
+  ON clients FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Client can update own record"
+  ON clients FOR UPDATE USING (user_id = auth.uid());
+
+CREATE POLICY "Client can read own subscriptions"
+  ON subscriptions FOR SELECT USING (client_id = my_client_id());
+
+CREATE POLICY "Client can update own subscriptions"
+  ON subscriptions FOR UPDATE USING (client_id = my_client_id());
+
+CREATE POLICY "Client can read own bookings"
+  ON bookings FOR SELECT USING (client_id = my_client_id());
+
+CREATE POLICY "Client can insert bookings"
+  ON bookings FOR INSERT WITH CHECK (client_id = my_client_id());
+
+CREATE POLICY "Client can update own bookings"
+  ON bookings FOR UPDATE USING (client_id = my_client_id());
+
+CREATE POLICY "Client can read own waitlist"
+  ON waitlist FOR SELECT USING (client_id = my_client_id());
+
+CREATE POLICY "Client can insert waitlist"
+  ON waitlist FOR INSERT WITH CHECK (client_id = my_client_id());
+
+CREATE POLICY "Client can delete own waitlist"
+  ON waitlist FOR DELETE USING (client_id = my_client_id());
+
+-- Anyone authenticated can read schedule (needed for client app)
+CREATE POLICY "Anyone can read schedule"
+  ON schedule_slots FOR SELECT USING (true);
+
 -- ============================================================
--- СТАРТОВЫЕ ДАННЫЕ (запускать только один раз на новой базе!)
+-- SEED DATA (run once on fresh database)
 -- ============================================================
 
--- Студия Alma Pilates
-insert into studios (id, name, subdomain, city, phone, email, plan)
-values (
+INSERT INTO studios (id, name, slug, subdomain, city, phone, email, plan)
+VALUES (
   'a0000000-0000-0000-0000-000000000001',
-  'Alma Pilates Studio', 'alma', 'Limassol, Cyprus',
+  'Alma Pilates Studio', 'alma-pilates', 'alma', 'Limassol, Cyprus',
   '96850466', 'info@almapilatesstudio.com', 'business'
-) on conflict (id) do nothing;
+) ON CONFLICT (id) DO NOTHING;
 
--- Расписание (0=Пн, 5=Сб)
-insert into schedule_slots (studio_id, day_of_week, start_time, end_time) values
+-- Schedule slots (0=Mon, 5=Sat)
+INSERT INTO schedule_slots (studio_id, day_of_week, start_time, end_time) VALUES
   ('a0000000-0000-0000-0000-000000000001', 0, '16:30', '17:30'),
   ('a0000000-0000-0000-0000-000000000001', 0, '17:30', '18:30'),
   ('a0000000-0000-0000-0000-000000000001', 0, '18:30', '19:30'),
@@ -332,4 +358,4 @@ insert into schedule_slots (studio_id, day_of_week, start_time, end_time) values
   ('a0000000-0000-0000-0000-000000000001', 4, '19:30', '20:30'),
   ('a0000000-0000-0000-0000-000000000001', 5, '09:30', '10:30'),
   ('a0000000-0000-0000-0000-000000000001', 5, '10:30', '11:30')
-on conflict (studio_id, day_of_week, start_time) do nothing;
+ON CONFLICT (studio_id, day_of_week, start_time) DO NOTHING;
