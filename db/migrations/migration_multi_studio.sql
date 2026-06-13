@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS platform_admins (
 ALTER TABLE platform_admins ENABLE ROW LEVEL SECURITY;
 
 -- Platform admins can only see their own row
-CREATE POLICY IF NOT EXISTS "Platform admin can read own row"
+DROP POLICY IF EXISTS "Platform admin can read own row" ON platform_admins;
+CREATE POLICY "Platform admin can read own row"
   ON platform_admins FOR SELECT USING (user_id = auth.uid());
 
 -- ─── 3. UPDATE RLS ON studios ───────────────────────────────
