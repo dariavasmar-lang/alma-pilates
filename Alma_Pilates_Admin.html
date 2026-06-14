@@ -343,7 +343,38 @@
 <div class="toast" id="toast"></div>
 
 <!-- BOOK MODAL -->
-<div class="modal-overlay" id="book-modal"></div>
+<div class="modal-overlay" id="book-modal">
+  <div class="modal" style="width:440px">
+    <div class="modal-title" id="bm-title"></div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px" id="book-slot-info"></div>
+    <!-- Tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button class="btn sm" id="bm-tab-exist" onclick="bmSetTab('exist')" style="flex:1;justify-content:center"></button>
+      <button class="btn sm" id="bm-tab-new" onclick="bmSetTab('new')" style="flex:1;justify-content:center"></button>
+    </div>
+    <!-- Existing client tab -->
+    <div id="bm-exist-section">
+      <input type="text" id="bm-search" oninput="bmFilter(this.value)" style="width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box;margin-bottom:8px">
+      <div id="bm-client-list" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+      <div id="bm-no-clients" style="display:none;font-size:12px;color:var(--text3);text-align:center;padding:16px 0"></div>
+    </div>
+    <!-- New client tab -->
+    <div id="bm-new-section" style="display:none">
+      <div class="ff" style="margin-bottom:8px"><label id="bm-name-lbl"></label><input id="bm-new-name" type="text" placeholder="First Last"></div>
+      <div class="ff" style="margin-bottom:8px"><label id="bm-phone-lbl"></label><input id="bm-new-phone" type="tel" placeholder="+357 99..."></div>
+      <div class="ff"><label id="bm-lang-lbl"></label>
+        <select id="bm-new-lang">
+          <option value="el">Ελληνικά</option><option value="en">English</option><option value="ru">Русский</option>
+        </select>
+      </div>
+      <div id="bm-new-err" style="display:none;font-size:11px;color:var(--red);margin-top:6px"></div>
+    </div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn" onclick="closeModal('book-modal')" id="bm-cancel-btn"></button>
+      <button class="btn primary" onclick="confirmBooking()" id="bm-confirm-btn"></button>
+    </div>
+  </div>
+</div>
 
 <!-- ADD / CANCEL SLOT MODAL -->
 <div class="modal-overlay" id="add-slot-modal">
@@ -2004,10 +2035,61 @@ async function removeCancel(i){
   renderSchedule();
 }
 
+let _bmTab='exist';
+function bmSetTab(tab){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  _bmTab=tab;
+  document.getElementById('bm-exist-section').style.display=tab==='exist'?'':'none';
+  document.getElementById('bm-new-section').style.display=tab==='new'?'':'none';
+  document.getElementById('bm-tab-exist').classList.toggle('primary',tab==='exist');
+  document.getElementById('bm-tab-new').classList.toggle('primary',tab==='new');
+}
+function bmFilter(q){
+  const ql=q.toLowerCase();
+  const list=document.getElementById('bm-client-list');
+  let any=false;
+  list.querySelectorAll('label').forEach(lbl=>{
+    const match=lbl.textContent.toLowerCase().includes(ql);
+    lbl.style.display=match?'':'none';
+    if(match) any=true;
+  });
+  const noEl=document.getElementById('bm-no-clients');
+  if(noEl) noEl.style.display=any?'none':'block';
+}
 function openBookModal(di, time){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const DAYS=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
   const info=di!==null?DAYS[di]+', '+toAMPM(time):(adminLang==='ru'?'Выберите занятие':adminLang==='en'?'Select a class':'Επιλέξτε μάθημα');
+  // Labels
+  document.getElementById('bm-title').textContent=L('Κράτηση','Book a client','Записать клиента');
   document.getElementById('book-slot-info').textContent=info;
+  document.getElementById('bm-tab-exist').textContent=L('Υπάρχων','Existing','Существующий');
+  document.getElementById('bm-tab-new').textContent=L('Νέος','New client','Новый клиент');
+  document.getElementById('bm-name-lbl').textContent=L('Όνομα','Name','Имя');
+  document.getElementById('bm-phone-lbl').textContent=L('Τηλέφωνο','Phone','Телефон');
+  document.getElementById('bm-lang-lbl').textContent=L('Γλώσσα','Language','Язык');
+  document.getElementById('bm-cancel-btn').textContent=L('Ακύρωση','Cancel','Отмена');
+  document.getElementById('bm-confirm-btn').textContent=L('Κράτηση','Book','Записать');
+  document.getElementById('bm-search').placeholder=L('Αναζήτηση...','Search...','Поиск...');
+  // Client list — only clients with balance > 0
+  const eligible=CLIENTS.filter(c=>!c.isArchived&&c.left>0);
+  const list=document.getElementById('bm-client-list');
+  if(eligible.length===0){
+    list.innerHTML='';
+    const noEl=document.getElementById('bm-no-clients');
+    if(noEl){noEl.textContent=L('Δεν υπάρχουν διαθέσιμοι πελάτες','No clients with available balance','Нет клиентов с доступным балансом');noEl.style.display='block';}
+  } else {
+    const noEl=document.getElementById('bm-no-clients');
+    if(noEl) noEl.style.display='none';
+    list.innerHTML=eligible.map((c,i)=>`
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;cursor:pointer;background:var(--bg2);font-size:13px">
+        <input type="radio" name="bm-client" value="${c.name}" ${i===0?'checked':''} style="accent-color:var(--accent)">
+        <span style="flex:1;font-weight:500;color:var(--text)">${c.name}</span>
+        <span style="font-size:11px;color:var(--text3)">${c.left} ${L('μαθ.','cl.','зан.')}</span>
+      </label>`).join('');
+  }
+  document.getElementById('bm-search').value='';
+  bmSetTab('exist');
   document.getElementById('book-modal').classList.add('open');
 }
 
