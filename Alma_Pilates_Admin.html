@@ -1663,7 +1663,7 @@ function renderSchedule(){
 
       const extraStyle=s.extra?'border-color:var(--green);background:var(--green-bg);':'';
       const timeStyle=s.extra?'color:var(--green)':'';
-      const sName=slotNames[key]||(s.extra&&s.reason?s.reason:'');
+      const sName=slotNames[key]||(s.extra&&s.reason&&s.reason!==s.t?s.reason:'');
       return `<div class="slot ${cls}" onclick="openSlotDetail(${di},'${s.t}','${dateStr}')" style="cursor:pointer;${extraStyle}">
         <span class="slot-time" style="${timeStyle}">${toAMPM(s.t)}</span>
         ${sName?`<span style="font-size:9px;color:${s.extra?'var(--green)':'var(--text3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px">${sName}</span>`:''}
