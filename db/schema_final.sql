@@ -179,7 +179,7 @@ RETURNS json LANGUAGE sql STABLE SECURITY DEFINER AS $$
   LIMIT 1;
 $$;
 
--- Register or link client on OTP login (no whitelist)
+-- Link client on OTP login (whitelist mode: only pre-added clients can log in)
 CREATE OR REPLACE FUNCTION link_user_to_client(
   p_phone     text,
   p_user_id   uuid,
@@ -197,16 +197,15 @@ BEGIN
   LIMIT 1;
 
   IF found THEN
+    -- Link user_id if not yet linked
     IF v_client.user_id IS NULL THEN
       UPDATE clients SET user_id = p_user_id WHERE id = v_client.id;
       v_client.user_id := p_user_id;
     END IF;
     RETURN row_to_json(v_client);
   ELSE
-    INSERT INTO clients (studio_id, user_id, full_name, phone, language, gdpr_consent, gdpr_consent_at)
-    VALUES (p_studio_id, p_user_id, p_name, p_phone, p_lang, true, now())
-    RETURNING * INTO v_client;
-    RETURN row_to_json(v_client);
+    -- Phone not in clients table → access denied (whitelist mode)
+    RETURN NULL;
   END IF;
 END;
 $$;
