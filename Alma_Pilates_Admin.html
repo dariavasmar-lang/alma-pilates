@@ -2481,18 +2481,33 @@ function sendRevolutLink(name){
   toast(L('Ο σύνδεσμος Revolut στάλθηκε →','Revolut link sent →','Ссылка Revolut отправлена →')+' '+name);
 }
 
-function deletePayment(visIdx){
+async function deletePayment(visIdx){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const paidOnly=PAYMENTS.filter(p=>p.status==='paid');
   const filtered=payFilter==='all'?paidOnly:paidOnly.filter(p=>p.method===payFilter);
   const target=filtered[visIdx];
   if(!target) return;
-  const i=PAYMENTS.indexOf(target);
-  if(i>-1) PAYMENTS.splice(i,1);
-  renderPayments();
-  if(sb && target._uuid){
-    sb.from('payments').delete().eq('id',target._uuid).then(({error})=>{
-      if(error) console.warn('deletePayment DB:',error.message);
-    });
+  const confirmed=confirm(L(
+    `Διαγραφή πληρωμής €${target.amt} (${target.name}); Η συνδρομή θα απενεργοποιηθεί.`,
+    `Delete payment €${target.amt} (${target.name})? The subscription will be deactivated.`,
+    `Удалить платёж €${target.amt} (${target.name})? Подписка будет деактивирована.`
+  ));
+  if(!confirmed) return;
+  if(!sb||!target._uuid){ toast(L('Σφάλμα','Error','Ошибка')); return; }
+  try{
+    // 1. Delete the payment record
+    const {error:e1}=await sb.from('payments').delete().eq('id',target._uuid);
+    if(e1) throw e1;
+    // 2. Deactivate the linked subscription (if any)
+    if(target._subId){
+      const {error:e2}=await sb.from('subscriptions').update({is_active:false}).eq('id',target._subId);
+      if(e2) console.warn('deactivate sub:',e2.message);
+    }
+    toast(L('Η πληρωμή διαγράφηκε','Payment deleted','Платёж удалён'));
+    // 3. Full reload so clients, balances, payments all update
+    await dbLoad();
+  }catch(e){
+    toast(L('Σφάλμα: ','Error: ','Ошибка: ')+e.message);
   }
 }
 
@@ -3383,7 +3398,7 @@ async function dbLoad(){
     // Load payments from DB
     try{
       const {data:payRows}=await sb.from('payments')
-        .select('id,amount,method,status,paid_at,notes,created_at,clients(full_name)')
+        .select('id,amount,method,status,paid_at,notes,created_at,subscription_id,clients(full_name)')
         .eq('studio_id',STUDIO_ID)
         .order('created_at',{ascending:false})
         .limit(300);
@@ -3396,6 +3411,7 @@ async function dbLoad(){
           const init=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
           PAYMENTS.push({
             _uuid:p.id,
+            _subId:p.subscription_id||null,
             name,init,
             detail:p.notes||'',
             method:p.method||'cash',
