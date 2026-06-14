@@ -112,8 +112,8 @@ window.addEventListener('resize',setAppH);
       </div>
       <div class="ff"><label id="l-phone-l"></label><input id="l-phone" type="tel" placeholder="+357 99 123456"></div>
       <button class="btn pr" id="l-btn" onclick="doLogin()"></button>
-      <div style="text-align:center;font-size:12px;color:var(--text3)">— <span id="l-or"></span> —</div>
-      <button class="btn ol" id="l-demo-btn" onclick="demoLogin()"></button>
+      <!-- Demo login hidden: <div style="text-align:center;font-size:12px;color:var(--text3)">— <span id="l-or"></span> —</div> -->
+      <!-- Demo login hidden: <button class="btn ol" id="l-demo-btn" onclick="demoLogin()"></button> -->
     </div>
 
     <!-- ONBOARD -->
@@ -167,7 +167,17 @@ window.addEventListener('resize',setAppH);
         <div class="sdots" id="h-dots"></div>
         <div class="smeta"><span id="h-left"></span><span id="h-price">€120</span></div>
       </div>
-      <div class="warn" id="h-warn"><div class="wi">!</div><span style="font-size:11px;color:var(--warn)" id="h-warn-txt"></span></div>
+      <!-- Renewal warning hidden: <div class="warn" id="h-warn"><div class="wi">!</div><span style="font-size:11px;color:var(--warn)" id="h-warn-txt"></span></div> -->
+      <div id="h-warn" style="display:none"></div>
+
+      <!-- No balance notification -->
+      <div id="h-bal-empty" style="display:none;background:#FEF3E2;border:0.5px solid #E8A84A;border-radius:12px;padding:12px 14px;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">💳</span>
+          <span style="font-size:12px;color:#7A4F00;font-weight:500;line-height:1.4" id="h-bal-empty-txt"></span>
+        </div>
+        <button onclick="goTab('pay')" style="font-size:12px;padding:8px 14px;border:0.5px solid #C47A1A;border-radius:9px;background:#C47A1A;color:#fff;cursor:pointer;font-family:inherit;font-weight:500;align-self:flex-start" id="h-bal-empty-btn"></button>
+      </div>
 
       <!-- Burn / expiry warning -->
       <div id="h-burn" style="background:#F5EAE8;border:0.5px solid #E8A0A0;border-radius:12px;padding:9px 12px;display:flex;align-items:flex-start;gap:8px">
@@ -345,8 +355,8 @@ window.addEventListener('resize',setAppH);
       <div class="stitle" id="shb-title"></div>
       <div class="ssub" id="shb-info"></div>
       <div class="card2" style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:5px"><span id="shb-ded"></span><span id="shb-bal"></span></div>
-        <div class="prog"><div class="progf" id="shb-prog" style="width:100%"></div></div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px" id="shb-ded"></div>
+        <div class="sdots" id="shb-dots" style="flex-wrap:wrap;gap:5px"></div>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn sm" style="flex:1" id="shb-cancel" onclick="closeSheet('sh-book')"></button>
@@ -695,12 +705,35 @@ async function loadBalance(){
   if(!clientId) return;
   const {data:subs}=await sb.from('subscriptions').select('*').eq('client_id',clientId).eq('is_active',true).order('created_at',{ascending:false}).limit(1);
   const sub=subs?.[0];
-  const total=sub?.total_classes||8;
-  const used=sub?.used_classes||0;
+  // If no active subscription — balance is 0, nothing to show
+  if(!sub){
+    sbBal={used:0,total:0,subId:null,startsAt:null,expiresAt:null};
+    const dots=$('h-dots'); if(dots) dots.innerHTML='';
+    const T=tr();
+    tx('h-sub-type','—'); tx('h-left','—');
+    const balEmptyEl=document.getElementById('h-bal-empty');
+    if(balEmptyEl) balEmptyEl.style.display='none';
+    const burnEl=document.getElementById('h-burn');
+    if(burnEl) burnEl.style.display='none';
+    return;
+  }
+  const total=sub.total_classes;
+  // Count bookings within subscription period only (starts_at → expires_at = 30 days)
+  // 'missed' = late-cancelled (burned, still counts against balance)
+  // Bookings after expires_at = unpaid/scheduled, don't count
+  let used=0;
+  const bkQuery=sb.from('bookings').select('*',{count:'exact',head:true})
+    .eq('client_id',clientId).in('status',['booked','attended','missed']);
+  if(sub.starts_at) bkQuery.gte('class_date',sub.starts_at);
+  if(sub.expires_at) bkQuery.lte('class_date',sub.expires_at);
+  const {count,error:bkErr}=await bkQuery;
+  used=count||0;
   const left=Math.max(0,total-used);
-  sbBal={used,total,subId:sub?.id,startsAt:sub?.starts_at,expiresAt:sub?.expires_at};
+  console.log('[balance] total=',total,'used=',used,'left=',left,'expires=',sub.expires_at);
+  sbBal={used,total,subId:sub.id,startsAt:sub.starts_at,expiresAt:sub.expires_at};
   const dots=$('h-dots');
-  if(dots) dots.innerHTML=Array.from({length:total},(_,i)=>`<div class="sd ${i<used?'u':'l'}"></div>`).join('');
+  // Show only remaining circles (left count), they disappear as classes are booked
+  if(dots) dots.innerHTML=Array.from({length:left},()=>`<div class="sd l"></div>`).join('');
   const T=tr();
   const since=sub?.starts_at?new Date(sub.starts_at+'T12:00:00').toLocaleDateString(lang==='el'?'el-GR':lang==='en'?'en-GB':'ru-RU',{day:'numeric',month:'long'}):'';
   tx('h-sub-type',total+' '+(lang==='el'?'μαθήματα':lang==='en'?'classes':'занятий')+(since?' · '+since:''));
@@ -708,9 +741,35 @@ async function loadBalance(){
   const priceEl=$('h-price');
   if(priceEl) priceEl.textContent=total===1?'€25':total===12?'€160':'€120';
   const burnEl=document.getElementById('h-burn');
+  const burnTxt=document.getElementById('h-burn-txt');
   if(burnEl){
     const daysLeft=sbBal.expiresAt?Math.ceil((new Date(sbBal.expiresAt+'T12:00:00')-new Date())/864e5):null;
-    burnEl.style.display=(left>0&&daysLeft!==null&&daysLeft<=14)?'flex':'none';
+    const showBurn=left>0&&daysLeft!==null&&daysLeft<=2;
+    burnEl.style.display=showBurn?'flex':'none';
+    if(showBurn&&burnTxt){
+      // Build dynamic expiry message in current language
+      const expDate=new Date(sbBal.expiresAt+'T12:00:00');
+      const expStr=expDate.toLocaleDateString(lang==='el'?'el-GR':lang==='en'?'en-GB':'ru-RU',{day:'numeric',month:'long'});
+      if(lang==='el'){
+        burnTxt.textContent=`Η συνδρομή σας λήγει στις ${expStr}. Έχετε ${left} μαθήμ${left===1?'α':'ατα'} που πρέπει να χρησιμοποιήσετε!`;
+      } else if(lang==='en'){
+        burnTxt.textContent=`Your subscription expires on ${expStr}. You have ${left} class${left===1?'':'es'} left to use!`;
+      } else {
+        burnTxt.textContent=`Абонемент истекает ${expStr}. У вас ${left} занят${left===1?'ие':left<=4?'ия':'ий'} — успейте записаться!`;
+      }
+    }
+  }
+  // No balance notification
+  const balEmptyEl=document.getElementById('h-bal-empty');
+  if(balEmptyEl){
+    const show=left===0&&sub?.id;
+    balEmptyEl.style.display=show?'flex':'none';
+    if(show){
+      const bTxt=document.getElementById('h-bal-empty-txt');
+      const bBtn=document.getElementById('h-bal-empty-btn');
+      if(bTxt) bTxt.textContent=T.balEmpty||'Your classes are used up';
+      if(bBtn) bBtn.textContent=T.balEmptyPay||'Renew subscription';
+    }
   }
   const pfRows=$('pf-rows');
   if(pfRows){
@@ -1023,6 +1082,7 @@ async function startApp(){
 // ═══════════════════════════════════════════════════════════════
 function goTab(tab){
   curTab=tab;
+  try{ localStorage.setItem('alma_last_tab', tab); }catch(e){}
   ['home','schedule','pay','profile'].forEach(id=>{
     const s=$('scr-'+id);
     if(s){ s.style.display=id===tab?'flex':'none'; s.classList.toggle('on',id===tab); }
@@ -1199,8 +1259,38 @@ async function openBookSheet(di,time,free,dateMs){
   openSheet('sh-book');
   await loadBalance();
   const left=Math.max(0,sbBal.total-sbBal.used);
-  if($('shb-bal')) $('shb-bal').textContent=left+' → '+(left-1)+' / '+sbBal.total;
-  if($('shb-prog')) $('shb-prog').style.width=Math.max(0,((left-1)/sbBal.total)*100)+'%';
+  const noBalance=left<=0&&sbBal.subId;
+  // Dots — show remaining circles
+  const dotsEl=$('shb-dots');
+  if(dotsEl){
+    dotsEl.innerHTML=Array.from({length:left},()=>
+      `<div style="width:20px;height:20px;border-radius:50%;background:var(--accent);opacity:0.85"></div>`
+    ).join('');
+  }
+  // Show "no balance" state: hide confirm, show pay prompt
+  const dedEl=$('shb-ded');
+  const confirmBtn=$('shb-confirm');
+  const cardEl=dotsEl?.parentElement;
+  const noBalEl=$('shb-nobal');
+  if(noBalance){
+    if(confirmBtn) confirmBtn.style.display='none';
+    if(dedEl) dedEl.style.display='none';
+    if(dotsEl) dotsEl.style.display='none';
+    if(!noBalEl&&cardEl){
+      const d=document.createElement('div');
+      d.id='shb-nobal';
+      d.style.cssText='display:flex;flex-direction:column;gap:8px;padding:2px 0';
+      d.innerHTML=`<span style="font-size:12px;color:#7A4F00;font-weight:500">💳 ${T.balEmpty||'Your classes are used up'}</span>
+        <button onclick="closeSheet('sh-book');goTab('pay')" style="font-size:12px;padding:8px 14px;border:0.5px solid #C47A1A;border-radius:9px;background:#C47A1A;color:#fff;cursor:pointer;font-family:inherit;font-weight:500;align-self:flex-start">${T.balEmptyPay||'Renew subscription'}</button>`;
+      cardEl.appendChild(d);
+    }
+  } else {
+    if(confirmBtn) confirmBtn.style.display='';
+    if(dedEl) dedEl.style.display='';
+    if(dotsEl) dotsEl.style.display='';
+    const existing=$('shb-nobal');
+    if(existing) existing.remove();
+  }
 }
 
 async function confirmBook(){
@@ -1216,21 +1306,10 @@ async function confirmBook(){
     if(left<=0&&sbBal.subId){toast2(tr().noClassesLeft||'No classes left');return;}
     const {error}=await sb.from('bookings').insert({client_id:clientId,slot_id:slot.id,studio_id:STUDIO_ID,subscription_id:sbBal.subId||null,class_date:dateStr,status:'booked'});
     if(error){toast2('Error: '+error.message);return;}
-    if(sbBal.subId){
-      const newUsed=(sbBal.used||0)+1;
-      await sb.from('subscriptions').update({used_classes:newUsed}).eq('id',sbBal.subId);
-      sbBal.used=newUsed;
-      // Update UI directly from local sbBal — avoid re-fetching stale DB data
-      const _T=tr();
-      const _left=Math.max(0,sbBal.total-sbBal.used);
-      const _dots=$('h-dots');
-      if(_dots) _dots.innerHTML=Array.from({length:sbBal.total},(_,i)=>`<div class="sd ${i<sbBal.used?'u':'l'}"></div>`).join('');
-      tx('h-left',_left+_T.subLeft);
-    }
     toast2(tr().bookOk);
     await refreshSchedule();
-    // Sync balance with DB in background after short delay
-    setTimeout(()=>loadBalance(), 1500);
+    // Reload balance: counts actual bookings from DB — no RLS issues, always accurate
+    await loadBalance();
   } else {
     const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
     bkCounts[key]=(bkCounts[key]||0)+1;
@@ -1273,27 +1352,36 @@ async function confirmCancel(){
   closeSheet('sh-cancel');
   const T=tr();
   if(sbUser&&sbUser.id!=='demo'){
+    // Late cancel (≤4h before class) → 'missed' (class burns, counts against balance)
+    // Early cancel (>4h before class) → 'cancelled' (class returned to balance)
+    const newStatus=selSlot.late?'missed':'cancelled';
+    const clientId=sbProfile?.id;
+    let updated=false;
     const bk=bookingByKey.get(selSlot.di+'_'+selSlot.time);
+    console.log('[cancel] selSlot=',selSlot,'bk=',bk,'newStatus=',newStatus);
     if(bk){
-      await sb.from('bookings').update({status:'cancelled'}).eq('id',bk.id);
-      if(!selSlot.late&&sbBal.subId){
-        await sb.from('subscriptions').update({used_classes:Math.max(0,(sbBal.used||1)-1)}).eq('id',sbBal.subId);
-      }
-    } else if(selSlot.dateMs){
-      // Cancel from month view — bookingByKey only covers current week, query by date+slot
-      const dateStr=localDateStr(new Date(selSlot.dateMs));
-      const slot=SCH[selSlot.di]?.find(s=>s.t===selSlot.time);
-      const clientId=sbProfile?.id;
-      if(slot&&clientId){
-        const {data:bks}=await sb.from('bookings').select('id,subscription_id').eq('client_id',clientId).eq('slot_id',slot.id).eq('class_date',dateStr).eq('status','booked').limit(1);
-        if(bks&&bks[0]){
-          await sb.from('bookings').update({status:'cancelled'}).eq('id',bks[0].id);
-          if(!selSlot.late&&sbBal.subId){
-            await sb.from('subscriptions').update({used_classes:Math.max(0,(sbBal.used||1)-1)}).eq('id',sbBal.subId);
+      const {error}=await sb.from('bookings').update({status:newStatus}).eq('id',bk.id);
+      if(error){ console.error('[cancel] update error:',error); toast2('Ошибка: '+error.message); return; }
+      updated=true;
+    } else {
+      // bookingByKey only covers current week view — query DB directly by date+slot
+      const dateMs=selSlot.dateMs||(getWeekDates()[selSlot.di]?.getTime());
+      if(dateMs){
+        const dateStr=localDateStr(new Date(dateMs));
+        const slot=SCH[selSlot.di]?.find(s=>s.t===selSlot.time);
+        console.log('[cancel] month path: dateStr=',dateStr,'slot=',slot,'clientId=',clientId);
+        if(slot&&clientId){
+          const {data:bks,error:e1}=await sb.from('bookings').select('id').eq('client_id',clientId).eq('slot_id',slot.id).eq('class_date',dateStr).in('status',['booked','attended']).limit(1);
+          console.log('[cancel] found bks=',bks,'error=',e1);
+          if(bks&&bks[0]){
+            const {error:e2}=await sb.from('bookings').update({status:newStatus}).eq('id',bks[0].id);
+            if(e2){ console.error('[cancel] update error:',e2); toast2('Ошибка: '+e2.message); return; }
+            updated=true;
           }
         }
       }
     }
+    console.log('[cancel] updated=',updated);
     toast2(selSlot.late?T.cancelLateOk:T.cancelOk);
     await refreshSchedule();
     await loadBalance();
@@ -1527,24 +1615,29 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     // Resolve studio from URL before doing anything
     const studioOk = await resolveStudio();
     if(!studioOk){
-      // Studio not found — show error
       document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#888">Studio not found</div>';
       return;
     }
     if(session){
-      // Only restore session for phone-auth users (not admin email sessions)
-      if(session.user.phone){
-        sbUser=session.user;
-        await loadClasses();
-        await loadProfile();
+      // Try to restore session: load client profile regardless of session.user.phone
+      // (phone property is not always reliably set on the session user object)
+      sbUser=session.user;
+      await loadClasses();
+      await loadProfile();
+      if(sbProfile){
+        // Valid client profile found — restore app state
         await Promise.all([loadWeekBookings(), loadBalance()]);
         $('hdr').style.display='flex';
         $('bnav').style.display='flex';
         applyLang();
         applyProfileUI();
         go('home');
-        goTab('home');
+        const lastTab=(() => { try{ return localStorage.getItem('alma_last_tab')||'home'; }catch(e){ return 'home'; } })();
+        goTab(lastTab);
       } else {
+        // No client profile (e.g. admin email session) — sign out and show welcome
+        sbUser=null;
+        await sb.auth.signOut();
         applyLang();
         go('welcome');
       }

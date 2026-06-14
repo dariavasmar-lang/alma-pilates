@@ -141,6 +141,7 @@ const I18N = {
     adminDays:['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ'],
     bookModalClasses:'μαθ.', bookModalNoSub:'Χωρίς συνδρομή', bookModalNoClients:'Κανένας',
     noClassesLeft:'Δεν υπάρχουν μαθήματα',
+    balEmpty:'Τα μαθήματά σας εξαντλήθηκαν', balEmptyPay:'Ανανέωση συνδρομής',
   },
 
   en: {
@@ -278,6 +279,7 @@ const I18N = {
     adminDays:['Mon','Tue','Wed','Thu','Fri','Sat'],
     bookModalClasses:'classes', bookModalNoSub:'No subscription', bookModalNoClients:'No clients available',
     noClassesLeft:'No classes left',
+    balEmpty:'Your classes are used up', balEmptyPay:'Renew subscription',
   },
 
   ru: {
@@ -415,6 +417,7 @@ const I18N = {
     adminDays:['Пн','Вт','Ср','Чт','Пт','Сб'],
     bookModalClasses:'зан. осталось', bookModalNoSub:'Без абонемента', bookModalNoClients:'Нет доступных клиентов',
     noClassesLeft:'Нет занятий',
+    balEmpty:'Занятия закончились', balEmptyPay:'Продлить абонемент',
   }
 };
 

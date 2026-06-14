@@ -18,10 +18,16 @@
 <div id="login-screen" style="position:fixed;inset:0;background:var(--bg3);z-index:9999;align-items:center;justify-content:center;display:none">
   <div style="background:var(--card);border-radius:16px;padding:36px 32px;width:340px;box-shadow:0 4px 24px rgba(0,0,0,0.10);display:flex;flex-direction:column;gap:16px">
     <div style="font-family:var(--serif);font-size:22px;color:var(--accent);text-align:center">Alma <em>Pilates</em></div>
-    <div style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:4px">Вход в систему управления</div>
+    <!-- Language switcher -->
+    <div style="display:flex;justify-content:center;gap:6px">
+      <button onclick="loginSetLang('el')" id="ls-el" style="padding:3px 10px;border-radius:20px;border:1px solid var(--border);font-size:12px;cursor:pointer;background:var(--bg2);color:var(--text2)">EL</button>
+      <button onclick="loginSetLang('en')" id="ls-en" style="padding:3px 10px;border-radius:20px;border:1px solid var(--border);font-size:12px;cursor:pointer;background:var(--bg2);color:var(--text2)">EN</button>
+      <button onclick="loginSetLang('ru')" id="ls-ru" style="padding:3px 10px;border-radius:20px;border:1px solid var(--border);font-size:12px;cursor:pointer;background:var(--bg2);color:var(--text2)">RU</button>
+    </div>
+    <div id="ls-subtitle" style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:4px"></div>
     <input id="adm-email" type="email" placeholder="Email" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);outline:none">
-    <input id="adm-pass" type="password" placeholder="Пароль" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);outline:none" onkeydown="if(event.key==='Enter')adminLogin()">
-    <button onclick="adminLogin()" style="padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600">Войти</button>
+    <input id="adm-pass" type="password" id="ls-pass-placeholder" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);outline:none" onkeydown="if(event.key==='Enter')adminLogin()">
+    <button onclick="adminLogin()" id="ls-login-btn" style="padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600"></button>
     <div id="adm-err" style="font-size:12px;color:var(--red);text-align:center;display:none"></div>
   </div>
 </div>
@@ -360,7 +366,7 @@
     </div>
     <!-- New client tab -->
     <div id="bm-new-section" style="display:none">
-      <div class="ff" style="margin-bottom:8px"><label id="bm-name-lbl"></label><input id="bm-new-name" type="text" placeholder="First Last"></div>
+      <div class="ff" style="margin-bottom:8px"><label id="bm-name-lbl"></label><input id="bm-new-name" type="text" placeholder="First Last" lang="en" oninput="latinOnly(this)" onpaste="setTimeout(()=>latinOnly(this),0)" onkeyup="latinOnly(this)"></div>
       <div class="ff" style="margin-bottom:8px"><label id="bm-phone-lbl"></label><input id="bm-new-phone" type="tel" placeholder="+357 99..."></div>
       <div class="ff"><label id="bm-lang-lbl"></label>
         <select id="bm-new-lang">
@@ -369,7 +375,16 @@
       </div>
       <div id="bm-new-err" style="display:none;font-size:11px;color:var(--red);margin-top:6px"></div>
     </div>
-    <div class="modal-actions" style="margin-top:14px">
+    <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+      <label id="bm-repeat-lbl" style="font-size:12px;color:var(--text2);white-space:nowrap">Повтор</label>
+      <select id="bm-repeat" style="flex:1;font-size:12px;padding:6px 9px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-family:inherit">
+        <option value="1">1 раз</option>
+        <option value="4">4 недели</option>
+        <option value="8">8 недель</option>
+        <option value="12">12 недель</option>
+      </select>
+    </div>
+    <div class="modal-actions" style="margin-top:10px">
       <button class="btn" onclick="closeModal('book-modal')" id="bm-cancel-btn"></button>
       <button class="btn primary" onclick="confirmBooking()" id="bm-confirm-btn"></button>
     </div>
@@ -453,6 +468,30 @@
 let adminLang = (()=>{ try{ return localStorage.getItem('alma_admin_lang')||'en'; }catch(e){ return 'en'; } })();
 
 function AL(){ return I18N[adminLang] || I18N['en']; }
+
+function latinOnly(el){ el.value=el.value.replace(/[^a-zA-Z\s\-'.]/g,''); }
+
+function loginSetLang(lang){
+  adminLang = lang;
+  try{ localStorage.setItem('alma_admin_lang', lang); }catch(e){}
+  // Highlight active button
+  ['el','en','ru'].forEach(l=>{
+    const btn=document.getElementById('ls-'+l);
+    if(!btn) return;
+    btn.style.background = l===lang ? 'var(--accent)' : 'var(--bg2)';
+    btn.style.color      = l===lang ? '#fff'          : 'var(--text2)';
+    btn.style.borderColor= l===lang ? 'var(--accent)' : 'var(--border)';
+  });
+  // Translate login screen
+  const sub=document.getElementById('ls-subtitle');
+  const passInp=document.getElementById('adm-pass');
+  const loginBtn=document.getElementById('ls-login-btn');
+  if(sub) sub.textContent = lang==='el' ? 'Σύνδεση στο σύστημα διαχείρισης'
+                           : lang==='ru' ? 'Вход в систему управления'
+                           : 'Sign in to admin panel';
+  if(passInp) passInp.placeholder = lang==='el' ? 'Κωδικός' : lang==='ru' ? 'Пароль' : 'Password';
+  if(loginBtn) loginBtn.textContent = lang==='el' ? 'Σύνδεση' : lang==='ru' ? 'Войти' : 'Sign in';
+}
 
 function setLang(lang, btn){
   adminLang = lang;
@@ -831,7 +870,7 @@ function setClientFilter(f,btn){
   renderClients();
 }
 
-function selectClient(id){
+async function selectClient(id){
   const c=CLIENTS.find(x=>x.id===id); if(!c) return;
   currentSelectedClientId=id;
   document.querySelectorAll('#clients-table tr').forEach(r=>r.classList.remove('selected'));
@@ -839,6 +878,25 @@ function selectClient(id){
   const panel=document.getElementById('client-detail');
   if(panel) panel.classList.add('open');
   renderClientCard(c);
+  // Refresh this client's balance live from DB (catches changes made in client app)
+  if(sb&&c._uuid&&c._subUuid){
+    try{
+      const {data:sub}=await sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',c._subUuid).single();
+      if(sub){
+        const bkQ=sb.from('bookings').select('*',{count:'exact',head:true})
+          .eq('client_id',c._uuid).in('status',['booked','attended','missed']);
+        if(sub.starts_at) bkQ.gte('class_date',sub.starts_at);
+        if(sub.expires_at) bkQ.lte('class_date',sub.expires_at);
+        const {count}=await bkQ;
+        const used=count||0;
+        c.left=Math.max(0,sub.total_classes-used);
+        c.total=sub.total_classes;
+        c.status=!c.left?'inactive':c.left<=1?'danger':c.left<=2?'warn':'ok';
+        renderClientCard(c);
+        renderClients();
+      }
+    }catch(_){}
+  }
 }
 
 function closeClientDetail(){
@@ -899,7 +957,8 @@ function renderClientCard(c){
   const attendedMonth=c.attendedMonth||0;
   const used=c.total-c.left;
   const available=Math.max(0,c.left-upcoming);
-  const pct=c.total>0?Math.round((used/c.total)*100):0;
+  // Bar shows REMAINING (not used), so full bar = full balance
+  const pct=c.total>0?Math.round((c.left/c.total)*100):0;
   const typeLabel={
     '8': L('8 μαθήματα','8 classes','8 занятий'),
     '12': L('12 μαθήματα','12 classes','12 занятий'),
@@ -915,9 +974,6 @@ function renderClientCard(c){
     danger: L('Λήγει','Expiring','Истекает'),
     inactive: L('Ανενεργός','Inactive','Неактивен')
   }[c.status]||'';
-  const visits=(c.history||[]).filter(h=>h.t.toLowerCase().includes('attend')||h.t.includes('Записан')||h.t.includes('Booked'));
-  const payments=(c.history||[]).filter(h=>h.t.toLowerCase().includes('payment')||h.t.includes('Оплата')||h.t.includes('Paid'));
-  const cancels=(c.history||[]).filter(h=>h.t.toLowerCase().includes('cancel')||h.t.includes('Отмен'));
 
   panel.innerHTML=`
   <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:14px;border-bottom:0.5px solid var(--border)">
@@ -996,15 +1052,16 @@ function renderClientCard(c){
       <button class="btn success" onclick="openPayModalForClient(${c.id})" style="justify-content:center">+ ${L('Πληρωμή','Payment','Оплата')}</button>
       <button class="btn danger" onclick="cancelAllFutureBookings(${c.id})" style="justify-content:center">${L('Ακύρωση όλων','Cancel all future','Отменить все будущие')}</button>
     </div>
+    ${c._subUuid?`<button class="btn danger" onclick="cancelSubscription(${c.id})" style="justify-content:center;width:100%;opacity:.75">${L('Ακύρωση συνδρομής','Cancel subscription','Отменить подписку')}</button>`:''}
   </div>
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px">
     <div class="ctab-row" id="ctab-row-${c.id}">
-      <button class="ctab on" onclick="switchClientTab(${c.id},'visits')">${L('Επισκέψεις','Visits','Посещения')} (${visits.length})</button>
-      <button class="ctab" onclick="switchClientTab(${c.id},'payments')">${L('Πληρωμές','Payments','Оплаты')} (${payments.length})</button>
-      <button class="ctab" onclick="switchClientTab(${c.id},'cancels')">${L('Ακυρώσεις','Cancels','Отмены')} (${cancels.length})</button>
+      <button class="ctab on" onclick="switchClientTab(${c.id},'bookings')">${L('Κρατήσεις','Bookings','Записи')}</button>
+      <button class="ctab" onclick="switchClientTab(${c.id},'payments')">${L('Πληρωμές','Payments','Оплаты')}</button>
+      <button class="ctab" onclick="switchClientTab(${c.id},'cancels')">${L('Ακυρώσεις','Cancels','Отмены')}</button>
     </div>
-    <div id="ctab-content-${c.id}">${renderHistoryItems(visits,'visits')}</div>
+    <div id="ctab-content-${c.id}"><div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">...</div></div>
   </div>
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
@@ -1024,30 +1081,130 @@ function renderClientCard(c){
 
   renderClientCalendar(c.id);
   loadClientBookings(c.id).then(()=>renderClientCalendar(c.id));
+  loadClientHistory(c.id);
 }
 
-function renderHistoryItems(items,type){
+function fmtHistDate(isoDate){
+  if(!isoDate) return '—';
+  const d=new Date(isoDate+'T12:00:00');
+  const mo=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  return d.getDate()+' '+mo[d.getMonth()];
+}
+
+function renderHistoryTab(items,type){
   const noRec=adminLang==='el'?'Δεν υπάρχουν εγγραφές':adminLang==='en'?'No records':'Нет записей';
-  if(!items.length) return `<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">${noRec}</div>`;
-  const col=type==='payments'?'var(--green)':type==='cancels'?'var(--red)':'#378ADD';
-  return items.map(h=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px">
-    <span style="display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:50%;background:${col};display:inline-block;flex-shrink:0"></span><span style="color:var(--text2)">${h.d}</span></span>
-    <span style="color:var(--text)">${h.t}</span>
-  </div>`).join('');
+  if(!items||!items.length) return `<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">${noRec}</div>`;
+  return items.map(h=>{
+    const dot=`<span style="width:6px;height:6px;border-radius:50%;background:${h.color};display:inline-block;flex-shrink:0"></span>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+      ${dot}
+      <span style="font-size:12px;color:var(--text2);white-space:nowrap;min-width:42px">${h.date}</span>
+      <span style="font-size:12px;color:var(--text);flex:1">${h.label}</span>
+      ${h.note?`<span style="font-size:11px;color:var(--text3)">${h.note}</span>`:''}
+    </div>`;
+  }).join('');
+}
+
+// Cache for client history: clientUuid → {bookings,subs}
+const clientHistoryCache={};
+
+async function loadClientHistory(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c||!c._uuid) return;
+  const uuid=c._uuid;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+
+  // Show loading state
+  const content=document.getElementById('ctab-content-'+clientId);
+  if(content) content.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">...</div>`;
+
+  const [{data:bookings},{data:subs}]=await Promise.all([
+    sb.from('bookings')
+      .select('id,class_date,status,slot_id,schedule_slots(start_time)')
+      .eq('client_id',uuid)
+      .order('class_date',{ascending:false})
+      .limit(60),
+    sb.from('subscriptions')
+      .select('id,created_at,paid_at,starts_at,type,total_classes,price,payment_method,is_active')
+      .eq('client_id',uuid)
+      .order('created_at',{ascending:false})
+      .limit(20)
+  ]);
+
+  clientHistoryCache[uuid]={bookings:bookings||[],subs:subs||[]};
+  renderHistoryTabById(clientId,'bookings');
+
+  // Update tab counts
+  const bkTotal=(bookings||[]).filter(b=>b.status==='booked'||b.status==='attended').length;
+  const canTotal=(bookings||[]).filter(b=>b.status==='cancelled'||b.status==='missed').length;
+  const subTotal=(subs||[]).length;
+  const row=document.getElementById('ctab-row-'+clientId);
+  if(row){
+    const btns=row.querySelectorAll('.ctab');
+    if(btns[0]) btns[0].textContent=L(`Κρατήσεις (${bkTotal})`,`Bookings (${bkTotal})`,`Записи (${bkTotal})`);
+    if(btns[1]) btns[1].textContent=L(`Πληρωμές (${subTotal})`,`Payments (${subTotal})`,`Оплаты (${subTotal})`);
+    if(btns[2]) btns[2].textContent=L(`Ακυρώσεις (${canTotal})`,`Cancels (${canTotal})`,`Отмены (${canTotal})`);
+  }
+}
+
+function renderHistoryTabById(clientId,tab){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const uuid=c._uuid;
+  const cache=clientHistoryCache[uuid];
+  if(!cache) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+
+  let items=[];
+  if(tab==='bookings'){
+    items=(cache.bookings||[])
+      .filter(b=>b.status==='booked'||b.status==='attended')
+      .map(b=>{
+        const time=b.schedule_slots?.start_time?.slice(0,5)||'';
+        const isFuture=b.class_date>=new Date().toISOString().split('T')[0];
+        const attended=b.status==='attended';
+        return {
+          date:fmtHistDate(b.class_date),
+          label:time+(isFuture?' · '+L('предстоит','upcoming','предстоит'):attended?' · '+L('посетила','attended','посетила'):''),
+          note:isFuture?'⏳':attended?'✓':'',
+          color:attended?'var(--green)':isFuture?'var(--accent)':'var(--text3)'
+        };
+      });
+  } else if(tab==='payments'){
+    const methodLabel={cash:L('Μετρητά','Cash','Наличные'),card:L('Κάρτα','Card','Карта'),bank:L('Τράπεζα','Bank','Банк'),revolut:'Revolut'};
+    items=(cache.subs||[]).map(s=>{
+      const typeLabel={8:'8 '+L('μαθ.','cl.','зан.'),'12':'12 '+L('μαθ.','cl.','зан.'),single:'1 '+L('μαθ.','cl.','зан.')}[s.type]||s.type;
+      const method=methodLabel[s.payment_method]||s.payment_method||'';
+      return {
+        date:fmtHistDate(s.paid_at?s.paid_at.split('T')[0]:s.starts_at),
+        label:`${typeLabel} · €${s.price}`,
+        note:method+(s.is_active?' · '+L('ενεργή','active','активен'):''),
+        color:'var(--green)'
+      };
+    });
+  } else if(tab==='cancels'){
+    items=(cache.bookings||[])
+      .filter(b=>b.status==='cancelled'||b.status==='missed')
+      .map(b=>{
+        const time=b.schedule_slots?.start_time?.slice(0,5)||'';
+        const burned=b.status==='missed';
+        return {
+          date:fmtHistDate(b.class_date),
+          label:time+' · '+(burned?L('Έκαψε','Burned','Сгорело'):L('Ακυρώθηκε','Cancelled','Отменено')),
+          note:burned?'🔥':'',
+          color:burned?'var(--red)':'var(--text3)'
+        };
+      });
+  }
+
+  const el=document.getElementById('ctab-content-'+clientId);
+  if(el) el.innerHTML=renderHistoryTab(items,tab);
 }
 
 function switchClientTab(clientId,tab){
-  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
   const row=document.getElementById('ctab-row-'+clientId);
   if(row) row.querySelectorAll('.ctab').forEach(b=>b.classList.remove('on'));
   const btn=row?.querySelector(`.ctab[onclick*="'${tab}'"]`);
   if(btn) btn.classList.add('on');
-  const visits=(c.history||[]).filter(h=>h.t.toLowerCase().includes('attend')||h.t.includes('Записан')||h.t.includes('Booked'));
-  const payments=(c.history||[]).filter(h=>h.t.toLowerCase().includes('payment')||h.t.includes('Оплата')||h.t.includes('Paid'));
-  const cancels=(c.history||[]).filter(h=>h.t.toLowerCase().includes('cancel')||h.t.includes('Отмен'));
-  const items=tab==='visits'?visits:tab==='payments'?payments:cancels;
-  const el=document.getElementById('ctab-content-'+clientId);
-  if(el) el.innerHTML=renderHistoryItems(items,tab);
+  renderHistoryTabById(clientId,tab);
 }
 
 function toggleManualSettings(clientId){
@@ -1447,6 +1604,9 @@ const slotBookingsMap = Object.fromEntries(
 );
 // Map "dateStr_dow_time" -> array of names (date-specific — used for month view, day modal, slot detail)
 let dateSlotMap = {};
+// Unpaid / scheduled bookings (subscription_id = null) — separate maps for visual distinction
+let unpaidSlotMap = {};   // key "dow_time"  -> [name, ...]
+let unpaidDateMap = {};   // key "date_dow_time" -> [name, ...]
 
 let cancellations = [];
 let currentSlot = null;
@@ -1651,9 +1811,12 @@ function renderSchedule(){
     const renderSlot=(s)=>{
       const key=di+'_'+s.t;
       const names=slotBookingsMap[key]||[];
+      const unpaidNames=unpaidSlotMap[key]||[];
       const bk=names.length;
+      const unpaidBk=unpaidNames.length;
+      const totalBk=bk+unpaidBk;
       const cancelled=isSlotCancelled(di,s.t,date);
-      const full=bk>=CAP&&!cancelled;
+      const full=totalBk>=CAP&&!cancelled;
       totalSlots++; totalBooked+=bk;
 
       let cls, txt, spotStyle='';
@@ -1664,10 +1827,12 @@ function renderSchedule(){
       const extraStyle=s.extra?'border-color:var(--green);background:var(--green-bg);':'';
       const timeStyle=s.extra?'color:var(--green)':'';
       const sName=slotNames[key]||(s.extra&&s.reason&&s.reason!==s.t?s.reason:'');
+      const unpaidTag=unpaidBk>0?`<span style="font-size:8px;color:#C47A1A;font-weight:600">+${unpaidBk}</span>`:'';
       return `<div class="slot ${cls}" onclick="openSlotDetail(${di},'${s.t}','${dateStr}')" style="cursor:pointer;${extraStyle}">
         <span class="slot-time" style="${timeStyle}">${toAMPM(s.t)}</span>
         ${sName?`<span style="font-size:9px;color:${s.extra?'var(--green)':'var(--text3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px">${sName}</span>`:''}
         <span class="slot-spots" style="${spotStyle}">${txt}</span>
+        ${unpaidTag}
       </div>`;
     };
 
@@ -1704,8 +1869,11 @@ function openSlotDetail(di, time, dateStr){
   document.getElementById('sdp-date').textContent=d.getDate()+' '+mo(d.getMonth())+' '+d.getFullYear();
 
   const key=di+'_'+time;
-  const names=slotBookingsMap[key]||[];
+  const dKey=dateStr+'_'+key;
+  const names=(dateSlotMap[dKey]||slotBookingsMap[key]||[]);
+  const unpaidNames=(unpaidDateMap[dKey]||unpaidSlotMap[key]||[]);
   const bk=names.length;
+  const totalBk=bk+unpaidNames.length;
   const cancelled=isSlotCancelled(di,time,new Date(dateStr));
 
   // Class name field
@@ -1716,9 +1884,9 @@ function openSlotDetail(di, time, dateStr){
   if(nameInp) nameInp.placeholder=adminLang==='el'?'π.χ. Reformer, Cardio...':adminLang==='en'?'e.g. Reformer, Cardio...':'Напр.: Реформер, Кардио...';
 
   document.getElementById('sdp-cap-label').textContent=adminLang==='el'?'Κατειλημμένες':adminLang==='en'?'Booked':'Занято';
-  document.getElementById('sdp-cap-val').textContent=bk+' / '+CAP;
+  document.getElementById('sdp-cap-val').textContent=totalBk+' / '+CAP;
   document.getElementById('sdp-seat-dots').innerHTML=Array.from({length:CAP},(_,i)=>
-    `<div style="flex:1;height:8px;border-radius:4px;background:${i<bk?'var(--accent)':'var(--border)'}"></div>`
+    `<div style="flex:1;height:8px;border-radius:4px;background:${i<bk?'var(--accent)':i<totalBk?'#E8A84A':'var(--border)'}"></div>`
   ).join('');
 
   document.getElementById('sdp-att-label').textContent=adminLang==='el'?'Εγγεγραμμένοι':adminLang==='en'?'Enrolled':'Записаны';
@@ -1726,15 +1894,23 @@ function openSlotDetail(di, time, dateStr){
   const emEl=document.getElementById('sdp-empty-att');
   emEl.textContent=adminLang==='el'?'Κανείς δεν έχει κάνει κράτηση':adminLang==='en'?'No bookings yet':'Никто не записался';
 
-  if(names.length===0){ atEl.innerHTML=''; emEl.style.display='block'; }
+  if(names.length===0&&unpaidNames.length===0){ atEl.innerHTML=''; emEl.style.display='block'; }
   else {
     emEl.style.display='none';
-    atEl.innerHTML=names.map((name,i)=>`
+    const paidHtml=names.map((name,i)=>`
       <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:9px">
         <div style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:9px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">${name.charAt(0)}</div>
         <span style="font-size:12px;font-weight:500;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
-        <button onclick="removeFromSlot('${key}',${i})" style="font-size:10px;padding:2px 6px;border:0.5px solid var(--border);border-radius:5px;background:transparent;cursor:pointer;color:var(--text3)" title="Удалить запись">✕</button>
+        <button onclick="removeFromSlot('${key}',${i},false,'${dateStr}')" style="font-size:10px;padding:2px 6px;border:0.5px solid var(--border);border-radius:5px;background:transparent;cursor:pointer;color:var(--text3)" title="Удалить запись">✕</button>
       </div>`).join('');
+    const unpaidHtml=unpaidNames.map((name,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#FEF3E2;border:0.5px solid #E8A84A;border-radius:9px">
+        <div style="width:24px;height:24px;border-radius:50%;background:#E8A84A;color:#fff;font-size:9px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">${name.charAt(0)}</div>
+        <span style="font-size:12px;font-weight:500;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+        <span style="font-size:9px;color:#C47A1A;font-weight:600;white-space:nowrap">${adminLang==='ru'?'не опл.':adminLang==='el'?'μη πλ.':'unpaid'}</span>
+        <button onclick="removeFromSlot('${key}',${i},true,'${dateStr}')" style="font-size:10px;padding:2px 6px;border:0.5px solid #E8A84A;border-radius:5px;background:transparent;cursor:pointer;color:#C47A1A" title="Удалить запись">✕</button>
+      </div>`).join('');
+    atEl.innerHTML=paidHtml+unpaidHtml;
   }
 
   const btnBook=document.getElementById('sdp-btn-book');
@@ -1770,33 +1946,44 @@ function saveSlotName(val){
   renderSchedule();
 }
 
-async function removeFromSlot(key,idx){
-  const dKey=currentSlot?.dateStr?currentSlot.dateStr+'_'+key:null;
-  const arr=(dKey&&dateSlotMap[dKey])||slotBookingsMap[key]||[];
-  const name=arr[idx];
-  arr.splice(idx,1);
-  if(dKey&&dateSlotMap[dKey]){const si=slotBookingsMap[key]?.indexOf(name);if(si>-1)slotBookingsMap[key].splice(si,1);}
-  // Remove from DB
-  if(sb && name && currentSlot?.dateStr){
-    const client=CLIENTS.find(c=>c.name===name);
-    const slotId=scheduleSlotIds[key];
-    if(client?._uuid && slotId){
-      try{
-        await sb.from('bookings').delete()
-          .eq('studio_id',STUDIO_ID)
-          .eq('client_id',client._uuid)
-          .eq('slot_id',slotId)
-          .eq('class_date',currentSlot.dateStr)
-          .in('status',['booked','attended']);
-        // Restore subscription balance
-        if(client._subUuid){
-          await sb.from('subscriptions')
-            .update({used_classes:Math.max(0,client.total-client.left-1)})
-            .eq('id',client._subUuid);
-          client.left=Math.min(client.total,client.left+1);
-          client.status=client.left===0?'inactive':client.left<=1?'danger':client.left<=2?'warn':'ok';
-        }
-      }catch(e){console.error('booking delete:',e.message);}
+async function removeFromSlot(key,idx,isUnpaid,dateStr){
+  const ds=dateStr||currentSlot?.dateStr;
+  const dKey=ds?ds+'_'+key:null;
+  if(isUnpaid){
+    const arr=(dKey&&unpaidDateMap[dKey])||unpaidSlotMap[key]||[];
+    const name=arr[idx];
+    arr.splice(idx,1);
+    if(dKey&&unpaidDateMap[dKey]){const si=unpaidSlotMap[key]?.indexOf(name);if(si>-1)unpaidSlotMap[key].splice(si,1);}
+    // Remove from DB (subscription_id IS NULL)
+    if(sb && name && ds){
+      const client=CLIENTS.find(c=>c.name===name);
+      const slotId=scheduleSlotIds[key];
+      if(client?._uuid && slotId){
+        try{
+          await sb.from('bookings').delete()
+            .eq('studio_id',STUDIO_ID).eq('client_id',client._uuid)
+            .eq('slot_id',slotId).eq('class_date',ds)
+            .is('subscription_id',null).in('status',['booked','attended']);
+        }catch(e){console.error('unpaid booking delete:',e.message);}
+      }
+    }
+  } else {
+    const arr=(dKey&&dateSlotMap[dKey])||slotBookingsMap[key]||[];
+    const name=arr[idx];
+    arr.splice(idx,1);
+    if(dKey&&dateSlotMap[dKey]){const si=slotBookingsMap[key]?.indexOf(name);if(si>-1)slotBookingsMap[key].splice(si,1);}
+    // Remove from DB
+    if(sb && name && ds){
+      const client=CLIENTS.find(c=>c.name===name);
+      const slotId=scheduleSlotIds[key];
+      if(client?._uuid && slotId){
+        try{
+          await sb.from('bookings').delete()
+            .eq('studio_id',STUDIO_ID).eq('client_id',client._uuid)
+            .eq('slot_id',slotId).eq('class_date',ds)
+            .in('status',['booked','attended']);
+        }catch(e){console.error('booking delete:',e.message);}
+      }
     }
   }
   if(currentSlot){
@@ -2071,22 +2258,39 @@ function openBookModal(di, time){
   document.getElementById('bm-cancel-btn').textContent=L('Ακύρωση','Cancel','Отмена');
   document.getElementById('bm-confirm-btn').textContent=L('Κράτηση','Book','Записать');
   document.getElementById('bm-search').placeholder=L('Αναζήτηση...','Search...','Поиск...');
-  // Client list — only clients with balance > 0
-  const eligible=CLIENTS.filter(c=>!c.isArchived&&c.left>0);
+  // Repeat selector labels
+  const repLbl=document.getElementById('bm-repeat-lbl');
+  if(repLbl) repLbl.textContent=L('Επανάληψη','Repeat','Повтор');
+  const repSel=document.getElementById('bm-repeat');
+  if(repSel){
+    repSel.innerHTML=[
+      ['1',L('1 φορά','Once','1 раз')],
+      ['4',L('4 εβδ.','4 weeks','4 недели')],
+      ['8',L('8 εβδ.','8 weeks','8 недель')],
+      ['12',L('12 εβδ.','12 weeks','12 недель')]
+    ].map(([v,t])=>`<option value="${v}">${t}</option>`).join('');
+    repSel.value='1';
+  }
+  // Client list — all active clients (not just with balance)
+  const eligible=CLIENTS.filter(c=>!c.isArchived);
   const list=document.getElementById('bm-client-list');
   if(eligible.length===0){
     list.innerHTML='';
     const noEl=document.getElementById('bm-no-clients');
-    if(noEl){noEl.textContent=L('Δεν υπάρχουν διαθέσιμοι πελάτες','No clients with available balance','Нет клиентов с доступным балансом');noEl.style.display='block';}
+    if(noEl){noEl.textContent=L('Δεν υπάρχουν πελάτες','No clients','Нет клиентов');noEl.style.display='block';}
   } else {
     const noEl=document.getElementById('bm-no-clients');
     if(noEl) noEl.style.display='none';
-    list.innerHTML=eligible.map((c,i)=>`
-      <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;cursor:pointer;background:var(--bg2);font-size:13px">
+    list.innerHTML=eligible.map((c,i)=>{
+      const hasBal=c.left>0;
+      const balTxt=hasBal?`${c.left} ${L('μαθ.','cl.','зан.')}`:L('0 μαθ.','0 cl.','0 зан.');
+      const balColor=hasBal?'var(--text3)':'#C47A1A';
+      return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;cursor:pointer;background:var(--bg2);font-size:13px">
         <input type="radio" name="bm-client" value="${c.name}" ${i===0?'checked':''} style="accent-color:var(--accent)">
         <span style="flex:1;font-weight:500;color:var(--text)">${c.name}</span>
-        <span style="font-size:11px;color:var(--text3)">${c.left} ${L('μαθ.','cl.','зан.')}</span>
-      </label>`).join('');
+        <span style="font-size:11px;color:${balColor};font-weight:${hasBal?'400':'600'}">${balTxt}</span>
+      </label>`;
+    }).join('');
   }
   document.getElementById('bm-search').value='';
   bmSetTab('exist');
@@ -2420,43 +2624,58 @@ async function submitPayModal(){
   const method=window._pamMethod||'cash';
   const clientRec=CLIENTS.find(x=>x.name===client);
   const clientUuid=clientRec?._uuid||null;
-  if(sb && clientUuid){
-    try{
-      const subTypeMap={'8':'8','12':'12','1':'single'};
-      const totalMap={'8':8,'12':12,'1':1};
-      const subType=subTypeMap[classes]||null;
-      const totalClasses=totalMap[classes]||null;
-      let subUuid=null;
-      if(subType && totalClasses){
-        const expDate=new Date(date); expDate.setDate(expDate.getDate()+30);
-        const {data:sub}=await sb.from('subscriptions').insert({
-          studio_id:STUDIO_ID, client_id:clientUuid, type:subType,
-          total_classes:totalClasses, used_classes:0, price:amt,
-          paid_at:new Date().toISOString(), starts_at:date,
-          expires_at:expDate.toISOString().split('T')[0],
-          payment_method:method, is_active:true
-        }).select().single();
-        if(sub){
-          subUuid=sub.id;
-          if(clientRec && subType!=='single'){
-            clientRec._subUuid=subUuid; clientRec.type=subType;
-            clientRec.total=totalClasses; clientRec.left=totalClasses; clientRec.status='ok';
-          }
-        }
+  const submitBtn=document.getElementById('pam-submit');
+  if(submitBtn){submitBtn.disabled=true;submitBtn.textContent=L('...','...','...');}
+  const fail=(msg)=>{
+    toast(msg);
+    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent=L('Αποθήκευση','Save payment','Сохранить платёж');}
+  };
+  if(!sb){return fail('Supabase not connected');}
+  if(!clientUuid){return fail(L('Επιλέξτε πελάτη','Select a client','Выберите клиента'));}
+  if(!STUDIO_ID){return fail('Studio ID not set — please refresh the page');}
+  try{
+    const subTypeMap={'8':'8','12':'12','1':'single'};
+    const totalMap={'8':8,'12':12,'1':1};
+    const expDaysMap={'8':60,'12':90,'1':30};
+    const subType=subTypeMap[classes]||null;
+    const totalClasses=totalMap[classes]||null;
+    let subUuid=null;
+    if(subType && totalClasses){
+      // Deactivate existing active subscriptions for this client
+      await sb.from('subscriptions').update({is_active:false})
+        .eq('client_id',clientUuid).eq('is_active',true);
+      const expDate=new Date(date); expDate.setDate(expDate.getDate()+(expDaysMap[classes]||60));
+      const {data:sub,error:subErr}=await sb.from('subscriptions').insert({
+        studio_id:STUDIO_ID, client_id:clientUuid, type:subType,
+        total_classes:totalClasses, used_classes:0, price:amt,
+        paid_at:new Date().toISOString(), starts_at:date,
+        expires_at:expDate.toISOString().split('T')[0],
+        payment_method:method, is_active:true
+      }).select().single();
+      if(subErr) return fail(L('Σφάλμα συνδρ.','Subscription error: ','Ошибка подписки: ')+subErr.message);
+      if(!sub) return fail(L('Η συνδρ. δεν δημ.','Subscription not created — check permissions','Подписка не создана — проверьте права доступа'));
+      subUuid=sub.id;
+      if(clientRec){
+        clientRec._subUuid=subUuid; clientRec.type=subType;
+        clientRec.total=totalClasses; clientRec.left=totalClasses; clientRec.status='ok';
       }
-      const {data:payInserted}=await sb.from('payments').insert({
-        studio_id:STUDIO_ID, client_id:clientUuid, subscription_id:subUuid,
-        amount:amt, method, status:isRevolut?'pending':'paid',
-        paid_at:isRevolut?null:new Date().toISOString(), notes:note||null
-      }).select('id').single();
-      window._lastPayUuid=payInserted?.id||null;
-    }catch(e){console.error('submitPayModal:',e.message);}
+    }
+    const {error:payErr}=await sb.from('payments').insert({
+      studio_id:STUDIO_ID, client_id:clientUuid, subscription_id:subUuid,
+      amount:amt, method, status:isRevolut?'pending':'paid',
+      paid_at:isRevolut?null:new Date().toISOString(), notes:note||null
+    });
+    if(payErr) console.warn('payment insert:',payErr.message);
+  }catch(e){
+    return fail(L('Σφάλμα','Error','Ошибка: ')+e.message);
   }
-  PAYMENTS.unshift({name:client,init,detail,method,amt,date:dateLabel,status:isRevolut?'pending':'paid',_uuid:window._lastPayUuid||null});
+  PAYMENTS.unshift({name:client,init,detail,method,amt,date:dateLabel,status:isRevolut?'pending':'paid'});
   closeModal('pay-add-modal');
-  renderPayments();
-  renderClients();
-  toast(isRevolut?L('Σύνδεσμος Revolut','Revolut link created','Ссылка Revolut создана'):L('Αποθηκεύτηκε','Payment saved','Платёж сохранён'));
+  // Reload all client data from DB to sync balances
+  await dbLoad();
+  toast(isRevolut
+    ?L('Σύνδεσμος Revolut','Revolut link created','Ссылка Revolut создана')
+    :L('Αποθηκεύτηκε ✓','Payment saved ✓','Платёж сохранён ✓'));
 }
 
 // ── EXPENSES ─────────────────────────────────────────────────
@@ -2974,24 +3193,35 @@ function adminLogout(){
   document.getElementById('login-screen').style.display='flex';
 }
 
-// Check session on load — must be in admin_users to access
-async function checkAdminSession(){
-  const {data:{session}}=await sb.auth.getSession();
-  if(!session){
-    document.getElementById('login-screen').style.display='flex';
-    return;
-  }
-  // Verify user is an admin
-  const {data}=await sb.from('admin_users').select('role,studio_id').eq('user_id',session.user.id).single();
-  if(data){
-    STUDIO_ID = data.studio_id;
-    showApp();
-  } else {
-    await sb.auth.signOut();
-    document.getElementById('login-screen').style.display='flex';
-  }
+// Apply saved language to login screen on page load
+loginSetLang(adminLang);
+
+// Session restore via onAuthStateChange — same reliable pattern as client app
+if(sb){
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    if(event==='INITIAL_SESSION'){
+      if(!session){
+        document.getElementById('login-screen').style.display='flex';
+        return;
+      }
+      // Verify user is in admin_users
+      const {data}=await sb.from('admin_users').select('role,studio_id').eq('user_id',session.user.id).single();
+      if(data){
+        STUDIO_ID=data.studio_id;
+        showApp();
+      } else {
+        await sb.auth.signOut();
+        document.getElementById('login-screen').style.display='flex';
+      }
+    } else if(event==='SIGNED_OUT'){
+      document.getElementById('main-app').style.display='none';
+      document.getElementById('login-screen').style.display='flex';
+    }
+  });
+} else {
+  // Supabase not loaded — show login
+  document.getElementById('login-screen').style.display='flex';
 }
-checkAdminSession();
 
 async function testConnection(){
   const btn=document.getElementById('db-test-btn');
@@ -3046,27 +3276,66 @@ async function dbLoad(){
     if(!error && data && data.length){
     CLIENTS.length=0;
     data.forEach((c,i)=>{
-      const sub=c.subscriptions?.find(s=>s.is_active)||c.subscriptions?.[0];
-      const left=sub?(sub.total_classes-sub.used_classes):0;
-      const total=sub?.total_classes||8;
+      const sub=c.subscriptions?.find(s=>s.is_active)||null;
+      const total=sub?.total_classes||0;
       CLIENTS.push({
         id:i+1,_uuid:c.id,
         _subUuid:sub?.id||null,
         name:c.full_name||'',
         initials:(c.full_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
         phone:c.phone||'',lang:(c.language||'el').toUpperCase(),
-        type:sub?.type||'8',left,total,
+        type:sub?.type||'8',
+        left:total, // will be recalculated from actual bookings below
+        total,
         start:sub?.starts_at?isoFmt(sub.starts_at):'—',
         paid:sub?.paid_at?isoFmt(sub.paid_at.split('T')[0]):'—',
         nextPayment:sub?.expires_at?isoFmt(sub.expires_at):'—',
         expiresDate:sub?.expires_at||null,
         paidAmt:sub?'€'+sub.price:'—',
-        status:!c.is_active?'inactive':!sub?'inactive':left<=1?'danger':left<=2?'warn':'ok',
+        status:'ok',
         isArchived:!!c.is_archived,
         isNew:i===0,
         history:[]
       });
     });
+    // Recalculate balances: count ALL client bookings from subscription start date
+    // (matches client app logic — catches admin-booked classes regardless of subscription_id)
+    const clientUuids=CLIENTS.filter(c=>c._uuid).map(c=>c._uuid);
+    // Build maps: clientUuid → subscription starts_at / expires_at (30-day window)
+    const subStartMap={}, subExpiresMap={};
+    data.forEach(c=>{
+      const sub=c.subscriptions?.find(s=>s.is_active)||null;
+      if(sub?.starts_at) subStartMap[c.id]=sub.starts_at;
+      if(sub?.expires_at) subExpiresMap[c.id]=sub.expires_at;
+    });
+    if(clientUuids.length>0){
+      const {data:bkData}=await sb.from('bookings')
+        .select('client_id,class_date')
+        .in('client_id',clientUuids)
+        .in('status',['booked','attended','missed']); // missed = burned late-cancel
+      if(bkData){
+        const bkCounts={};
+        bkData.forEach(b=>{
+          const starts=subStartMap[b.client_id];
+          const expires=subExpiresMap[b.client_id];
+          // Only count bookings within subscription period (starts_at → expires_at)
+          if(!starts||b.class_date>=starts){
+            if(!expires||b.class_date<=expires)
+              bkCounts[b.client_id]=(bkCounts[b.client_id]||0)+1;
+          }
+        });
+        CLIENTS.forEach(c=>{
+          if(c._subUuid){
+            const used=bkCounts[c._uuid]||0;
+            c.left=Math.max(0,c.total-used);
+          } else { c.left=0; }
+          c.status=!c.left?'inactive':c.left<=1?'danger':c.left<=2?'warn':'ok';
+          if(!data.find(d=>d.id===c._uuid)?.is_active) c.status='inactive';
+        });
+      }
+    } else {
+      CLIENTS.forEach(c=>{ c.left=0; c.status='inactive'; });
+    }
     renderClients(); renderDashboard();
     await dbLoadScheduleData();
     dbLoadBookings();
@@ -3129,14 +3398,16 @@ async function dbLoadBookings(){
   try{
     const dates=viewMode==='week'?getWeekDates().map(d=>localDateStr(d)):getMonthDates().map(d=>localDateStr(d));
     const {data,error}=await sb.from('bookings')
-      .select('slot_id,class_date,status,clients(full_name),schedule_slots(day_of_week,start_time)')
+      .select('slot_id,class_date,status,subscription_id,clients(full_name),schedule_slots(day_of_week,start_time)')
       .in('class_date',dates)
       .in('status',['booked','attended'])
       .eq('studio_id',STUDIO_ID);
     if(error||!data) return;
-    // Reset maps
+    // Reset all maps
     Object.keys(slotBookingsMap).forEach(k=>delete slotBookingsMap[k]);
     Object.keys(dateSlotMap).forEach(k=>delete dateSlotMap[k]);
+    Object.keys(unpaidSlotMap).forEach(k=>delete unpaidSlotMap[k]);
+    Object.keys(unpaidDateMap).forEach(k=>delete unpaidDateMap[k]);
     const dateSet=new Set(dates);
     Object.keys(clientDateBookings).forEach(k=>{
       const parts=k.split('_'); if(parts.length===3&&dateSet.has(parts[1])) delete clientDateBookings[k];
@@ -3148,11 +3419,19 @@ async function dbLoadBookings(){
       if(dow==null||!t||!d) return;
       const key=dow+'_'+t;
       const dKey=d+'_'+key;
-      if(!slotBookingsMap[key]) slotBookingsMap[key]=[];
-      if(!dateSlotMap[dKey]) dateSlotMap[dKey]=[];
       const name=b.clients?.full_name||'—';
-      if(!slotBookingsMap[key].includes(name)) slotBookingsMap[key].push(name);
-      if(!dateSlotMap[dKey].includes(name)) dateSlotMap[dKey].push(name);
+      const isPaid=!!b.subscription_id;
+      if(isPaid){
+        if(!slotBookingsMap[key]) slotBookingsMap[key]=[];
+        if(!dateSlotMap[dKey]) dateSlotMap[dKey]=[];
+        if(!slotBookingsMap[key].includes(name)) slotBookingsMap[key].push(name);
+        if(!dateSlotMap[dKey].includes(name)) dateSlotMap[dKey].push(name);
+      } else {
+        if(!unpaidSlotMap[key]) unpaidSlotMap[key]=[];
+        if(!unpaidDateMap[dKey]) unpaidDateMap[dKey]=[];
+        if(!unpaidSlotMap[key].includes(name)) unpaidSlotMap[key].push(name);
+        if(!unpaidDateMap[dKey].includes(name)) unpaidDateMap[dKey].push(name);
+      }
       const client=CLIENTS.find(c=>c.name===name);
       if(client) clientDateBookings[client.id+'_'+d+'_'+t]=true;
     });
@@ -3177,6 +3456,24 @@ async function adjustBalance(id,delta){
   c.status=newLeft===0?'inactive':newLeft<=1?'danger':newLeft<=2?'warn':'ok';
   toast(L(`Υπόλοιπο: ${newLeft}μ`,`Balance: ${newLeft}`,`Баланс: ${newLeft}`));
   selectClient(id); renderClients();
+}
+
+// ── CANCEL SUBSCRIPTION ───────────────────────────────────────
+async function cancelSubscription(id){
+  const c=CLIENTS.find(x=>x.id===id); if(!c||!c._subUuid) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const confirmed=confirm(L(
+    `Ακύρωση συνδρομής για ${c.name}; Το υπόλοιπο θα μηδενιστεί.`,
+    `Cancel subscription for ${c.name}? Balance will be reset to 0.`,
+    `Отменить подписку ${c.name}? Баланс обнулится.`
+  ));
+  if(!confirmed) return;
+  try{
+    const {error}=await sb.from('subscriptions').update({is_active:false}).eq('id',c._subUuid);
+    if(error) throw error;
+    toast(L('Συνδρομή ακυρώθηκε','Subscription cancelled','Подписка отменена'));
+    await dbLoad();
+  }catch(e){ toast('Error: '+e.message); }
 }
 
 // ── UPDATE START DATE (end = start+30 auto) ───────────────────
@@ -3667,7 +3964,7 @@ function openNewClientModal(toArchive=false){
     m.innerHTML=`<div class="modal">
       <div class="modal-title" id="ncm-title"></div>
       <div class="form-grid-2" style="margin-bottom:10px">
-        <div class="ff"><label id="ncm-name-lbl"></label><input id="ncm-name" type="text" placeholder="First Last" lang="en" oninput="this.value=this.value.replace(/[^a-zA-Z\s\-'.]/g,'')"><div style="font-size:10px;color:var(--text3);margin-top:3px" id="ncm-name-hint"></div></div>
+        <div class="ff"><label id="ncm-name-lbl"></label><input id="ncm-name" type="text" placeholder="First Last" lang="en" oninput="latinOnly(this)" onpaste="setTimeout(()=>latinOnly(this),0)" onkeyup="latinOnly(this)"><div style="font-size:10px;color:var(--text3);margin-top:3px" id="ncm-name-hint"></div></div>
         <div class="ff"><label id="ncm-phone-lbl"></label><input id="ncm-phone" type="tel" placeholder="+357 99..."></div>
       </div>
       <div class="form-grid-2" style="margin-bottom:10px">
@@ -3832,72 +4129,115 @@ async function confirmBooking(){
       status:'inactive', history:[], attendedMonth:0, upcoming:0, isNew:true
     });
     renderClients(); renderDashboard();
-    bookClientByName(name);
+    const repeatCount=parseInt(document.getElementById('bm-repeat')?.value||'1',10)||1;
+    bookClientByName(name, repeatCount);
     return;
   }
   const selected=document.querySelector('#bm-client-list input[name="bm-client"]:checked');
   if(!selected){toast(L('Επιλέξτε','Select a client','Выберите клиента'));return;}
-  bookClientByName(selected.value);
+  const repeatCount=parseInt(document.getElementById('bm-repeat')?.value||'1',10)||1;
+  bookClientByName(selected.value, repeatCount);
 }
 
-async function bookClientByName(name){
+async function bookClientByName(name, repeatCount){
+  repeatCount=repeatCount||1;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  if(currentBookSlot){
-    const {di,time}=currentBookSlot;
-    const slotKey=di+'_'+time;
-    const dateStr=currentSlot?.dateStr||null;
-    if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
-    const dKey=dateStr?dateStr+'_'+slotKey:null;
-    if(dKey&&!dateSlotMap[dKey]) dateSlotMap[dKey]=[];
-    const capArr=(dKey&&dateSlotMap[dKey])||slotBookingsMap[slotKey];
-    if(capArr.length>=CAP){
-      const client=CLIENTS.find(c=>c.name===name);
-      addToWaitlist(name,client?.phone||'',di,time,dateStr||'any');
-      return;
+  if(!currentBookSlot){
+    closeModal('book-modal');
+    return;
+  }
+  const {di,time}=currentBookSlot;
+  const slotKey=di+'_'+time;
+  const baseDateStr=currentSlot?.dateStr||null;
+  const client=CLIENTS.find(c=>c.name===name);
+  const slotId=scheduleSlotIds[slotKey];
+
+  // Determine if first booking is paid (single booking + client has balance)
+  const isPaidFirst=repeatCount===1&&client?.left>0&&!!client?._subUuid;
+  // All recurring bookings are unpaid (no subscription deduction)
+  const isRecurring=repeatCount>1;
+
+  if(!sb||!baseDateStr){
+    closeModal('book-modal');
+    toast(L('Κράτηση ✓','Booked ✓','Записан!'));
+    renderSchedule();
+    return;
+  }
+
+  if(!client?._uuid){console.warn('bookClientByName: client._uuid missing',name);}
+  else if(!slotId){console.warn('bookClientByName: slotId missing',slotKey);}
+  else {
+    // Build list of dates to book
+    const dates=[];
+    for(let w=0;w<repeatCount;w++){
+      const d=new Date(baseDateStr+'T12:00:00');
+      d.setDate(d.getDate()+w*7);
+      dates.push(d.toISOString().slice(0,10));
     }
-    if(!slotBookingsMap[slotKey].includes(name)) slotBookingsMap[slotKey].push(name);
-    if(dKey&&!dateSlotMap[dKey].includes(name)) dateSlotMap[dKey].push(name);
-    // Save to database
-    if(sb && dateStr){
-      const client=CLIENTS.find(c=>c.name===name);
-      const slotId=scheduleSlotIds[slotKey];
-      if(!client?._uuid){
-        console.warn('bookClientByName: client._uuid missing for',name);
-      } else if(!slotId){
-        console.warn('bookClientByName: slotId missing for key',slotKey);
-      } else {
-        try{
-          const {error:insErr}=await sb.from('bookings').insert({
-            studio_id:STUDIO_ID,
-            client_id:client._uuid,
-            slot_id:slotId,
-            subscription_id:client._subUuid||null,
-            class_date:dateStr,
-            status:'booked'
-          });
-          if(insErr){
-            console.error('booking insert error:',insErr.message,insErr.code);
-            toast(L('Σφάλμα αποθήκευσης','DB save error: '+insErr.message,'Ошибка сохранения: '+insErr.message));
-          } else {
-            clientDateBookings[client.id+'_'+dateStr+'_'+time]=true;
-            // Decrement subscription balance if exists
-            if(client._subUuid && client.left>0){
-              await sb.from('subscriptions')
-                .update({used_classes:client.total-client.left+1})
-                .eq('id',client._subUuid);
-              client.left=Math.max(0,client.left-1);
-              client.status=client.left===0?'inactive':client.left<=1?'danger':client.left<=2?'warn':'ok';
-            }
-          }
-        }catch(e){
-          console.error('booking insert exception:',e.message);
-          toast(L('Σφάλμα','Error','Ошибка: ')+e.message);
-        }
+
+    // For single paid booking — check capacity
+    if(!isRecurring){
+      const dKey=baseDateStr+'_'+slotKey;
+      const capArr=(dateSlotMap[dKey]||slotBookingsMap[slotKey]||[]);
+      const unpaidArr=(unpaidDateMap[dKey]||unpaidSlotMap[slotKey]||[]);
+      if(capArr.length+unpaidArr.length>=CAP){
+        addToWaitlist(name,client?.phone||'',di,time,baseDateStr||'any');
+        closeModal('book-modal');
+        return;
       }
     }
+
+    // Insert bookings
+    try{
+      if(isPaidFirst){
+        // Single paid booking — links to subscription
+        const {error}=await sb.from('bookings').insert({
+          studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,
+          subscription_id:client._subUuid,class_date:baseDateStr,status:'booked'
+        });
+        if(error){toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
+        else{
+          clientDateBookings[client.id+'_'+baseDateStr+'_'+time]=true;
+          // Update local maps
+          if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
+          const dKey=baseDateStr+'_'+slotKey;
+          if(!dateSlotMap[dKey]) dateSlotMap[dKey]=[];
+          if(!slotBookingsMap[slotKey].includes(name)) slotBookingsMap[slotKey].push(name);
+          if(!dateSlotMap[dKey].includes(name)) dateSlotMap[dKey].push(name);
+          // Decrement local client balance
+          client.left=Math.max(0,client.left-1);
+          client.status=client.left===0?'inactive':client.left<=1?'danger':client.left<=2?'warn':'ok';
+        }
+      } else {
+        // Unpaid / recurring — insert all dates without subscription_id
+        const rows=dates.map(d=>({
+          studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,
+          subscription_id:null,class_date:d,status:'booked'
+        }));
+        const {error}=await sb.from('bookings').insert(rows);
+        if(error){toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
+        else{
+          dates.forEach(d=>{
+            clientDateBookings[client.id+'_'+d+'_'+time]=true;
+            const dKey=d+'_'+slotKey;
+            if(!unpaidSlotMap[slotKey]) unpaidSlotMap[slotKey]=[];
+            if(!unpaidDateMap[dKey]) unpaidDateMap[dKey]=[];
+            if(!unpaidSlotMap[slotKey].includes(name)) unpaidSlotMap[slotKey].push(name);
+            if(!unpaidDateMap[dKey].includes(name)) unpaidDateMap[dKey].push(name);
+          });
+        }
+      }
+    }catch(e){
+      console.error('booking insert exception:',e.message);
+      toast(L('Σφάλμα','Error','Ошибка: ')+e.message);
+    }
   }
+
   closeModal('book-modal');
-  toast(L('Κράτηση ✓','Booked ✓','Записан!'));
+  const bookedMsg=repeatCount>1
+    ? (adminLang==='ru'?`Запланировано ${repeatCount} занятий ✓`:adminLang==='en'?`Scheduled ${repeatCount} classes ✓`:`Προγρ. ${repeatCount} μαθ. ✓`)
+    : L('Κράτηση ✓','Booked ✓','Записан!');
+  toast(bookedMsg);
   renderSchedule();
   if(currentSlot) openSlotDetail(currentSlot.di,currentSlot.time,currentSlot.dateStr);
 }
