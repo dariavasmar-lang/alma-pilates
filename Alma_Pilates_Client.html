@@ -601,8 +601,10 @@ const SCH = {
   5:[{t:'09:30',tp:'mo'},{t:'10:30',tp:'mo'}],
 };
 const HIST=[{di:1,t:'07:00–08:00',date:'6 мая / 6 Μαΐου / May 6',s:'att'},{di:3,t:'17:30–18:30',date:'1 мая / 1 Μαΐου / May 1',s:'mis'},{di:1,t:'07:00–08:00',date:'29 апр / 29 Απρ / Apr 29',s:'att'}];
-const MINE_SET=new Set();
-let mineByDate={}; // "dateStr_time" → true, for month view
+const MINE_SET=new Set();     // bookings within subscription period (paid)
+const UNPAID_SET=new Set();   // bookings after expires_at (reserved, not paid)
+let mineByDate={};   // "dateStr_time" → true (paid), month view
+let unpaidByDate={}; // "dateStr_time" → true (unpaid), month view
 const WAITLIST_SET=new Set();
 const CAP=4;
 
@@ -634,11 +636,18 @@ async function loadWeekBookings(){
   if(!clientId) return;
   const dates=getWeekDates().map(d=>localDateStr(d));
   const {data:myBks}=await sb.from('bookings').select('id,slot_id,class_date,subscription_id,status').eq('client_id',clientId).in('class_date',dates).in('status',['booked','attended']);
-  MINE_SET.clear(); bookingByKey.clear();
+  MINE_SET.clear(); UNPAID_SET.clear(); bookingByKey.clear();
+  const expires=sbBal.expiresAt||null;
   (myBks||[]).forEach(b=>{
     for(const [dow,slots] of Object.entries(SCH)){
       const slot=slots.find(s=>s.id===b.slot_id);
-      if(slot){const key=dow+'_'+slot.t;MINE_SET.add(key);bookingByKey.set(key,b);break;}
+      if(slot){
+        const key=dow+'_'+slot.t;
+        const isPaid=!expires||b.class_date<=expires;
+        if(isPaid){ MINE_SET.add(key); bookingByKey.set(key,b); }
+        else { UNPAID_SET.add(key); bookingByKey.set('up_'+key,b); }
+        break;
+      }
     }
   });
   const {data:counts}=await sb.rpc('get_booking_counts',{p_dates:dates});
@@ -669,11 +678,17 @@ async function loadMonthBookings(){
     .select('slot_id,class_date').eq('client_id',clientId)
     .gte('class_date',firstDay).lte('class_date',lastDay)
     .in('status',['booked','attended']);
-  mineByDate={};
+  mineByDate={}; unpaidByDate={};
+  const expires=sbBal.expiresAt||null;
   (data||[]).forEach(b=>{
     for(const [,slots] of Object.entries(SCH)){
       const slot=slots.find(s=>s.id===b.slot_id);
-      if(slot){mineByDate[b.class_date+'_'+slot.t]=true;break;}
+      if(slot){
+        const isPaid=!expires||b.class_date<=expires;
+        if(isPaid) mineByDate[b.class_date+'_'+slot.t]=true;
+        else unpaidByDate[b.class_date+'_'+slot.t]=true;
+        break;
+      }
     }
   });
 }
@@ -1157,7 +1172,9 @@ function buildMonthView(){
     const dow=(date.getDay()+6)%7;
     const isSun=dow===6;
     const slots=isCur&&!isSun?(SCH[dow]||[]):[];
-    const dateKey=localDateStr(date); const hasMine=slots.some(s=>mineByDate[dateKey+'_'+s.t]);
+    const dateKey=localDateStr(date);
+    const hasMine=slots.some(s=>mineByDate[dateKey+'_'+s.t]);
+    const hasUnpaid=!hasMine&&slots.some(s=>unpaidByDate[dateKey+'_'+s.t]);
     const hasSlots=slots.length>0;
     const numColor=isSun?'var(--red)':'var(--text)';
     const onclick=isCur&&!isSun?`openDaySlots(${dow},new Date(${date.getTime()}))`:'';
@@ -1170,7 +1187,8 @@ function buildMonthView(){
       </div>
       <div style="display:flex;gap:3px;height:5px;align-items:center">
         ${hasMine?`<div style="width:5px;height:5px;border-radius:50%;background:var(--accent)"></div>`:''}
-        ${hasSlots&&!hasMine?`<div style="width:5px;height:5px;border-radius:50%;background:var(--green)"></div>`:''}
+        ${hasUnpaid?`<div style="width:5px;height:5px;border-radius:50%;background:#E8A84A"></div>`:''}
+        ${hasSlots&&!hasMine&&!hasUnpaid?`<div style="width:5px;height:5px;border-radius:50%;background:var(--green)"></div>`:''}
       </div>
     </div>`;
   });
@@ -1189,12 +1207,17 @@ function openDaySlots(dow,date){
   const slotsHTML=slots.map(s=>{
     const key=dow+'_'+s.t;
     const mine=!!mineByDate[dayDateKey+'_'+s.t];
+    const unpaid=!mine&&!!unpaidByDate[dayDateKey+'_'+s.t];
     const onWait=WAITLIST_SET.has(key);
     const bk=bkCounts[wkOff+'_'+key]||0;
     const free=CAP-bk;
-    const full=free<=0&&!mine;
-    if(isPastDay&&!mine){
+    const full=free<=0&&!mine&&!unpaid;
+    if(isPastDay&&!mine&&!unpaid){
       return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
+    }
+    if(unpaid){
+      const lbl=T.slUnpaid||'не опл.';
+      return `<div class="slot" style="background:#FEF3E2;border:0.5px solid #E8A84A;cursor:pointer" onclick="closeSheet('sh-day');openCancelSheet(${dow},'${s.t}',${dateMs})"><span style="font-weight:500;font-size:11px;color:#92400E">${s.t}</span><span style="font-size:9px;margin-top:1px;color:#C47A1A">${lbl}</span></div>`;
     }
     const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
     const lbl=mine?T.slMine:onWait?T.slWait:full?T.slFull:free+' '+T.slFree;
@@ -1224,12 +1247,17 @@ function buildSchedule(){
     const slotsHTML=daySlots.map(s=>{
       const key=di+'_'+s.t;
       const mine=MINE_SET.has(key);
+      const unpaid=!mine&&UNPAID_SET.has(key);
       const onWait=WAITLIST_SET.has(key);
       const bk=bkCounts[wkOff+'_'+key]||0;
       const free=CAP-bk;
-      const full=free<=0&&!mine;
-      if(isPast&&!mine){
+      const full=free<=0&&!mine&&!unpaid;
+      if(isPast&&!mine&&!unpaid){
         return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
+      }
+      if(unpaid){
+        const lbl=T.slUnpaid||'не опл.';
+        return `<div class="slot" style="background:#FEF3E2;border:0.5px solid #E8A84A;cursor:pointer" onclick="openCancelSheet(${di},'${s.t}',null)"><span style="font-weight:500;font-size:11px;color:#92400E">${s.t}</span><span style="font-size:9px;margin-top:1px;color:#C47A1A">${lbl}</span></div>`;
       }
       const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
       const lbl=mine?T.slMine:onWait?T.slWait:full?T.slFull:free+' '+T.slFree;
@@ -1334,17 +1362,24 @@ function isLateCancellation(date,time){
 function openCancelSheet(di,time,dateMs){
   const date=dateMs?new Date(dateMs):getWeekDates()[di];
   const late=isLateCancellation(date,time);
-  selSlot={di,time,dateMs,late};
+  // Check if this is an unpaid (post-period) booking
+  const dateKey=dateMs?localDateStr(new Date(dateMs)):localDateStr(getWeekDates()[di]);
+  const isUnpaid=unpaidByDate[dateKey+'_'+time]||UNPAID_SET.has(di+'_'+time)||false;
+  selSlot={di,time,dateMs,late,isUnpaid};
   const T=tr();
   tx('shc-title',T.shcTitle);
   tx('shc-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
   const warn=$('shc-warn');
   if(warn){
-    warn.textContent=late?T.shcWarnLate:T.shcWarnFree;
-    warn.parentElement.style.borderColor=late?'var(--red)':'#D4B870';
-    warn.parentElement.style.background=late?'var(--rbg)':'var(--wbg)';
+    // For unpaid bookings: neutral warning (no balance effect)
+    const warnTxt=isUnpaid?(T.shcWarnUnpaid||'Это занятие не входит в текущий абонемент'):late?T.shcWarnLate:T.shcWarnFree;
+    const warnColor=isUnpaid?'#E8A84A':late?'var(--red)':'#D4B870';
+    const warnBg=isUnpaid?'#FEF3E2':late?'var(--rbg)':'var(--wbg)';
+    warn.textContent=warnTxt;
+    warn.parentElement.style.borderColor=warnColor;
+    warn.parentElement.style.background=warnBg;
     const icon=warn.previousElementSibling;
-    if(icon){ icon.style.background=late?'var(--red)':'#D4B870'; icon.style.color=late?'#fff':'var(--warn)'; icon.textContent=late?'✕':'!'; }
+    if(icon){ icon.style.background=warnColor; icon.style.color=isUnpaid?'#92400E':late?'#fff':'var(--warn)'; icon.textContent=isUnpaid?'₽':late?'✕':'!'; }
   }
   tx('shc-keep',T.shcKeep);
   tx('shc-confirm',T.shcConfirm);
@@ -1356,9 +1391,10 @@ async function confirmCancel(){
   closeSheet('sh-cancel');
   const T=tr();
   if(sbUser&&sbUser.id!=='demo'){
+    // Unpaid (after period): just cancel, no balance effect, no late-cancel logic
     // Late cancel (≤4h before class) → 'missed' (class burns, counts against balance)
     // Early cancel (>4h before class) → 'cancelled' (class returned to balance)
-    const newStatus=selSlot.late?'missed':'cancelled';
+    const newStatus=selSlot.isUnpaid?'cancelled':selSlot.late?'missed':'cancelled';
     const clientId=sbProfile?.id;
     let updated=false;
     const bk=bookingByKey.get(selSlot.di+'_'+selSlot.time);
