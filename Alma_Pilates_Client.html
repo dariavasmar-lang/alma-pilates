@@ -269,38 +269,37 @@ window.addEventListener('resize',setAppH);
       <div style="margin-top:2px">
         <div style="font-size:11px;font-weight:500;color:var(--text2);margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em" id="pf-map-lbl">Η τοποθεσία μας</div>
         <!-- Static map preview -->
-        <div style="border-radius:12px;overflow:hidden;border:0.5px solid var(--border);position:relative;cursor:pointer" onclick="openSheet('sh-map')">
-          <div style="background:#E8E4DC;height:70px;display:flex;align-items:center;justify-content:center;position:relative">
+        <div style="border-radius:12px;overflow:hidden;border:0.5px solid var(--border);cursor:pointer" onclick="openSheet('sh-map')">
+          <div style="height:80px;position:relative;overflow:hidden;background:#EDE7DA">
             <!-- Stylized map background -->
-            <svg width="100%" height="95" viewBox="0 0 354 95" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0">
-              <rect width="354" height="140" fill="#EDE7DA"/>
+            <svg width="100%" height="100%" viewBox="0 0 354 80" preserveAspectRatio="xMidYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;width:100%;height:100%">
+              <rect width="354" height="80" fill="#EDE7DA"/>
               <!-- Streets -->
-              <line x1="0" y1="70" x2="354" y2="70" stroke="#D8CEBE" stroke-width="8"/>
-              <line x1="177" y1="0" x2="177" y2="140" stroke="#D8CEBE" stroke-width="6"/>
-              <line x1="0" y1="35" x2="354" y2="35" stroke="#D8CEBE" stroke-width="3"/>
-              <line x1="0" y1="105" x2="354" y2="105" stroke="#D8CEBE" stroke-width="3"/>
-              <line x1="88" y1="0" x2="88" y2="140" stroke="#D8CEBE" stroke-width="3"/>
-              <line x1="266" y1="0" x2="266" y2="140" stroke="#D8CEBE" stroke-width="3"/>
+              <line x1="0" y1="40" x2="354" y2="40" stroke="#D8CEBE" stroke-width="8"/>
+              <line x1="177" y1="0" x2="177" y2="80" stroke="#D8CEBE" stroke-width="6"/>
+              <line x1="0" y1="18" x2="354" y2="18" stroke="#D8CEBE" stroke-width="3"/>
+              <line x1="0" y1="62" x2="354" y2="62" stroke="#D8CEBE" stroke-width="3"/>
+              <line x1="88" y1="0" x2="88" y2="80" stroke="#D8CEBE" stroke-width="3"/>
+              <line x1="266" y1="0" x2="266" y2="80" stroke="#D8CEBE" stroke-width="3"/>
               <!-- Blocks -->
-              <rect x="10" y="10" width="60" height="18" rx="2" fill="#D8CEBE" opacity=".5"/>
-              <rect x="10" y="42" width="60" height="22" rx="2" fill="#D8CEBE" opacity=".5"/>
-              <rect x="10" y="78" width="60" height="20" rx="2" fill="#D8CEBE" opacity=".5"/>
-              <rect x="100" y="10" width="64" height="18" rx="2" fill="#D8CEBE" opacity=".5"/>
-              <rect x="100" y="42" width="64" height="22" rx="2" fill="#D8CEBE" opacity=".5"/>
-              <rect x="100" y="78" width="64" height="20" rx="2" fill="#D8CEBE" opacity=".5"/>
-              <rect x="190" y="10" width="64" height="18" rx="2" fill="#D8CEBE" opacity=".5"/>
-              <rect x="280" y="10" width="64" height="18" rx="2" fill="#D8CEBE" opacity=".5"/>
-              <rect x="280" y="42" width="64" height="22" rx="2" fill="#D8CEBE" opacity=".5"/>
-              <rect x="280" y="78" width="64" height="20" rx="2" fill="#D8CEBE" opacity=".5"/>
-              <!-- Label Marathovounou -->
-              <text x="177" y="58" text-anchor="middle" font-size="9" fill="#A89880" font-family="Helvetica Neue">Marathovounou 12</text>
+              <rect x="10" y="4" width="60" height="11" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="10" y="24" width="60" height="13" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="10" y="46" width="60" height="13" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="100" y="4" width="64" height="11" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="100" y="46" width="64" height="13" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="190" y="4" width="64" height="11" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="280" y="4" width="64" height="11" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="280" y="24" width="64" height="13" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <rect x="280" y="46" width="64" height="13" rx="2" fill="#D8CEBE" opacity=".5"/>
+              <!-- Street label -->
+              <text x="177" y="33" text-anchor="middle" font-size="8" fill="#A89880" font-family="Helvetica Neue">Marathovounou 12</text>
             </svg>
-            <!-- Pin -->
-            <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center">
-              <div style="width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--accent);box-shadow:0 2px 8px rgba(107,82,64,.4);display:flex;align-items:center;justify-content:center">
-                <div style="transform:rotate(45deg);font-size:14px">🤸</div>
+            <!-- Pin centred over intersection -->
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);z-index:2;display:flex;flex-direction:column;align-items:center">
+              <div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--accent);box-shadow:0 2px 8px rgba(107,82,64,.4);display:flex;align-items:center;justify-content:center">
+                <div style="transform:rotate(45deg);font-size:13px">🤸</div>
               </div>
-              <div style="width:6px;height:6px;border-radius:50%;background:rgba(107,82,64,.3);margin-top:2px"></div>
+              <div style="width:5px;height:5px;border-radius:50%;background:rgba(107,82,64,.3);margin-top:2px"></div>
             </div>
           </div>
           <div style="padding:9px 12px;background:var(--card);display:flex;justify-content:space-between;align-items:center">
@@ -308,7 +307,7 @@ window.addEventListener('resize',setAppH);
               <div style="font-size:12px;font-weight:500;color:var(--text)">Alma Pilates Studio</div>
               <div style="font-size:10px;color:var(--text3);margin-top:1px">Marathovounou 12, Limassol</div>
             </div>
-            <div style="font-size:10px;color:var(--accent);font-weight:500" id="pf-map-open">Άνοιγμα →</div>
+            <div style="font-size:10px;color:var(--accent);font-weight:500;white-space:nowrap;margin-left:8px" id="pf-map-open">Άνοιγμα →</div>
           </div>
         </div>
       </div>
@@ -681,8 +680,10 @@ async function loadMonthBookings(){
 
 async function loadProfile(){
   if(!sbUser||sbUser.id==='demo') return;
-  const {data}=await sb.from('clients').select('*').eq('user_id',sbUser.id).single();
+  const {data,error}=await sb.from('clients').select('*').eq('user_id',sbUser.id).maybeSingle();
   if(data) sbProfile=data;
+  // if error (network/RLS) but not "row not found" — keep existing sbProfile, don't sign out
+  if(error) console.warn('[loadProfile] error:',error.message);
 }
 
 function applyProfileUI(){
@@ -762,7 +763,8 @@ async function loadBalance(){
   // No balance notification
   const balEmptyEl=document.getElementById('h-bal-empty');
   if(balEmptyEl){
-    const show=left===0&&sub?.id;
+    const daysFromStart=sub?.starts_at?Math.floor((new Date()-new Date(sub.starts_at+'T12:00:00'))/864e5):0;
+    const show=left===0&&sub?.id&&daysFromStart>=28;
     balEmptyEl.style.display=show?'flex':'none';
     if(show){
       const bTxt=document.getElementById('h-bal-empty-txt');
@@ -1259,7 +1261,9 @@ async function openBookSheet(di,time,free,dateMs){
   openSheet('sh-book');
   await loadBalance();
   const left=Math.max(0,sbBal.total-sbBal.used);
-  const noBalance=left<=0&&sbBal.subId;
+  // Only show "renew" prompt after 28 days from subscription start (last 2 days of 30-day period)
+  const daysFromStart=sbBal.startsAt?Math.floor((new Date()-new Date(sbBal.startsAt+'T12:00:00'))/864e5):0;
+  const noBalance=left<=0&&sbBal.subId&&daysFromStart>=28;
   // Dots — show remaining circles
   const dotsEl=$('shb-dots');
   if(dotsEl){
@@ -1588,6 +1592,58 @@ function buildProfileRows(){
 function openSheet(id){ const e=$(id); if(e) e.classList.add('on'); }
 function closeSheet(id){ const e=$(id); if(e) e.classList.remove('on'); }
 
+// ── Close sheets by backdrop tap or swipe down ─────────────────
+(function initSheetGestures(){
+  document.querySelectorAll('.ov').forEach(ov=>{
+    const sheetId=ov.id;
+
+    // 1. Tap on backdrop (outside the sheet)
+    ov.addEventListener('click',e=>{
+      if(e.target===ov) closeSheet(sheetId);
+    });
+
+    // 2. Swipe down on the sheet
+    const sheet=ov.querySelector('.sheet');
+    if(!sheet) return;
+    let startY=0, startScroll=0, dragging=false;
+
+    sheet.addEventListener('touchstart',e=>{
+      startY=e.touches[0].clientY;
+      startScroll=sheet.scrollTop;
+      dragging=true;
+    },{passive:true});
+
+    sheet.addEventListener('touchmove',e=>{
+      if(!dragging) return;
+      const dy=e.touches[0].clientY-startY;
+      // Only drag-to-close if sheet is scrolled to top AND swiping down
+      if(dy>0&&startScroll===0){
+        sheet.style.transform=`translateY(${Math.min(dy*0.6,120)}px)`;
+        sheet.style.transition='none';
+      }
+    },{passive:true});
+
+    sheet.addEventListener('touchend',e=>{
+      if(!dragging) return;
+      dragging=false;
+      const dy=e.changedTouches[0].clientY-startY;
+      if(dy>60&&startScroll===0){
+        sheet.style.transform='translateY(100%)';
+        sheet.style.transition='transform .2s ease';
+        setTimeout(()=>{
+          closeSheet(sheetId);
+          sheet.style.transform='';
+          sheet.style.transition='';
+        },200);
+      } else {
+        sheet.style.transform='';
+        sheet.style.transition='transform .15s ease';
+        setTimeout(()=>sheet.style.transition='',150);
+      }
+    },{passive:true});
+  });
+})();
+
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
@@ -1635,7 +1691,9 @@ sb.auth.onAuthStateChange(async(event,session)=>{
         const lastTab=(() => { try{ return localStorage.getItem('alma_last_tab')||'home'; }catch(e){ return 'home'; } })();
         goTab(lastTab);
       } else {
-        // No client profile (e.g. admin email session) — sign out and show welcome
+        // Profile not found — could be admin session or genuinely missing client
+        // Only sign out if we got a clean null (not a network error)
+        // maybeSingle() returns null data with no error when row doesn't exist
         sbUser=null;
         await sb.auth.signOut();
         applyLang();
