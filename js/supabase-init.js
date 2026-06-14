@@ -10,8 +10,7 @@ try {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storageKey: 'alma-client-auth'
+        detectSessionInUrl: true
       }
     });
   }
