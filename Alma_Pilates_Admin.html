@@ -1201,19 +1201,37 @@ function renderHistoryTabById(clientId,tab){
 
   let items=[];
   if(tab==='bookings'){
-    items=(cache.bookings||[])
-      .filter(b=>b.status==='booked'||b.status==='attended')
-      .map(b=>{
-        const time=b.schedule_slots?.start_time?.slice(0,5)||'';
-        const isFuture=b.class_date>=new Date().toISOString().split('T')[0];
-        const attended=b.status==='attended';
-        return {
-          date:fmtHistDate(b.class_date),
-          label:time+(isFuture?' · '+L('предстоит','upcoming','предстоит'):attended?' · '+L('посетила','attended','посетила'):''),
-          note:isFuture?'⏳':attended?'✓':'',
-          color:attended?'var(--green)':isFuture?'var(--accent)':'var(--text3)'
-        };
-      });
+    const today=new Date().toISOString().split('T')[0];
+    const bookings=(cache.bookings||[]).filter(b=>b.status==='booked'||b.status==='attended');
+    const noRec=adminLang==='el'?'Δεν υπάρχουν εγγραφές':adminLang==='en'?'No records':'Нет записей';
+    const el=document.getElementById('ctab-content-'+clientId);
+    if(el){
+      if(!bookings.length){
+        el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">${noRec}</div>`;
+      } else {
+        el.innerHTML=bookings.map(b=>{
+          const time=b.schedule_slots?.start_time?.slice(0,5)||'';
+          const isFuture=b.class_date>=today;
+          const attended=b.status==='attended';
+          const dot=`<span style="width:6px;height:6px;border-radius:50%;background:${attended?'var(--green)':isFuture?'var(--accent)':'var(--text3)'};display:inline-block;flex-shrink:0"></span>`;
+          const lbl=time+(isFuture?' · '+L('предстоит','upcoming','предстоит'):attended?' · '+L('посетила','attended','посетила'):'');
+          const note=isFuture?'⏳':attended?'✓':'';
+          // Cancel button: only for non-attended bookings
+          const canCancel=!attended;
+          const cancelBtn=canCancel
+            ? `<button onclick="adminCancelBooking('${b.id}',${clientId})" style="font-size:10px;padding:2px 8px;border:0.5px solid var(--red);border-radius:5px;background:transparent;cursor:pointer;color:var(--red);flex-shrink:0">${L('Ακύρωση','Cancel','Отменить')}</button>`
+            : '';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+            ${dot}
+            <span style="font-size:12px;color:var(--text2);white-space:nowrap;min-width:42px">${fmtHistDate(b.class_date)}</span>
+            <span style="font-size:12px;color:var(--text);flex:1">${lbl}</span>
+            ${note?`<span style="font-size:11px;color:var(--text3)">${note}</span>`:''}
+            ${cancelBtn}
+          </div>`;
+        }).join('');
+      }
+    }
+    return; // rendered directly, skip bottom renderHistoryTab call
   } else if(tab==='payments'){
     const methodLabel={cash:L('Μετρητά','Cash','Наличные'),card:L('Κάρτα','Card','Карта'),bank:L('Τράπεζα','Bank','Банк'),revolut:'Revolut'};
     items=(cache.subs||[]).map(s=>{
@@ -1590,6 +1608,36 @@ async function cancelAllFutureBookings(clientId){
   toast(msg);
   renderClientCard(c);
   renderClients();
+}
+
+async function adminCancelBooking(bookingId, clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c||!sb) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(!confirm(L('Ακύρωση κράτησης;','Cancel this booking?','Отменить эту запись?'))) return;
+
+  const uuid=c._uuid;
+  const cache=clientHistoryCache[uuid];
+  const bk=(cache?.bookings||[]).find(b=>b.id===bookingId);
+
+  // Update booking status → cancelled
+  const {error}=await sb.from('bookings').update({status:'cancelled'}).eq('id',bookingId);
+  if(error){ toast(L('Σφάλμα','Error','Ошибка')+': '+error.message); return; }
+
+  // Restore 1 class to subscription if booking had one
+  if(bk?.subscription_id){
+    const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',bk.subscription_id).single();
+    if(sub&&sub.used_classes>0){
+      await sb.from('subscriptions').update({used_classes:sub.used_classes-1}).eq('id',bk.subscription_id);
+    }
+  }
+
+  toast(L('Ακυρώθηκε','Cancelled','Запись отменена'));
+
+  // Refresh client history and remaining count
+  delete clientHistoryCache[uuid];
+  await loadClientHistory(clientId);
+  const {data:sub}=await sb.from('subscriptions').select('total_classes,used_classes').eq('client_id',uuid).eq('is_active',true).order('created_at',{ascending:false}).limit(1).single();
+  if(sub){ c.remaining=sub.total_classes-sub.used_classes; renderClients(); }
 }
 
 function sendWhatsApp(clientId,type){
