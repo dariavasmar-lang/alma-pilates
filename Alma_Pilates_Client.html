@@ -637,17 +637,15 @@ async function loadWeekBookings(){
   const clientId=sbProfile?.id;
   if(!clientId) return;
   const dates=getWeekDates().map(d=>localDateStr(d));
-  const {data:myBks}=await sb.from('bookings').select('id,slot_id,class_date,subscription_id,status').eq('client_id',clientId).in('class_date',dates).in('status',['booked','attended']);
+  const {data:myBks}=await sb.from('bookings').select('id,slot_id,class_date,subscription_id,status').eq('client_id',clientId).in('class_date',dates).in('status',['booked','attended','unpaid_future']);
   MINE_SET.clear(); UNPAID_SET.clear(); bookingByKey.clear();
-  const expires=sbBal.expiresAt||null;
   (myBks||[]).forEach(b=>{
     for(const [dow,slots] of Object.entries(SCH)){
       const slot=slots.find(s=>s.id===b.slot_id);
       if(slot){
         const key=dow+'_'+slot.t;
-        const isPaid=!expires||b.class_date<=expires;
-        if(isPaid){ MINE_SET.add(key); bookingByKey.set(key,b); }
-        else { UNPAID_SET.add(key); bookingByKey.set('up_'+key,b); }
+        if(b.status==='unpaid_future'){ UNPAID_SET.add(key); bookingByKey.set('up_'+key,b); }
+        else { MINE_SET.add(key); bookingByKey.set(key,b); }
         break;
       }
     }
@@ -677,18 +675,16 @@ async function loadMonthBookings(){
   const firstDay=localDateStr(new Date(base.getFullYear(),base.getMonth(),1));
   const lastDay=localDateStr(new Date(base.getFullYear(),base.getMonth()+1,0));
   const {data}=await sb.from('bookings')
-    .select('slot_id,class_date').eq('client_id',clientId)
+    .select('slot_id,class_date,status').eq('client_id',clientId)
     .gte('class_date',firstDay).lte('class_date',lastDay)
-    .in('status',['booked','attended']);
+    .in('status',['booked','attended','unpaid_future']);
   mineByDate={}; unpaidByDate={};
-  const expires=sbBal.expiresAt||null;
   (data||[]).forEach(b=>{
     for(const [,slots] of Object.entries(SCH)){
       const slot=slots.find(s=>s.id===b.slot_id);
       if(slot){
-        const isPaid=!expires||b.class_date<=expires;
-        if(isPaid) mineByDate[b.class_date+'_'+slot.t]=true;
-        else unpaidByDate[b.class_date+'_'+slot.t]=true;
+        if(b.status==='unpaid_future') unpaidByDate[b.class_date+'_'+slot.t]=true;
+        else mineByDate[b.class_date+'_'+slot.t]=true;
         break;
       }
     }
@@ -1349,8 +1345,14 @@ async function confirmBook(){
     const clientId=sbProfile?.id;
     if(!clientId){toast2('Error: no client profile');return;}
     const left=Math.max(0,sbBal.total-sbBal.used);
-    if(left<=0&&sbBal.subId){toast2(tr().noClassesLeft||'No classes left');return;}
-    const {error}=await sb.from('bookings').insert({client_id:clientId,slot_id:slot.id,studio_id:STUDIO_ID,subscription_id:sbBal.subId||null,class_date:dateStr,status:'booked'});
+    // Determine if this date falls within the active subscription period
+    const isWithinSub=sbBal.subId&&sbBal.expiresAt&&dateStr<=sbBal.expiresAt;
+    const isOutsideSub=!isWithinSub;
+    if(left<=0&&isWithinSub){toast2(tr().noClassesLeft||'No classes left');return;}
+    // Outside subscription period → unpaid_future (placeholder, no balance deducted)
+    const bkStatus=isOutsideSub?'unpaid_future':'booked';
+    const bkSubId=isOutsideSub?null:sbBal.subId;
+    const {error}=await sb.from('bookings').insert({client_id:clientId,slot_id:slot.id,studio_id:STUDIO_ID,subscription_id:bkSubId,class_date:dateStr,status:bkStatus});
     if(error){toast2('Error: '+error.message);return;}
     toast2(tr().bookOk);
     await refreshSchedule();
@@ -1437,7 +1439,7 @@ async function confirmCancel(){
         const slot=SCH[selSlot.di]?.find(s=>s.t===selSlot.time);
         console.log('[cancel] db path: dateStr=',classDateStr,'slot=',slot,'clientId=',clientId);
         if(slot&&clientId){
-          const {data:bks,error:e1}=await sb.from('bookings').select('id,status').eq('client_id',clientId).eq('slot_id',slot.id).eq('class_date',classDateStr).in('status',['booked','attended']).limit(1);
+          const {data:bks,error:e1}=await sb.from('bookings').select('id,status').eq('client_id',clientId).eq('slot_id',slot.id).eq('class_date',classDateStr).in('status',['booked','attended','unpaid_future']).limit(1);
           console.log('[cancel] found bks=',bks,'error=',e1);
           if(bks&&bks[0]){
             if(bks[0].status==='attended'){
@@ -1572,7 +1574,7 @@ async function buildUpcomingAsync(){
   const clientId=sbProfile?.id;
   if(!clientId){buildUpcoming();return;}
   const today=localDateStr(new Date());
-  const {data}=await sb.from('bookings').select('slot_id,class_date').eq('client_id',clientId).in('status',['booked','attended']).gte('class_date',today).order('class_date').limit(3);
+  const {data}=await sb.from('bookings').select('slot_id,class_date,status').eq('client_id',clientId).in('status',['booked','attended','unpaid_future']).gte('class_date',today).order('class_date').limit(3);
   if(!data?.length){el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0">${T.hNoUpcoming}</div>`;return;}
   el.innerHTML=data.map(b=>{
     const date=new Date(b.class_date+'T12:00:00');

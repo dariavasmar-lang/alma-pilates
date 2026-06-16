@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   subscription_id uuid REFERENCES subscriptions(id),
   class_date      date NOT NULL,
   status          text DEFAULT 'booked'
-                  CHECK (status IN ('booked','attended','missed','cancelled')),
+                  CHECK (status IN ('booked','attended','missed','cancelled','unpaid_future')),
   is_trial        boolean DEFAULT false,
   notes           text
 );
