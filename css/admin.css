@@ -256,9 +256,23 @@ tbody tr.selected{background:#EDE4D8}
   #page-clients{flex-direction:column!important}
   #page-clients>div:first-child{flex:1}
 
-  /* Table: hide less important columns on mobile */
-  thead th:nth-child(4),thead th:nth-child(5),
-  tbody td:nth-child(4),tbody td:nth-child(5){display:none}
+  /* Table: keep only Client / Remaining / Status on mobile */
+  thead th:nth-child(2),thead th:nth-child(4),thead th:nth-child(5),
+  tbody td:nth-child(2),tbody td:nth-child(4),tbody td:nth-child(5){display:none}
+
+  /* Client column: prevent name from wrapping awkwardly */
+  tbody td:nth-child(1){max-width:160px}
+  tbody td:nth-child(1) span[style*="font-weight:500"]{
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    max-width:120px;display:inline-block;vertical-align:middle;
+  }
+
+  /* Remaining column: compact */
+  tbody td:nth-child(3){white-space:nowrap}
+  .progress{min-width:40px}
+
+  /* Status badge: never clip */
+  tbody td:nth-child(6){white-space:nowrap;padding-right:12px}
 
   /* Schedule: horizontal scroll on 7 columns */
   #page-schedule{padding:0}
