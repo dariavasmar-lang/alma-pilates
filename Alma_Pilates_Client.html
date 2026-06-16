@@ -56,6 +56,7 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <!-- Registration temporarily hidden; restore by removing style="display:none" -->
         <button class="btn pr" id="w-reg-btn" onclick="go('register')" style="display:none"></button>
         <button class="btn ol" id="w-login-btn" onclick="go('login')"></button>
+        <button id="w-dev-btn" onclick="devLogin()" style="display:none;padding:10px;background:#e8f4e8;color:#2d7a2d;border:1px dashed #2d7a2d;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">🛠 DEV: войти как тест</button>
       </div>
     </div>
 
@@ -973,6 +974,15 @@ async function doRegister(){
   go('otp'); setTimeout(()=>$('o1')&&$('o1').focus(),200);
 }
 
+async function devLogin(){
+  if(!sb){ toast2('sb не инициализирован'); return; }
+  const btn=document.getElementById('w-dev-btn');
+  btn.disabled=true; btn.textContent='🛠 Вхожу...';
+  const {data,error}=await sb.auth.signInWithPassword({email:'test@dev.local',password:'test123'});
+  btn.disabled=false; btn.textContent='🛠 DEV: войти как тест';
+  if(error){ toast2('DEV login error: '+error.message); return; }
+}
+
 async function doLogin(){
   if(!sb){ toast2('Локальный режим — вход недоступен'); return; }
   const rawPhone=$('l-phone').value.trim();
@@ -1395,29 +1405,45 @@ async function confirmCancel(){
   closeSheet('sh-cancel');
   const T=tr();
   if(sbUser&&sbUser.id!=='demo'){
-    // Unpaid (after period): just cancel, no balance effect, no late-cancel logic
-    // Late cancel (≤4h before class) → 'missed' (class burns, counts against balance)
-    // Early cancel (>4h before class) → 'cancelled' (class returned to balance)
-    const newStatus=selSlot.isUnpaid?'cancelled':selSlot.late?'missed':'cancelled';
+    // Determine if class date is fully in the past (yesterday or earlier)
+    const classDateMs=selSlot.dateMs||(getWeekDates()[selSlot.di]?.getTime());
+    const classDateStr=classDateMs?localDateStr(new Date(classDateMs)):null;
+    const todayStr=localDateStr(new Date());
+    const isPastDay=classDateStr&&classDateStr<todayStr;
+
+    // Status logic:
+    // Unpaid (after subscription period)  → 'cancelled' (no balance effect)
+    // Past day (yesterday or earlier)     → 'cancelled' (restore class to balance; admin can mark attendance separately)
+    // Late cancel today (≤4h before)      → 'missed'    (class burns)
+    // Early cancel (>4h before)           → 'cancelled' (class returned)
+    const newStatus=selSlot.isUnpaid?'cancelled':isPastDay?'cancelled':selSlot.late?'missed':'cancelled';
+
     const clientId=sbProfile?.id;
     let updated=false;
     const bk=bookingByKey.get(selSlot.di+'_'+selSlot.time);
-    console.log('[cancel] selSlot=',selSlot,'bk=',bk,'newStatus=',newStatus);
+    console.log('[cancel] selSlot=',selSlot,'bk=',bk,'newStatus=',newStatus,'isPastDay=',isPastDay);
     if(bk){
+      // Skip if already attended — admin has confirmed presence
+      if(bk.status==='attended'){
+        toast2(T.cancelAttendedErr||'Занятие уже отмечено как посещённое');
+        return;
+      }
       const {error}=await sb.from('bookings').update({status:newStatus}).eq('id',bk.id);
       if(error){ console.error('[cancel] update error:',error); toast2('Ошибка: '+error.message); return; }
       updated=true;
     } else {
       // bookingByKey only covers current week view — query DB directly by date+slot
-      const dateMs=selSlot.dateMs||(getWeekDates()[selSlot.di]?.getTime());
-      if(dateMs){
-        const dateStr=localDateStr(new Date(dateMs));
+      if(classDateMs){
         const slot=SCH[selSlot.di]?.find(s=>s.t===selSlot.time);
-        console.log('[cancel] month path: dateStr=',dateStr,'slot=',slot,'clientId=',clientId);
+        console.log('[cancel] db path: dateStr=',classDateStr,'slot=',slot,'clientId=',clientId);
         if(slot&&clientId){
-          const {data:bks,error:e1}=await sb.from('bookings').select('id').eq('client_id',clientId).eq('slot_id',slot.id).eq('class_date',dateStr).in('status',['booked','attended']).limit(1);
+          const {data:bks,error:e1}=await sb.from('bookings').select('id,status').eq('client_id',clientId).eq('slot_id',slot.id).eq('class_date',classDateStr).in('status',['booked','attended']).limit(1);
           console.log('[cancel] found bks=',bks,'error=',e1);
           if(bks&&bks[0]){
+            if(bks[0].status==='attended'){
+              toast2(T.cancelAttendedErr||'Занятие уже отмечено как посещённое');
+              return;
+            }
             const {error:e2}=await sb.from('bookings').update({status:newStatus}).eq('id',bks[0].id);
             if(e2){ console.error('[cancel] update error:',e2); toast2('Ошибка: '+e2.message); return; }
             updated=true;
@@ -1426,7 +1452,8 @@ async function confirmCancel(){
       }
     }
     console.log('[cancel] updated=',updated);
-    toast2(selSlot.late?T.cancelLateOk:T.cancelOk);
+    if(!updated){ toast2('Запись не найдена'); return; }
+    toast2(isPastDay?T.cancelOk:selSlot.late?T.cancelLateOk:T.cancelOk);
     await refreshSchedule();
     await loadBalance();
   } else {
@@ -1750,6 +1777,12 @@ if(sb){
   // Localhost / no Supabase — show welcome screen directly
   applyLang();
   go('welcome');
+}
+
+// Show DEV login button on localhost/preview
+if(typeof USE_DEV !== 'undefined' && USE_DEV){
+  const devBtn = document.getElementById('w-dev-btn');
+  if(devBtn) devBtn.style.display = 'block';
 }
 </script>
 </body>

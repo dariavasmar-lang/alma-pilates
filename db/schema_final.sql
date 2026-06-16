@@ -228,6 +228,13 @@ DROP POLICY IF EXISTS "Platform admin can read own row" ON platform_admins;
 CREATE POLICY "Platform admin can read own row"
   ON platform_admins FOR SELECT USING (user_id = auth.uid());
 
+-- ─── RLS POLICIES: ADMIN USERS ──────────────────────────────
+
+-- Studio admins can read their own row (needed for login check)
+DROP POLICY IF EXISTS "Admin can read own row" ON admin_users;
+CREATE POLICY "Admin can read own row"
+  ON admin_users FOR SELECT USING (user_id = auth.uid());
+
 -- Platform admins have full access to all studios
 DROP POLICY IF EXISTS "Platform admin full access to studios" ON studios;
 CREATE POLICY "Platform admin full access to studios"
