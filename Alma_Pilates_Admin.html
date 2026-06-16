@@ -526,6 +526,7 @@ function applyAdminLang(){
 
 // ── DATA ──────────────────────────────────────────────────────
 const CLIENTS = [];
+let dbLoading = false;
 
 const PAYMENTS = [];
 
@@ -863,6 +864,18 @@ function renderClients(search=''){
     if(clientFilter==='inactive') return c.status==='inactive';
     return true;
   });
+  // Show skeleton while loading
+  if(tbody && CLIENTS.length===0 && dbLoading){
+    tbody.innerHTML=Array(5).fill(0).map(()=>`<tr>
+      <td><span style="display:inline-block;width:26px;height:26px;border-radius:50%;background:var(--bg3);margin-right:7px;vertical-align:middle"></span><span style="display:inline-block;width:120px;height:11px;border-radius:4px;background:var(--bg3)"></span></td>
+      <td><span style="display:inline-block;width:60px;height:11px;border-radius:4px;background:var(--bg3)"></span></td>
+      <td><span style="display:inline-block;width:80px;height:11px;border-radius:4px;background:var(--bg3)"></span></td>
+      <td><span style="display:inline-block;width:50px;height:11px;border-radius:4px;background:var(--bg3)"></span></td>
+      <td><span style="display:inline-block;width:40px;height:11px;border-radius:4px;background:var(--bg3)"></span></td>
+      <td><span style="display:inline-block;width:50px;height:14px;border-radius:6px;background:var(--bg3)"></span></td>
+    </tr>`).join('');
+    return;
+  }
   if(tbody) tbody.innerHTML=filtered.map(c=>{
     const pct=Math.round(c.left/c.total*100);
     const isActive=c.status!=='inactive';
@@ -3211,6 +3224,7 @@ function showApp(){
   app.style.flexDirection='row';
   const validPages=['dashboard','clients','schedule','payments','expenses','settings','cancellations'];
   const hash=location.hash.replace('#','');
+  dbLoading = true; // mark loading before first render
   if(hash&&validPages.includes(hash)) showPage(hash);
   dbLoad();
   // Auto-refresh bookings every 60s when schedule page is active
@@ -3270,6 +3284,7 @@ async function testConnection(){
 
 async function dbLoad(){
   if(!sb || !STUDIO_ID) return;
+  dbLoading = true;
   try{
     // Load schedule slots: rebuild GSCHED + scheduleSlotIds
     // Try with valid_from (if migration ran), fallback without it
@@ -3331,6 +3346,8 @@ async function dbLoad(){
         history:[]
       });
     });
+    // First render — show client names immediately before balance recalc
+    renderClients();
     // Recalculate balances: count ALL client bookings from subscription start date
     // (matches client app logic — catches admin-booked classes regardless of subscription_id)
     const clientUuids=CLIENTS.filter(c=>c._uuid).map(c=>c._uuid);
@@ -3369,6 +3386,7 @@ async function dbLoad(){
     } else {
       CLIENTS.forEach(c=>{ c.left=0; c.status='inactive'; });
     }
+    dbLoading = false;
     renderClients(); renderDashboard();
     await dbLoadScheduleData();
     dbLoadBookings();
@@ -3426,6 +3444,7 @@ async function dbLoad(){
     }catch(e){console.warn('load payments:',e);}
 
   }catch(e){console.error('dbLoad:',e.message);}
+  finally{ dbLoading = false; }
 }
 
 async function dbLoadBookings(){
