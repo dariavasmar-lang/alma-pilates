@@ -8,10 +8,10 @@
   --red:#8B3A30;--rbg:#F5EAE8;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display:flex;justify-content:center;padding:16px;min-height:100vh}
-.phone{width:390px;background:var(--bg);border-radius:20px;border:0.5px solid var(--border);overflow:hidden;display:flex;flex-direction:column;height:780px;position:relative;box-shadow:0 4px 32px rgba(44,35,24,.12)}
+body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display:flex;justify-content:center;align-items:flex-start;padding:16px;min-height:100vh}
+.phone{width:390px;background:var(--bg);border-radius:20px;border:0.5px solid var(--border);overflow:hidden;display:flex;flex-direction:column;height:min(780px,calc(100vh - 32px));position:relative;box-shadow:0 4px 32px rgba(44,35,24,.12)}
 
-/* ── Mobile ── */
+/* ── Mobile (portrait) ── */
 @media (max-width:480px){
   body{
     display:block;
@@ -36,6 +36,38 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
   }
   .sbar{display:none}
   .scr.center{min-height:0}
+}
+
+/* ── Landscape на телефоне ── */
+@media (max-height:500px) and (orientation:landscape){
+  body{
+    display:block;
+    margin:0;padding:0;
+    background:var(--bg);
+  }
+  .phone{
+    width:100%;
+    border-radius:0;border:none;box-shadow:none;
+    height:var(--app-h,100vh);
+  }
+  .scroll{
+    flex:1;
+    min-height:0;
+    overflow-y:scroll;
+    -webkit-overflow-scrolling:touch;
+  }
+  .bnav{
+    flex-shrink:0;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .sbar{display:none}
+  .scr.center{min-height:0}
+}
+
+/* ── Tablet (481px–768px) ── */
+@media (min-width:481px) and (max-width:768px){
+  body{padding:20px;align-items:center;min-height:100vh}
+  .phone{width:min(420px,90vw);height:min(780px,calc(100vh - 40px))}
 }
 .sbar{display:none}
 .hdr{padding:10px 16px 11px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid var(--border);background:var(--card);flex-shrink:0}

@@ -8,6 +8,7 @@
 function setAppH(){document.documentElement.style.setProperty('--app-h',window.innerHeight+'px')}
 setAppH();
 window.addEventListener('resize',setAppH);
+window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
 </script>
 <title>Alma Pilates</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -951,6 +952,7 @@ function go(name){
 // AUTH
 // ═══════════════════════════════════════════════════════════════
 async function doRegister(){
+  if(!sb){ toast2('Локальный режим — регистрация недоступна'); return; }
   const T=tr();
   const name=$('r-name').value.trim();
   const rawPhone=$('r-phone').value.trim();
@@ -972,6 +974,7 @@ async function doRegister(){
 }
 
 async function doLogin(){
+  if(!sb){ toast2('Локальный режим — вход недоступен'); return; }
   const rawPhone=$('l-phone').value.trim();
   if(!rawPhone){ $('l-phone').classList.add('err'); return; }
   $('l-phone').classList.remove('err');
@@ -985,7 +988,7 @@ async function doLogin(){
 }
 
 async function doLogout(){
-  await sb.auth.signOut();
+  if(sb) await sb.auth.signOut();
   sbUser=null; sbProfile=null;
   $('hdr').style.display='none';
   $('bnav').style.display='none';
@@ -1016,6 +1019,7 @@ function onOtp(el,idx){
 }
 
 async function doOtp(){
+  if(!sb){ toast2('Локальный режим — вход недоступен'); return; }
   let code='';
   for(let i=1;i<=6;i++){const oi=$('o'+i);code+=oi?oi.value:'';}
   if(code.length<6){toast2('Εισάγετε όλα τα ψηφία / Enter all digits / Введите код');return;}
@@ -1702,45 +1706,51 @@ window.onOtp=function(el,idx){
 // ═══════════════════════════════════════════════════════════════
 // INIT — restore session on page load
 // ═══════════════════════════════════════════════════════════════
-sb.auth.onAuthStateChange(async(event,session)=>{
-  if(event==='INITIAL_SESSION'){
-    // Resolve studio from URL before doing anything
-    const studioOk = await resolveStudio();
-    if(!studioOk){
-      document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#888">Studio not found</div>';
-      return;
-    }
-    if(session){
-      // Try to restore session: load client profile regardless of session.user.phone
-      // (phone property is not always reliably set on the session user object)
-      sbUser=session.user;
-      await loadClasses();
-      await loadProfile();
-      if(sbProfile){
-        // Valid client profile found — restore app state
-        await Promise.all([loadWeekBookings(), loadBalance()]);
-        $('hdr').style.display='flex';
-        $('bnav').style.display='flex';
-        applyLang();
-        applyProfileUI();
-        go('home');
-        const lastTab=(() => { try{ return localStorage.getItem('alma_last_tab')||'home'; }catch(e){ return 'home'; } })();
-        goTab(lastTab);
+if(sb){
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    if(event==='INITIAL_SESSION'){
+      // Resolve studio from URL before doing anything
+      const studioOk = await resolveStudio();
+      if(!studioOk){
+        document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#888">Studio not found</div>';
+        return;
+      }
+      if(session){
+        // Try to restore session: load client profile regardless of session.user.phone
+        // (phone property is not always reliably set on the session user object)
+        sbUser=session.user;
+        await loadClasses();
+        await loadProfile();
+        if(sbProfile){
+          // Valid client profile found — restore app state
+          await Promise.all([loadWeekBookings(), loadBalance()]);
+          $('hdr').style.display='flex';
+          $('bnav').style.display='flex';
+          applyLang();
+          applyProfileUI();
+          go('home');
+          const lastTab=(() => { try{ return localStorage.getItem('alma_last_tab')||'home'; }catch(e){ return 'home'; } })();
+          goTab(lastTab);
+        } else {
+          // Profile not found — could be admin session or genuinely missing client
+          // Only sign out if we got a clean null (not a network error)
+          // maybeSingle() returns null data with no error when row doesn't exist
+          sbUser=null;
+          await sb.auth.signOut();
+          applyLang();
+          go('welcome');
+        }
       } else {
-        // Profile not found — could be admin session or genuinely missing client
-        // Only sign out if we got a clean null (not a network error)
-        // maybeSingle() returns null data with no error when row doesn't exist
-        sbUser=null;
-        await sb.auth.signOut();
         applyLang();
         go('welcome');
       }
-    } else {
-      applyLang();
-      go('welcome');
     }
-  }
-});
+  });
+} else {
+  // Localhost / no Supabase — show welcome screen directly
+  applyLang();
+  go('welcome');
+}
 </script>
 </body>
 </html>
