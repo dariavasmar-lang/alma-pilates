@@ -6,62 +6,203 @@
   --warn:#8B6020;--wbg:#F5EDD8;
   --border:#D8CEBE;--serif:'Georgia',serif;
   --red:#8B3A30;--rbg:#F5EAE8;
+  --bnav-h:60px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display:flex;justify-content:center;align-items:flex-start;padding:16px;min-height:100vh}
-.phone{width:390px;background:var(--bg);border-radius:20px;border:0.5px solid var(--border);overflow:hidden;display:flex;flex-direction:column;height:min(780px,calc(100vh - 32px));position:relative;box-shadow:0 4px 32px rgba(44,35,24,.12)}
 
-/* ── Mobile (portrait) ── */
-@media (max-width:480px){
-  body{
-    display:block;
-    margin:0;padding:0;
-    background:var(--bg);
-  }
-  .phone{
-    width:100%;
-    border-radius:0;border:none;box-shadow:none;
-    /* высота задаётся через JS (--app-h) чтобы обойти iOS Safari баг */
-    height:var(--app-h,100vh);
-  }
-  .scroll{
-    flex:1;
-    min-height:0;
-    overflow-y:scroll;
-    -webkit-overflow-scrolling:touch;
-  }
-  .bnav{
-    flex-shrink:0;
-    padding-bottom:env(safe-area-inset-bottom);
-  }
-  .sbar{display:none}
-  .scr.center{min-height:0}
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE FIRST — base styles target phones (320px–428px)
+   ═══════════════════════════════════════════════════════════════ */
+
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Helvetica Neue',Arial,sans-serif;
+  background:var(--bg);
+  margin:0;padding:0;
 }
 
-/* ── Landscape на телефоне ── */
-@media (max-height:500px) and (orientation:landscape){
+/* App container — full screen on mobile */
+.phone{
+  width:100%;
+  height:var(--app-h,100svh);
+  background:var(--bg);
+  display:flex;
+  flex-direction:column;
+  position:relative;
+  overflow:hidden;
+}
+
+.sbar{display:none}
+
+/* Header — sticky at top */
+.hdr{
+  flex-shrink:0;
+  padding:10px 16px 11px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:0.5px solid var(--border);
+  background:var(--card);
+  z-index:10;
+}
+
+/* Scrollable content area — fills space between header and bottom nav */
+.scroll{
+  flex:1;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  min-height:0;
+}
+/* Pad bottom only when bnav is visible */
+.phone:has(.bnav.show) .scroll{
+  padding-bottom:calc(var(--bnav-h) + env(safe-area-inset-bottom));
+}
+
+/* screens */
+.scr{display:none;flex-direction:column;gap:10px;padding:14px 16px}
+.scr.on{display:flex}
+.scr.center{justify-content:center;align-items:center;min-height:calc(100% - var(--bnav-h))}
+#scr-schedule,#scr-profile{gap:8px;padding:12px 14px}
+
+/* ── Bottom nav — FIXED, native app style ── */
+.bnav{
+  position:fixed;
+  bottom:0;left:0;right:0;
+  height:calc(var(--bnav-h) + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
+  display:none; /* hidden until logged in */
+  background:var(--card);
+  border-top:0.5px solid var(--border);
+  z-index:10;
+  /* blur effect for a native feel */
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  background:rgba(253,250,245,.92);
+}
+.bnav.show{display:flex}
+.bni{
+  flex:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;cursor:pointer;
+  padding:8px 4px 4px;
+  min-width:0;
+  -webkit-tap-highlight-color:transparent;
+  transition:opacity .1s;
+}
+.bni:active{opacity:.7}
+.bni svg{
+  width:22px;height:22px;
+  stroke:var(--text3);fill:none;stroke-width:1.5;
+  flex-shrink:0;
+}
+.bni.on svg{stroke:var(--accent)}
+.bni span{
+  font-size:10px;color:var(--text3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%;
+}
+.bni.on span{color:var(--accent);font-weight:600}
+
+/* Active tab indicator dot */
+.bni.on::before{
+  content:'';
+  display:block;
+  width:4px;height:4px;
+  border-radius:50%;
+  background:var(--accent);
+  position:absolute;
+  top:4px;
+}
+
+/* ── Overlays & Sheets — cover bnav (z-index > 10) ── */
+.ov{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(44,35,24,.45);
+  z-index:50;
+  align-items:flex-end;
+}
+.ov.on{display:flex}
+.sheet{
+  background:var(--card);
+  border-radius:20px 20px 0 0;
+  padding:18px;
+  padding-bottom:calc(18px + env(safe-area-inset-bottom));
+  width:100%;
+  max-height:88svh;
+  overflow-y:auto;
+}
+.shand{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 16px}
+.stitle{font-family:var(--serif);font-size:17px;color:var(--text);margin-bottom:4px}
+.ssub{font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5}
+.tcon{font-size:12px;color:var(--text2);line-height:1.8}
+.tcon h3{font-size:13px;font-weight:500;color:var(--text);margin:12px 0 4px}
+
+/* Toast — above everything */
+.toast{
+  position:fixed;
+  bottom:calc(var(--bnav-h) + env(safe-area-inset-bottom) + 12px);
+  left:16px;right:16px;
+  background:var(--accent);color:var(--bg);
+  padding:10px 14px;
+  border-radius:12px;
+  font-size:12px;
+  opacity:0;transition:opacity .25s;
+  pointer-events:none;text-align:center;
+  z-index:200;
+}
+.toast.on{opacity:1}
+
+/* ═══════════════════════════════════════════════════════════════
+   DESKTOP — phone mockup (min-width: 481px)
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (min-width:481px){
+  html,body{height:auto;overflow:auto;background:var(--bg3)}
   body{
-    display:block;
-    margin:0;padding:0;
-    background:var(--bg);
+    display:flex;justify-content:center;align-items:flex-start;
+    padding:16px;min-height:100vh;
   }
+
   .phone{
-    width:100%;
-    border-radius:0;border:none;box-shadow:none;
-    height:var(--app-h,100vh);
+    width:390px;
+    height:min(780px,calc(100vh - 32px));
+    border-radius:20px;
+    border:0.5px solid var(--border);
+    box-shadow:0 4px 32px rgba(44,35,24,.12);
+    overflow:hidden;
+    position:relative; /* contain fixed children */
   }
-  .scroll{
-    flex:1;
-    min-height:0;
-    overflow-y:scroll;
-    -webkit-overflow-scrolling:touch;
-  }
+
+  /* On desktop, bnav goes back to flex flow (fixed would escape the mockup) */
   .bnav{
+    position:relative;
+    height:auto;
+    display:none;
+    bottom:auto;left:auto;right:auto;
+    padding-bottom:10px;
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+    background:var(--card);
     flex-shrink:0;
-    padding-bottom:env(safe-area-inset-bottom);
   }
-  .sbar{display:none}
-  .scr.center{min-height:0}
+  .bnav.show{display:flex}
+
+  /* Active indicator dot not needed on desktop */
+  .bni.on::before{display:none}
+
+  /* No bottom padding on scroll — bnav is in flow */
+  .scroll{padding-bottom:0}
+
+  /* Overlays are within .phone */
+  .ov{position:absolute}
+
+  /* Toast above sheets but within phone */
+  .toast{
+    position:absolute;
+    bottom:85px;
+  }
+
+  .scr.center{min-height:400px}
 }
 
 /* ── Tablet (481px–768px) ── */
@@ -69,29 +210,23 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
   body{padding:20px;align-items:center;min-height:100vh}
   .phone{width:min(420px,90vw);height:min(780px,calc(100vh - 40px))}
 }
-.sbar{display:none}
-.hdr{padding:10px 16px 11px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid var(--border);background:var(--card);flex-shrink:0}
+
+/* ── Landscape on phone ── */
+@media (max-height:500px) and (orientation:landscape){
+  .scroll{padding-bottom:calc(var(--bnav-h) + env(safe-area-inset-bottom))}
+  .bnav{height:calc(var(--bnav-h) + env(safe-area-inset-bottom))}
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
+
 .logo{font-family:var(--serif);font-size:17px;color:var(--text)}
 .logo em{font-style:italic;color:var(--accent2)}
 .lrow{display:flex;gap:3px}
 .lb{font-size:10px;padding:2px 7px;border:0.5px solid var(--border);border-radius:20px;cursor:pointer;color:var(--text2);background:transparent;transition:all .15s}
 .lb.on{background:var(--accent);color:var(--bg);border-color:var(--accent)}
-.av{width:28px;height:28px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;border:0.5px solid var(--border);cursor:pointer}
-.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
-
-/* screens */
-.scr{display:none;flex-direction:column;gap:10px;padding:14px 16px}
-.scr.on{display:flex}
-.scr.center{justify-content:center;align-items:center;min-height:500px}
-#scr-schedule,#scr-profile{gap:8px;padding:12px 14px}
-
-/* bottom nav */
-.bnav{border-top:0.5px solid var(--border);padding:6px 0 10px;display:flex;background:var(--card);flex-shrink:0}
-.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 0}
-.bni svg{width:20px;height:20px;stroke:var(--text3);fill:none;stroke-width:1.5}
-.bni.on svg{stroke:var(--accent)}
-.bni span{font-size:10px;color:var(--text3)}
-.bni.on span{color:var(--accent);font-weight:500}
+.av{width:28px;height:28px;border-radius:50%;background:var(--bg3);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;border:0.5px solid var(--border);cursor:pointer;flex-shrink:0}
 
 /* typography */
 .ptitle{font-family:var(--serif);font-size:20px;color:var(--text);line-height:1.3}
@@ -126,8 +261,8 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 .legal a{color:var(--accent);text-decoration:underline;cursor:pointer}
 
 /* OTP */
-.orow{display:flex;gap:8px;justify-content:center}
-.oi{width:44px;height:52px;border:0.5px solid var(--border);border-radius:11px;background:var(--card);font-size:22px;font-weight:500;color:var(--text);text-align:center;outline:none;font-family:inherit;transition:border-color .15s}
+.orow{display:flex;gap:clamp(4px,2vw,8px);justify-content:center}
+.oi{width:clamp(38px,11vw,44px);height:clamp(46px,13vw,52px);border:0.5px solid var(--border);border-radius:11px;background:var(--card);font-size:22px;font-weight:500;color:var(--text);text-align:center;outline:none;font-family:inherit;transition:border-color .15s}
 .oi:focus{border-color:var(--accent)}
 
 /* sub card */
@@ -135,8 +270,8 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 .subcard::before{content:'';position:absolute;right:-20px;top:-20px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.07)}
 .slabel{font-size:10px;opacity:.7;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em}
 .stype{font-family:var(--serif);font-size:14px;margin-bottom:11px;opacity:.9}
-.sdots{display:flex;gap:6px;margin-bottom:9px}
-.sd{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.3)}
+.sdots{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+.sd{width:clamp(18px,5.5vw,22px);height:clamp(18px,5.5vw,22px);border-radius:50%;border:1.5px solid rgba(255,255,255,.3)}
 .sd.u{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4)}
 .sd.l{background:rgba(255,255,255,.85);border-color:#fff}
 .smeta{display:flex;justify-content:space-between;font-size:11px;opacity:.7}
@@ -152,11 +287,17 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 /* hist */
 .hrow{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);border-radius:12px;border:0.5px solid var(--border)}
 
-/* slots */
+/* slots — responsive, fill available width */
 .dayb{background:var(--card);border:0.5px solid var(--border);border-radius:12px;overflow:hidden}
 .daylbl{font-size:11px;font-weight:500;color:var(--text2);padding:5px 10px 4px;background:var(--bg2);border-bottom:0.5px solid var(--border)}
 .slots{display:flex;flex-wrap:wrap;gap:5px;padding:7px 9px}
-.slot{padding:5px 7px;border-radius:7px;font-size:11px;cursor:pointer;border:0.5px solid transparent;display:flex;flex-direction:column;align-items:center;min-width:60px;transition:all .12s}
+.slot{
+  padding:5px 7px;border-radius:7px;font-size:11px;cursor:pointer;
+  border:0.5px solid transparent;
+  display:flex;flex-direction:column;align-items:center;
+  flex:1 1 auto;min-width:clamp(52px,15vw,68px);max-width:calc(33% - 4px);
+  transition:all .12s;
+}
 .slot.mo{background:var(--card);border-color:var(--border);color:var(--text2)}
 .slot.ev{background:var(--card);border-color:var(--border);color:var(--text2)}
 .slot.fu{background:var(--bg2);border-color:var(--border);color:var(--text3);cursor:pointer;opacity:.85}
@@ -173,16 +314,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 /* profile rows */
 .prow{display:flex;justify-content:space-between;align-items:center;padding:8px 11px;background:var(--card);border-radius:10px;border:0.5px solid var(--border)}
 
-/* sheet */
-.ov{display:none;position:absolute;inset:0;background:rgba(44,35,24,.45);z-index:50;align-items:flex-end}
-.ov.on{display:flex}
-.sheet{background:var(--card);border-radius:20px 20px 0 0;padding:18px;width:100%;max-height:88%;overflow-y:auto}
-.shand{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 16px}
-.stitle{font-family:var(--serif);font-size:17px;color:var(--text);margin-bottom:4px}
-.ssub{font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5}
-.tcon{font-size:12px;color:var(--text2);line-height:1.8}
-.tcon h3{font-size:13px;font-weight:500;color:var(--text);margin:12px 0 4px}
-
 /* progress */
 .prog{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:3px}
 .progf{height:100%;border-radius:3px;background:var(--green);transition:width .3s}
@@ -198,7 +329,3 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg3);display
 .sdots2{display:flex;gap:5px;justify-content:center}
 .sdot2{width:7px;height:7px;border-radius:50%;background:var(--border);transition:all .2s}
 .sdot2.on{background:var(--accent);width:20px;border-radius:4px}
-
-/* toast */
-.toast{position:absolute;bottom:85px;left:16px;right:16px;background:var(--accent);color:var(--bg);padding:10px 14px;border-radius:12px;font-size:12px;opacity:0;transition:opacity .25s;pointer-events:none;text-align:center;z-index:200}
-.toast.on{opacity:1}

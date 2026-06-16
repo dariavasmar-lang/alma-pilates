@@ -328,7 +328,7 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
   </div><!-- /scroll -->
 
   <!-- BOTTOM NAV -->
-  <div class="bnav" id="bnav" style="display:none">
+  <div class="bnav" id="bnav">
     <div class="bni on" id="ni-home" onclick="goTab('home')">
       <svg viewBox="0 0 20 20"><path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/></svg>
       <span id="nl-home"></span>
@@ -991,7 +991,7 @@ async function doLogout(){
   if(sb) await sb.auth.signOut();
   sbUser=null; sbProfile=null;
   $('hdr').style.display='none';
-  $('bnav').style.display='none';
+  $('bnav').classList.remove('show');
   go('welcome');
 }
 
@@ -1071,7 +1071,7 @@ function nextOb(){
 
 function finishOb(){
   go('home');
-  $('bnav').style.display='flex';
+  $('bnav').classList.add('show');
   curTab='home';
 }
 
@@ -1090,7 +1090,7 @@ async function startApp(){
     go('onboard');
     $('ob0').classList.add('on');
   } else {
-    $('bnav').style.display='flex';
+    $('bnav').classList.add('show');
     go('home');
     goTab('home');
   }
@@ -1725,7 +1725,7 @@ if(sb){
           // Valid client profile found — restore app state
           await Promise.all([loadWeekBookings(), loadBalance()]);
           $('hdr').style.display='flex';
-          $('bnav').style.display='flex';
+          $('bnav').classList.add('show');
           applyLang();
           applyProfileUI();
           go('home');
