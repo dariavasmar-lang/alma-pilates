@@ -3222,6 +3222,7 @@ async function adminLogin(){
   const pass=document.getElementById('adm-pass').value;
   const err=document.getElementById('adm-err');
   err.style.display='none';
+  if(!sb){err.textContent='Локальный режим — вход недоступен (нет подключения к БД)';err.style.display='block';return;}
   if(!email||!pass){err.textContent='Введите email и пароль';err.style.display='block';return;}
   const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
   if(error){err.textContent='Неверный email или пароль';err.style.display='block';return;}
@@ -3250,7 +3251,7 @@ function showApp(){
 }
 
 function adminLogout(){
-  sb.auth.signOut();
+  if(sb) sb.auth.signOut();
   document.getElementById('main-app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
 }
