@@ -915,6 +915,7 @@ function setClientFilter(f,btn){
 async function selectClient(id){
   const c=CLIENTS.find(x=>x.id===id); if(!c) return;
   currentSelectedClientId=id;
+  if(c._uuid) sessionStorage.setItem('alma_open_client',c._uuid);
   document.querySelectorAll('#clients-table tr').forEach(r=>r.classList.remove('selected'));
   document.getElementById('row-'+id)?.classList.add('selected');
   const panel=document.getElementById('client-detail');
@@ -943,6 +944,7 @@ async function selectClient(id){
 
 function closeClientDetail(){
   currentSelectedClientId=null;
+  sessionStorage.removeItem('alma_open_client');
   document.getElementById('client-detail')?.classList.remove('open');
   document.querySelectorAll('#clients-table tr').forEach(r=>r.classList.remove('selected'));
 }
@@ -1493,6 +1495,8 @@ async function confirmClientBookings(clientId){
   refreshClientStats(clientId);
   renderClientCalendarModal(clientId);
   renderClients();
+  // Update card balance immediately so it's fresh when modal closes
+  renderClientCard(c);
 }
 
 function clearPendingSelections(clientId){
@@ -1636,7 +1640,7 @@ async function adminCancelBooking(bookingId, clientId){
   delete clientHistoryCache[uuid];
   await loadClientHistory(clientId);
   const {data:sub}=await sb.from('subscriptions').select('total_classes,used_classes').eq('client_id',uuid).eq('is_active',true).order('created_at',{ascending:false}).limit(1).single();
-  if(sub){ c.remaining=sub.total_classes-sub.used_classes; renderClients(); }
+  if(sub){ c.left=Math.max(0,sub.total_classes-sub.used_classes); c.status=!c.left?'inactive':c.left<=1?'danger':c.left<=2?'warn':'ok'; renderClientCard(c); renderClients(); }
 }
 
 function sendWhatsApp(clientId,type){
@@ -3473,6 +3477,12 @@ async function dbLoad(){
     }
     dbLoading = false;
     renderClients(); renderDashboard();
+    // Restore open client card after page refresh (only if clients page is active)
+    const _savedUuid=sessionStorage.getItem('alma_open_client');
+    if(_savedUuid && location.hash==='#clients'){
+      const _savedC=CLIENTS.find(x=>x._uuid===_savedUuid);
+      if(_savedC) selectClient(_savedC.id);
+    }
     await dbLoadScheduleData();
     dbLoadBookings();
     } // end if(clients loaded)
