@@ -1180,7 +1180,7 @@ async function loadClientHistory(clientId){
   renderHistoryTabById(clientId,'bookings');
 
   // Update tab counts
-  const bkTotal=(bookings||[]).filter(b=>b.status==='booked'||b.status==='attended').length;
+  const bkTotal=(bookings||[]).filter(b=>b.status==='booked'||b.status==='attended'||b.status==='unpaid_future').length;
   const canTotal=(bookings||[]).filter(b=>b.status==='cancelled'||b.status==='missed').length;
   const subTotal=(subs||[]).length;
   const row=document.getElementById('ctab-row-'+clientId);
@@ -1202,7 +1202,7 @@ function renderHistoryTabById(clientId,tab){
   let items=[];
   if(tab==='bookings'){
     const today=new Date().toISOString().split('T')[0];
-    const bookings=(cache.bookings||[]).filter(b=>b.status==='booked'||b.status==='attended');
+    const bookings=(cache.bookings||[]).filter(b=>b.status==='booked'||b.status==='attended'||b.status==='unpaid_future');
     const noRec=adminLang==='el'?'Δεν υπάρχουν εγγραφές':adminLang==='en'?'No records':'Нет записей';
     const el=document.getElementById('ctab-content-'+clientId);
     if(el){
@@ -1213,9 +1213,12 @@ function renderHistoryTabById(clientId,tab){
           const time=b.schedule_slots?.start_time?.slice(0,5)||'';
           const isFuture=b.class_date>=today;
           const attended=b.status==='attended';
-          const dot=`<span style="width:6px;height:6px;border-radius:50%;background:${attended?'var(--green)':isFuture?'var(--accent)':'var(--text3)'};display:inline-block;flex-shrink:0"></span>`;
-          const lbl=time+(isFuture?' · '+L('предстоит','upcoming','предстоит'):attended?' · '+L('посетила','attended','посетила'):'');
-          const note=isFuture?'⏳':attended?'✓':'';
+          const isUnpaidFuture=b.status==='unpaid_future';
+          const dotColor=attended?'var(--green)':isUnpaidFuture?'#E8A84A':isFuture?'var(--accent)':'var(--text3)';
+          const dot=`<span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0"></span>`;
+          const unpaidTag=isUnpaidFuture?` · <span style="font-size:10px;color:#C47A1A;font-weight:600">${L('μη πλ.','unpaid','не опл.')}</span>`:'';
+          const lbl=time+(isFuture&&!isUnpaidFuture?' · '+L('предстоит','upcoming','предстоит'):attended?' · '+L('посетила','attended','посетила'):'')+unpaidTag;
+          const note=isFuture&&!isUnpaidFuture?'⏳':attended?'✓':isUnpaidFuture?'💛':'';
           // Cancel button: only for non-attended bookings
           const canCancel=!attended;
           const cancelBtn=canCancel
@@ -1291,7 +1294,7 @@ async function loadClientBookings(clientId){
     const {data}=await sb.from('bookings')
       .select('class_date,schedule_slots(start_time)')
       .eq('client_id',c._uuid).eq('studio_id',STUDIO_ID)
-      .gte('class_date',today).in('status',['booked','attended']);
+      .gte('class_date',today).in('status',['booked','attended','unpaid_future']);
     if(data) data.forEach(b=>{
       const t=b.schedule_slots?.start_time?.slice(0,5);
       if(b.class_date&&t) clientDateBookings[clientId+'_'+b.class_date+'_'+t]=true;
@@ -1465,14 +1468,10 @@ async function confirmClientBookings(clientId){
     delete pendingSelections[key];
     c.history.unshift({d:dateStr,t:'Записан '+time});
     const slotId=scheduleSlotIds[slotKey];
-    if(slotId && c._uuid) dbRows.push({
-      studio_id:STUDIO_ID,
-      client_id:c._uuid,
-      slot_id:slotId,
-      subscription_id:c._subUuid||null,
-      class_date:dateStr,
-      status:'booked'
-    });
+    if(slotId && c._uuid){
+      const {status:bkSt,subscription_id:bkSubId}=resolveBookingStatus(c,dateStr);
+      dbRows.push({studio_id:STUDIO_ID,client_id:c._uuid,slot_id:slotId,subscription_id:bkSubId,class_date:dateStr,status:bkSt});
+    }
     added++;
   });
   c.upcoming=(c.upcoming||0)+added;
@@ -2337,6 +2336,19 @@ function bmFilter(q){
   const noEl=document.getElementById('bm-no-clients');
   if(noEl) noEl.style.display=any?'none':'block';
 }
+// Returns booking status and subscription_id for a given date and client.
+// If date is within the client's active subscription period → 'booked' + subUuid
+// Otherwise → 'unpaid_future' + null
+function resolveBookingStatus(client, dateStr){
+  const hasActiveSub=!!client._subUuid;
+  const withinPeriod=hasActiveSub&&client.expiresDate&&dateStr<=client.expiresDate;
+  return {
+    status: withinPeriod ? 'booked' : 'unpaid_future',
+    subscription_id: withinPeriod ? client._subUuid : null,
+    isPaid: withinPeriod
+  };
+}
+
 function openBookModal(di, time){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const DAYS=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
@@ -2745,7 +2757,7 @@ async function submitPayModal(){
   try{
     const subTypeMap={'8':'8','12':'12','1':'single'};
     const totalMap={'8':8,'12':12,'1':1};
-    const expDaysMap={'8':60,'12':90,'1':30};
+    const expDaysMap={'8':30,'12':30,'1':30};
     const subType=subTypeMap[classes]||null;
     const totalClasses=totalMap[classes]||null;
     let subUuid=null;
@@ -4049,15 +4061,12 @@ async function bookFromWaitlist(key,idx,name,di,time,dateStr){
     const slotId=scheduleSlotIds[slotKey];
     if(client?._uuid && slotId){
       try{
+        const {status:bkSt,subscription_id:bkSubId,isPaid}=resolveBookingStatus(client,dateStr);
         await sb.from('bookings').insert({
-          studio_id:STUDIO_ID,
-          client_id:client._uuid,
-          slot_id:slotId,
-          subscription_id:client._subUuid||null,
-          class_date:dateStr,
-          status:'booked'
+          studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,
+          subscription_id:bkSubId,class_date:dateStr,status:bkSt
         });
-        if(client._subUuid && client.left>0){
+        if(isPaid && client.left>0){
           await sb.from('subscriptions')
             .update({used_classes:client.total-client.left+1})
             .eq('id',client._subUuid);
@@ -4308,10 +4317,11 @@ async function bookClientByName(name, repeatCount){
     // Insert bookings
     try{
       if(isPaidFirst){
-        // Single paid booking — links to subscription
+        // Single booking — status depends on whether date is within subscription period
+        const {status:bkSt,subscription_id:bkSubId,isPaid:bkIsPaid}=resolveBookingStatus(client,baseDateStr);
         const {error}=await sb.from('bookings').insert({
           studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,
-          subscription_id:client._subUuid,class_date:baseDateStr,status:'booked'
+          subscription_id:bkSubId,class_date:baseDateStr,status:bkSt
         });
         if(error){toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
         else{
@@ -4322,16 +4332,15 @@ async function bookClientByName(name, repeatCount){
           if(!dateSlotMap[dKey]) dateSlotMap[dKey]=[];
           if(!slotBookingsMap[slotKey].includes(name)) slotBookingsMap[slotKey].push(name);
           if(!dateSlotMap[dKey].includes(name)) dateSlotMap[dKey].push(name);
-          // Decrement local client balance
-          client.left=Math.max(0,client.left-1);
-          client.status=client.left===0?'inactive':client.left<=1?'danger':client.left<=2?'warn':'ok';
+          // Decrement local client balance only if booking is within subscription period
+          if(bkIsPaid){ client.left=Math.max(0,client.left-1); client.status=client.left===0?'inactive':client.left<=1?'danger':client.left<=2?'warn':'ok'; }
         }
       } else {
-        // Unpaid / recurring — insert all dates without subscription_id
-        const rows=dates.map(d=>({
-          studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,
-          subscription_id:null,class_date:d,status:'booked'
-        }));
+        // Recurring — status depends on each date vs subscription period
+        const rows=dates.map(d=>{
+          const {status:bkSt,subscription_id:bkSubId}=resolveBookingStatus(client,d);
+          return {studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,subscription_id:bkSubId,class_date:d,status:bkSt};
+        });
         const {error}=await sb.from('bookings').insert(rows);
         if(error){toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
         else{
@@ -4510,10 +4519,11 @@ async function saveRecurringBookings(){
     // Save to DB
     if(sb && c._uuid && slotId){
       try{
+        const {status:bkSt,subscription_id:bkSubId}=resolveBookingStatus(c,dateStr);
         const {error}=await sb.from('bookings').insert({
           studio_id:STUDIO_ID, client_id:c._uuid,
-          slot_id:slotId, subscription_id:c._subUuid||null,
-          class_date:dateStr, status:'booked'
+          slot_id:slotId, subscription_id:bkSubId,
+          class_date:dateStr, status:bkSt
         });
         if(!error) saved++;
         else if(error.code==='23505') skipped++; // duplicate
