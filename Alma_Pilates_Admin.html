@@ -2586,13 +2586,22 @@ async function deletePayment(visIdx){
     // 1. Delete the payment record
     const {error:e1}=await sb.from('payments').delete().eq('id',target._uuid);
     if(e1) throw e1;
-    // 2. Deactivate the linked subscription (if any)
+    // 2. Delete the linked subscription entirely (and its bookings)
     if(target._subId){
-      const {error:e2}=await sb.from('subscriptions').update({is_active:false}).eq('id',target._subId);
-      if(e2) console.warn('deactivate sub:',e2.message);
+      // Cancel bookings tied to this subscription (return them to unpaid_future)
+      await sb.from('bookings')
+        .update({status:'unpaid_future', subscription_id:null})
+        .eq('subscription_id',target._subId)
+        .in('status',['booked','attended']);
+      // Delete the subscription record
+      const {error:e2}=await sb.from('subscriptions').delete().eq('id',target._subId);
+      if(e2) console.warn('delete sub:',e2.message);
     }
+    // 3. Clear history cache for this client so it reloads fresh
+    const client=CLIENTS.find(c=>c.name===target.name);
+    if(client?._uuid) delete clientHistoryCache[client._uuid];
     toast(L('Η πληρωμή διαγράφηκε','Payment deleted','Платёж удалён'));
-    // 3. Full reload so clients, balances, payments all update
+    // 4. Full reload so clients, balances, payments all update
     await dbLoad();
   }catch(e){
     toast(L('Σφάλμα: ','Error: ','Ошибка: ')+e.message);
