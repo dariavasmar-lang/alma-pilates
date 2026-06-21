@@ -264,8 +264,12 @@
           <div class="ff"><label>City</label><input value="Лимассол, Кипр"></div>
         </div>
         <div class="form-grid-2">
+          <div class="ff"><label>4-class membership (€)</label><input type="number" value="80"></div>
           <div class="ff"><label>8-class membership (€)</label><input type="number" value="120"></div>
-          <div class="ff"><label>12-class membership (€)</label><input type="number" value="160"></div>
+        </div>
+        <div class="form-grid-2">
+          <div class="ff"><label>12 promo membership (€)</label><input type="number" value="160"></div>
+          <div class="ff"><label>12 standard membership (€)</label><input type="number" value="170"></div>
         </div>
         <div class="form-grid-2">
           <div class="ff"><label>Single class (€)</label><input type="number" value="25"></div>
@@ -906,7 +910,8 @@ function renderClients(search=''){
       :isExpired?L('Έληξε','Overdue','Просрочен')
       :isExpiring?L('Λήγει','Expiring','Истекает')
       :isActive?t.badgeOk:t.badgeInactive;
-    const typeLabel=c.type+(adminLang==='el'?' μαθ.':adminLang==='en'?' cl.':' зан.');
+    const _tlbls={el:{'4':'4 μαθ.','8':'8 μαθ.','12':'12 προμό','12s':'12 τυπ.','single':'1 μαθ.','—':'—'},en:{'4':'4 cl.','8':'8 cl.','12':'12 promo','12s':'12 std.','single':'1 cl.','—':'—'},ru:{'4':'4 зан.','8':'8 зан.','12':'12 промо','12s':'12 стд.','single':'1 зан.','—':'—'}};
+    const typeLabel=(_tlbls[adminLang]||_tlbls.ru)[c.type]||c.type;
     const dateLbl=isExpired
       ? `<span style="color:var(--red)">${fmtDate(c.nextPayment)}</span><span style="font-size:9px;display:block;color:var(--red)">${L('έληξε','expired','истёк')}</span>`
       : isExpiring
@@ -1036,11 +1041,13 @@ function renderClientCard(c){
   // Bar shows REMAINING (not used), so full bar = full balance
   const pct=c.total>0?Math.round((c.left/c.total)*100):0;
   const typeLabel={
+    '4': L('4 μαθήματα','4 classes','4 занятия'),
     '8': L('8 μαθήματα','8 classes','8 занятий'),
-    '12': L('12 μαθήματα','12 classes','12 занятий'),
+    '12': L('12 μαθ. (προμό)','12 classes (promo)','12 занятий (промо)'),
+    '12s': L('12 μαθ. (τυπ.)','12 classes (std)','12 занятий (стандарт)'),
     'single': L('Μονό','Single','Разовое')
   }[c.type]||c.type;
-  const price={8:'€120',12:'€160',single:'€25'}[c.type]||'';
+  const price={'4':'€80','8':'€120','12':'€160','12s':'€170','single':'€25'}[c.type]||'';
   const langFlag={RU:'🇷🇺',EL:'🇬🇷',EN:'🇬🇧'}[c.lang]||'';
   const isExpiringSoon=c.expiresDate&&new Date(c.expiresDate)<=new Date(Date.now()+14*864e5);
   const daysLeft=c.expiresDate?Math.ceil((new Date(c.expiresDate)-new Date())/(864e5)):null;
@@ -1064,6 +1071,7 @@ function renderClientCard(c){
         <span style="font-size:11px;color:var(--text2)">${c.phone||'—'}</span>
         <span style="font-size:10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--text2)">${langFlag} ${c.lang}</span>
         <span class="badge ${BADGE_CLS[c.status]}">${statusLabel}</span>
+        ${c.isTrial?`<span style="font-size:10px;background:#F0E6FF;border:0.5px solid #9B59B6;border-radius:4px;padding:1px 7px;color:#6C3483;font-weight:500">${L('Δοκιμαστικό','Trial','Пробный')}</span>`:''}
       </div>
     </div>
     <button onclick="closeClientDetail()" style="border:none;background:none;cursor:pointer;color:var(--text3);font-size:18px;padding:2px 4px;line-height:1;flex-shrink:0">✕</button>
@@ -1106,8 +1114,10 @@ function renderClientCard(c){
         <div>
           <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${L('Τύπος συνδρομής','Subscription type','Тип абонемента')}</div>
           <select onchange="updateClientSubType(${c.id},this.value)" style="font-size:12px;border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;background:var(--card);color:var(--text);width:100%">
+            <option value="4" ${c.type==='4'?'selected':''}>4 — €80</option>
             <option value="8" ${c.type==='8'?'selected':''}>8 — €120</option>
-            <option value="12" ${c.type==='12'?'selected':''}>12 — €160</option>
+            <option value="12" ${c.type==='12'?'selected':''}>12 промо — €160</option>
+            <option value="12s" ${c.type==='12s'?'selected':''}>12 стандарт — €170</option>
             <option value="single" ${c.type==='single'?'selected':''}>1 — €25</option>
           </select>
         </div>
@@ -1272,7 +1282,7 @@ function renderHistoryTabById(clientId,tab){
   } else if(tab==='payments'){
     const methodLabel={cash:L('Μετρητά','Cash','Наличные'),card:L('Κάρτα','Card','Карта'),bank:L('Τράπεζα','Bank','Банк'),revolut:'Revolut'};
     items=(cache.subs||[]).map(s=>{
-      const typeLabel={8:'8 '+L('μαθ.','cl.','зан.'),'12':'12 '+L('μαθ.','cl.','зан.'),single:'1 '+L('μαθ.','cl.','зан.')}[s.type]||s.type;
+      const typeLabel={'4':'4 '+L('μαθ.','cl.','зан.'),'8':'8 '+L('μαθ.','cl.','зан.'),'12':'12 '+L('προμό','promo','промо'),'12s':'12 '+L('τυπ.','std','стд.'),'single':'1 '+L('μαθ.','cl.','зан.')}[s.type]||s.type;
       const method=methodLabel[s.payment_method]||s.payment_method||'';
       return {
         date:fmtHistDate(s.paid_at?s.paid_at.split('T')[0]:s.starts_at),
@@ -1695,7 +1705,7 @@ function sendWhatsApp(clientId,type){
 
 function generateRevolutLink(clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
-  const amt={8:120,12:160,single:25}[c.type]||120;
+  const amt={'4':80,'8':120,'12':160,'12s':170,'single':25}[c.type]||120;
   const link=`https://revolut.me/almapilates?amount=${amt}&currency=EUR&description=${encodeURIComponent('Alma Pilates '+c.type+' classes - '+c.name)}`;
   navigator.clipboard?.writeText(link).catch(()=>{});
   const el=document.createElement('div');
@@ -1708,7 +1718,7 @@ function generateRevolutLink(clientId){
 async function updateClientSubType(clientId,type){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
-  const newTotal={8:8,12:12,single:1}[type]||8;
+  const newTotal={'4':4,'8':8,'12':12,'12s':12,'single':1}[type]||8;
   const used=c.total-c.left;
   const newLeft=Math.max(0,newTotal-used);
   if(sb&&c._subUuid){
@@ -2683,8 +2693,10 @@ function openPayModal(prefilledClient){
       <div class="ff">
         <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Πακέτο','Membership','Абонемент')}</label>
         <select id="pam-type" onchange="pamUpdateAmt()" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px">
+          <option value="4|80">${L('4 μαθ. — €80','4 classes — €80','4 занятия — €80')}</option>
           <option value="8|120">${L('8 μαθ. — €120','8 classes — €120','8 занятий — €120')}</option>
-          <option value="12|160">${L('12 μαθ. — €160','12 classes — €160','12 занятий — €160')}</option>
+          <option value="12|160">${L('12 μαθ. προμό — €160','12 classes promo — €160','12 занятий промо — €160')}</option>
+          <option value="12s|170">${L('12 μαθ. τυπ. — €170','12 classes standard — €170','12 занятий стандарт — €170')}</option>
           <option value="1|25">${L('Μεμονωμένο — €25','Single class — €25','Разовое — €25')}</option>
           <option value="0|0">${L('Άλλο','Custom amount','Другая сумма')}</option>
         </select>
@@ -2780,7 +2792,7 @@ async function submitPayModal(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   if(!client||!amt) return toast(L('Συμπλήρωσε πελάτη και ποσό','Fill in client and amount','Заполни клиента и сумму'));
   const classes=typeVal.split('|')[0];
-  const detailMap={'8':L('8 μαθ.','8-class membership','8 занятий'),'12':L('12 μαθ.','12-class membership','12 занятий'),'1':L('Μεμονωμένο','Single class','Разовое'),'0':L('Άλλο','Custom','Другое')};
+  const detailMap={'4':L('4 μαθ.','4-class membership','4 занятия'),'8':L('8 μαθ.','8-class membership','8 занятий'),'12':L('12 μαθ. προμό','12-class promo','12 занятий промо'),'12s':L('12 μαθ. τυπ.','12-class standard','12 занятий стандарт'),'1':L('Μεμονωμένο','Single class','Разовое'),'0':L('Άλλο','Custom','Другое')};
   const init=client.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const ruMo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
   const d=new Date(date);
@@ -2800,9 +2812,9 @@ async function submitPayModal(){
   if(!clientUuid){return fail(L('Επιλέξτε πελάτη','Select a client','Выберите клиента'));}
   if(!STUDIO_ID){return fail('Studio ID not set — please refresh the page');}
   try{
-    const subTypeMap={'8':'8','12':'12','1':'single'};
-    const totalMap={'8':8,'12':12,'1':1};
-    const expDaysMap={'8':30,'12':30,'1':30};
+    const subTypeMap={'4':'4','8':'8','12':'12','12s':'12s','1':'single'};
+    const totalMap={'4':4,'8':8,'12':12,'12s':12,'1':1};
+    const expDaysMap={'4':30,'8':30,'12':30,'12s':30,'1':30};
     const subType=subTypeMap[classes]||null;
     const totalClasses=totalMap[classes]||null;
     let subUuid=null;
@@ -3463,6 +3475,7 @@ async function dbLoad(){
         paidAmt:sub?'€'+sub.price:'—',
         status:'ok',
         isArchived:!!c.is_archived,
+        isTrial:!!c.is_trial,
         isNew:i===0,
         history:[]
       });
@@ -4152,11 +4165,17 @@ function openNewClientModal(toArchive=false){
       </div>
       <div class="form-grid-2" style="margin-bottom:12px">
         <div class="ff"><label id="ncm-sub-lbl"></label>
-          <select id="ncm-sub"><option value="none">—</option><option value="8">8 × €120</option><option value="12">12 × €160</option><option value="single">1 × €25</option></select>
+          <select id="ncm-sub"><option value="none">—</option><option value="4">4 × €80</option><option value="8">8 × €120</option><option value="12">12 промо × €160</option><option value="12s">12 стандарт × €170</option><option value="single">1 × €25</option></select>
         </div>
         <div class="ff"><label id="ncm-method-lbl"></label>
           <select id="ncm-method"><option value="revolut">Revolut</option><option value="cash"></option><option value="bank"></option></select>
         </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2)">
+          <input type="checkbox" id="ncm-trial" style="width:14px;height:14px;accent-color:var(--accent)">
+          <span id="ncm-trial-lbl">Пробное занятие (без абонемента)</span>
+        </label>
       </div>
       <div id="ncm-err" style="display:none;font-size:11px;color:var(--red);background:var(--red-bg);padding:6px 10px;border-radius:7px;margin-bottom:8px"></div>
       <div class="modal-actions">
@@ -4176,6 +4195,8 @@ function openNewClientModal(toArchive=false){
   document.getElementById('ncm-start-lbl').textContent=L('Ημ. έναρξης','Start date','Дата начала');
   document.getElementById('ncm-sub-lbl').textContent=L('Συνδρομή','Membership','Абонемент');
   document.getElementById('ncm-method-lbl').textContent=L('Τρόπος','Method','Способ оплаты');
+  const trialLbl=document.getElementById('ncm-trial-lbl');
+  if(trialLbl) trialLbl.textContent=L('Δοκιμαστικό (χωρίς συνδρομή)','Trial class (no membership)','Пробное занятие (без абонемента)');
   document.getElementById('ncm-cancel-btn').textContent=L('Ακύρωση','Cancel','Отмена');
   document.getElementById('ncm-save-btn').textContent=L('Αποθήκευση','Save','Сохранить');
   const msel=document.getElementById('ncm-method');
@@ -4196,6 +4217,7 @@ async function saveNewClient(){
   const startDate=document.getElementById('ncm-start').value||new Date().toISOString().split('T')[0];
   const subType=document.getElementById('ncm-sub').value;
   const method=document.getElementById('ncm-method').value;
+  const isTrial=!!(document.getElementById('ncm-trial')?.checked);
   const errEl=document.getElementById('ncm-err');
   const saveBtn=document.getElementById('ncm-save-btn');
   if(!name){errEl.textContent=L('Εισάγετε όνομα','Enter name','Введите имя');errEl.style.display='block';return;}
@@ -4207,7 +4229,8 @@ async function saveNewClient(){
     if(sb){
       const toArchive=!!window._newClientToArchive;
       const baseFields={studio_id:STUDIO_ID,full_name:name,phone:phone||null,
-        language:lang,is_active:true,gdpr_consent:true,gdpr_consent_at:new Date().toISOString()};
+        language:lang,is_active:true,gdpr_consent:true,gdpr_consent_at:new Date().toISOString(),
+        is_trial:isTrial};
       // Try insert with archive fields; fall back without them if column doesn't exist yet
       let data=null;
       const r1=await sb.from('clients').insert({
@@ -4224,8 +4247,8 @@ async function saveNewClient(){
       if(data){
         uuid=data.id;
         if(subType!=='none'){
-          const priceMap={'8':120,'12':160,'single':25};
-          const totalCl={'8':8,'12':12,'single':1}[subType]||8;
+          const priceMap={'4':80,'8':120,'12':160,'12s':170,'single':25};
+          const totalCl={'4':4,'8':8,'12':12,'12s':12,'single':1}[subType]||8;
           const end=new Date(startDate); end.setDate(end.getDate()+30);
           const {data:sub}=await sb.from('subscriptions').insert({
             studio_id:STUDIO_ID,client_id:uuid,type:subType,total_classes:totalCl,
@@ -4246,7 +4269,7 @@ async function saveNewClient(){
     const sp=startDate.split('-');
     const endD=new Date(startDate); endD.setDate(endD.getDate()+30);
     const ep=endD.toISOString().split('T')[0].split('-');
-    const total={'8':8,'12':12,'single':1}[subType]||0;
+    const total={'4':4,'8':8,'12':12,'12s':12,'single':1}[subType]||0;
     CLIENTS.unshift({
       id:Date.now()%99999,_uuid:uuid,name,
       initials:name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
@@ -4257,9 +4280,9 @@ async function saveNewClient(){
       paid:subType==='none'?'—':sp[2]+'/'+sp[1],
       nextPayment:subType==='none'?'—':ep[2]+'/'+ep[1],
       expiresDate:subType==='none'?null:endD.toISOString().split('T')[0],
-      paidAmt:subType==='none'?'—':{8:'€120',12:'€160',single:'€25'}[subType],
+      paidAmt:subType==='none'?'—':({'4':'€80','8':'€120','12':'€160','12s':'€170','single':'€25'}[subType]||'—'),
       status:subType==='none'?'inactive':'ok',history:[],isNew:true,
-      isArchived:archiveSavedToDB
+      isArchived:archiveSavedToDB,isTrial
     });
     closeModal('new-client-modal');
     toast(L('Αποθηκεύτηκε!','Saved!','Клиент добавлен!'));
