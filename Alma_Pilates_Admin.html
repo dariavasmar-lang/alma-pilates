@@ -1224,8 +1224,9 @@ async function loadClientHistory(clientId){
   renderHistoryTabById(clientId,'bookings');
 
   // Update tab counts
-  const bkTotal=(bookings||[]).filter(b=>b.status==='booked'||b.status==='attended'||b.status==='unpaid_future').length;
-  const canTotal=(bookings||[]).filter(b=>b.status==='cancelled'||b.status==='missed').length;
+  const _today=new Date().toISOString().split('T')[0];
+  const bkTotal=(bookings||[]).filter(b=>b.status==='booked'||b.status==='attended'||(b.status==='unpaid_future'&&b.class_date>=_today)).length;
+  const canTotal=(bookings||[]).filter(b=>b.status==='cancelled'||b.status==='missed'||(b.status==='unpaid_future'&&b.class_date<_today)).length;
   const subTotal=(subs||[]).length;
   const row=document.getElementById('ctab-row-'+clientId);
   if(row){
@@ -1246,7 +1247,10 @@ function renderHistoryTabById(clientId,tab){
   let items=[];
   if(tab==='bookings'){
     const today=new Date().toISOString().split('T')[0];
-    const bookings=(cache.bookings||[]).filter(b=>b.status==='booked'||b.status==='attended'||b.status==='unpaid_future');
+    // unpaid_future — show only FUTURE ones; past unpaid = effectively missed, shown in Cancels
+    const bookings=(cache.bookings||[]).filter(b=>
+      b.status==='booked'||b.status==='attended'||
+      (b.status==='unpaid_future'&&b.class_date>=today));
     const noRec=adminLang==='el'?'Δεν υπάρχουν εγγραφές':adminLang==='en'?'No records':'Нет записей';
     const el=document.getElementById('ctab-content-'+clientId);
     if(el){
@@ -1292,16 +1296,18 @@ function renderHistoryTabById(clientId,tab){
       };
     });
   } else if(tab==='cancels'){
+    const today2=new Date().toISOString().split('T')[0];
     items=(cache.bookings||[])
-      .filter(b=>b.status==='cancelled'||b.status==='missed')
+      .filter(b=>b.status==='cancelled'||b.status==='missed'||(b.status==='unpaid_future'&&b.class_date<today2))
       .map(b=>{
         const time=b.schedule_slots?.start_time?.slice(0,5)||'';
         const burned=b.status==='missed';
+        const pastUnpaid=b.status==='unpaid_future';
         return {
           date:fmtHistDate(b.class_date),
-          label:time+' · '+(burned?L('Έκαψε','Burned','Сгорело'):L('Ακυρώθηκε','Cancelled','Отменено')),
-          note:burned?'🔥':'',
-          color:burned?'var(--red)':'var(--text3)'
+          label:time+' · '+(burned?L('Έκαψε','Burned','Сгорело'):pastUnpaid?L('Χωρίς πληρωμή','Not paid','Не оплачено'):L('Ακυρώθηκε','Cancelled','Отменено')),
+          note:burned?'🔥':pastUnpaid?'💛':'',
+          color:burned?'var(--red)':pastUnpaid?'#C47A1A':'var(--text3)'
         };
       });
   }
@@ -4475,7 +4481,8 @@ function openRecurringModal(clientId){
 
   const today = localDateStr(todayCY());
   const yearAhead = localDateStr(new Date(new Date().setFullYear(new Date().getFullYear()+1)));
-  document.getElementById('rm-from').value = today;
+  const rmFrom = document.getElementById('rm-from');
+  if(rmFrom){ rmFrom.value = today; rmFrom.min = today; }
   document.getElementById('rm-to').value = yearAhead;
 
   // Day checkboxes
