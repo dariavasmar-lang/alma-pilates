@@ -1212,7 +1212,7 @@ async function loadClientHistory(clientId){
       .select('id,class_date,status,slot_id,schedule_slots(start_time)')
       .eq('client_id',uuid)
       .order('class_date',{ascending:false})
-      .limit(60),
+      .limit(200),
     sb.from('subscriptions')
       .select('id,created_at,paid_at,starts_at,type,total_classes,price,payment_method,is_active')
       .eq('client_id',uuid)
@@ -1220,13 +1220,22 @@ async function loadClientHistory(clientId){
       .limit(20)
   ]);
 
-  clientHistoryCache[uuid]={bookings:bookings||[],subs:subs||[]};
+  // Filter bookings from the date of first subscription (ignore pre-subscription history)
+  const allSubs=subs||[];
+  const firstSubStart=allSubs.length>0
+    ? allSubs.reduce((min,s)=>s.starts_at<min?s.starts_at:min, allSubs[0].starts_at)
+    : null;
+  const filteredBookings=firstSubStart
+    ? (bookings||[]).filter(b=>b.class_date>=firstSubStart)
+    : (bookings||[]);
+
+  clientHistoryCache[uuid]={bookings:filteredBookings,subs:allSubs};
   renderHistoryTabById(clientId,'bookings');
 
   // Update tab counts
   const _today=new Date().toISOString().split('T')[0];
-  const bkTotal=(bookings||[]).filter(b=>b.status==='booked'||b.status==='attended'||(b.status==='unpaid_future'&&b.class_date>=_today)).length;
-  const canTotal=(bookings||[]).filter(b=>b.status==='cancelled'||b.status==='missed'||(b.status==='unpaid_future'&&b.class_date<_today)).length;
+  const bkTotal=filteredBookings.filter(b=>b.status==='booked'||b.status==='attended'||(b.status==='unpaid_future'&&b.class_date>=_today)).length;
+  const canTotal=filteredBookings.filter(b=>b.status==='cancelled'||b.status==='missed'||(b.status==='unpaid_future'&&b.class_date<_today)).length;
   const subTotal=(subs||[]).length;
   const row=document.getElementById('ctab-row-'+clientId);
   if(row){
@@ -4616,6 +4625,12 @@ async function saveRecurringBookings(){
   toast(L(`Κρατήθηκαν ${saved} μαθ.!`,`Booked ${saved} classes!`,`Записано ${saved} занятий!`));
   renderSchedule();
   dbLoadBookings();
+  // Refresh client card history so recurring bookings appear immediately
+  if(_rmClientId){
+    const _rmC=CLIENTS.find(x=>x.id===_rmClientId);
+    if(_rmC&&_rmC._uuid) delete clientHistoryCache[_rmC._uuid];
+    loadClientHistory(_rmClientId);
+  }
 }
 
 // ── INIT ─────────────────────────────────────────────────────
