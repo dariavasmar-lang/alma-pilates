@@ -1234,7 +1234,9 @@ async function loadClientHistory(clientId){
 
   // Update tab counts
   const _today=new Date().toISOString().split('T')[0];
-  const bkTotal=filteredBookings.filter(b=>b.status==='booked'||b.status==='attended'||(b.status==='unpaid_future'&&b.class_date>=_today)).length;
+  const _m30=new Date(); _m30.setDate(_m30.getDate()+30);
+  const _monthAhead=_m30.toISOString().split('T')[0];
+  const bkTotal=filteredBookings.filter(b=>b.status==='booked'||b.status==='attended'||(b.status==='unpaid_future'&&b.class_date>=_today&&b.class_date<=_monthAhead)).length;
   const canTotal=filteredBookings.filter(b=>b.status==='cancelled'||b.status==='missed'||(b.status==='unpaid_future'&&b.class_date<_today)).length;
   const subTotal=(subs||[]).length;
   const row=document.getElementById('ctab-row-'+clientId);
@@ -1256,10 +1258,12 @@ function renderHistoryTabById(clientId,tab){
   let items=[];
   if(tab==='bookings'){
     const today=new Date().toISOString().split('T')[0];
-    // unpaid_future — show only FUTURE ones; past unpaid = effectively missed, shown in Cancels
+    const _d30=new Date(); _d30.setDate(_d30.getDate()+30);
+    const monthAhead=_d30.toISOString().split('T')[0];
+    // unpaid_future — show only next 30 days; past unpaid = Cancels
     const bookings=(cache.bookings||[]).filter(b=>
       b.status==='booked'||b.status==='attended'||
-      (b.status==='unpaid_future'&&b.class_date>=today));
+      (b.status==='unpaid_future'&&b.class_date>=today&&b.class_date<=monthAhead));
     const noRec=adminLang==='el'?'Δεν υπάρχουν εγγραφές':adminLang==='en'?'No records':'Нет записей';
     const el=document.getElementById('ctab-content-'+clientId);
     if(el){
