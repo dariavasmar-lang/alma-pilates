@@ -751,15 +751,25 @@ function renderDashboard(){
   const alertEl=document.getElementById('alert-clients');
   if(alertEl) alertEl.innerHTML=warnClients.length===0
     ? `<div style="padding:20px;text-align:center;font-size:12px;color:var(--text3)">✓ ${L('Όλα καλά','All good','Всё хорошо')}</div>`
-    : warnClients.map(c=>`
-      <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="showPage('clients');setTimeout(()=>selectClient(${c.id}),100)">
-        <div style="width:6px;height:6px;border-radius:50%;background:${c.status==='danger'?'#C0392B':'#D4A017'};flex-shrink:0"></div>
+    : warnClients.map(c=>{
+      const today=localDateStr(new Date());
+      const isExpired=c.status==='danger';
+      const daysLeft=c.expiresDate?Math.round((new Date(c.expiresDate)-new Date(today))/(864e5)):null;
+      const sublbl=isExpired
+        ? L('Λήξη υπέρβαση','Subscription expired','Абонемент истёк')
+        : daysLeft!==null
+          ? L(`Λήγει σε ${daysLeft} ημ.`,`Expires in ${daysLeft} days`,`Истекает через ${daysLeft} дн.`)
+          : '';
+      const badgeLbl=isExpired?L('Έληξε','Expired','Истёк'):`${daysLeft}${L('ημ.','d','дн.')}`;
+      return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="showPage('clients');setTimeout(()=>selectClient(${c.id}),100)">
+        <div style="width:6px;height:6px;border-radius:50%;background:${isExpired?'#C0392B':'#D4A017'};flex-shrink:0"></div>
         <div style="flex:1">
           <div style="font-size:12px;font-weight:500;color:var(--text)">${c.name}</div>
-          <div style="font-size:10px;color:var(--text3)">${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}</div>
+          <div style="font-size:10px;color:var(--text3)">${sublbl}</div>
         </div>
-        <span class="badge ${c.status==='danger'?'danger':'warn'}">${c.left}</span>
-      </div>`).join('');
+        <span class="badge ${isExpired?'danger':'warn'}">${badgeLbl}</span>
+      </div>`;
+    }).join('');
 
   // Pending payments block
   const dp=document.getElementById('dash-pending');
@@ -888,18 +898,27 @@ function renderClients(search=''){
     return;
   }
   if(tbody) tbody.innerHTML=filtered.map(c=>{
-    const pct=Math.round(c.left/c.total*100);
+    const pct=c.total>0?Math.round(c.left/c.total*100):0;
     const isActive=c.status!=='inactive';
-    const lbl=isActive?t.badgeOk:t.badgeInactive;
+    const isExpired=c.status==='danger';
+    const isExpiring=c.status==='warn';
+    const lbl=c.isArchived?L('Αρχείο','Archived','Архив')
+      :isExpired?L('Έληξε','Overdue','Просрочен')
+      :isExpiring?L('Λήγει','Expiring','Истекает')
+      :isActive?t.badgeOk:t.badgeInactive;
     const typeLabel=c.type+(adminLang==='el'?' μαθ.':adminLang==='en'?' cl.':' зан.');
-    const isSoon=isActive&&c.expiresDate&&new Date(c.expiresDate)<=new Date(Date.now()+14*864e5);
-    return `<tr onclick="selectClient(${c.id})" id="row-${c.id}" style="${c.isArchived?'opacity:.6':''}">
+    const dateLbl=isExpired
+      ? `<span style="color:var(--red)">${fmtDate(c.nextPayment)}</span><span style="font-size:9px;display:block;color:var(--red)">${L('έληξε','expired','истёк')}</span>`
+      : isExpiring
+        ? `<span style="color:var(--warn)">${fmtDate(c.nextPayment)}</span><span style="font-size:9px;display:block;color:var(--warn)">${L('σύντομα','soon','скоро')}</span>`
+        : `<span style="color:var(--text2)">${fmtDate(c.nextPayment)}</span>`;
+    return `<tr onclick="selectClient(${c.id})" id="row-${c.id}" style="${c.isArchived?'opacity:.6':''}${isExpired?';background:rgba(192,57,43,.04)':''}">
       <td><span style="width:26px;height:26px;border-radius:50%;background:var(--bg3);color:${c.isArchived?'var(--text3)':'var(--accent)'};font-size:9px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;margin-right:7px;vertical-align:middle">${c.initials}</span><span style="font-size:12px;font-weight:500;color:${c.isArchived?'var(--text2)':'var(--text)'}">${c.name}</span>${c.isNew?`<span class="badge new-client">NEW</span>`:''}${c.isArchived?`<span style="font-size:9px;color:var(--text3);margin-left:5px">📁</span>`:''}</td>
       <td style="color:var(--text2)">${typeLabel}</td>
       <td><span style="font-weight:500">${c.left}</span><span style="color:var(--text3)"> / ${c.total}</span><div class="progress" style="min-width:50px"><div class="progress-fill" style="width:${pct}%;background:${BAR_COLOR[c.status]}"></div></div></td>
-      <td style="font-size:11px"><span style="color:${isSoon?'var(--warn)':'var(--text2)'}">${fmtDate(c.nextPayment)}</span>${isSoon?`<span style="font-size:9px;display:block;color:var(--warn)">soon</span>`:''}</td>
+      <td style="font-size:11px">${dateLbl}</td>
       <td style="color:var(--text3);font-size:11px">${fmtDate(c.paid)}</td>
-      <td><span class="badge ${c.isArchived?'inactive':BADGE_CLS[c.status]}">${c.isArchived?L('Αρχείο','Archived','Архив'):lbl}</span></td>
+      <td><span class="badge ${c.isArchived?'inactive':BADGE_CLS[c.status]}">${lbl}</span></td>
     </tr>`;
   }).join('');
 }
@@ -934,7 +953,7 @@ async function selectClient(id){
         const used=count||0;
         c.left=Math.max(0,sub.total_classes-used);
         c.total=sub.total_classes;
-        c.status=!c.left?'inactive':c.left<=1?'danger':c.left<=2?'warn':'ok';
+        c.status=calcClientStatus(c);
         renderClientCard(c);
         renderClients();
       }
@@ -987,6 +1006,19 @@ async function archiveClient(id, archive){
       ?L('Μετακινήθηκε στο αρχείο','Moved to archive','Перемещён в архив')
       :L('Επαναφέρθηκε','Restored','Восстановлен'));
   }catch(e){toast('Error: '+e.message);}
+}
+
+// ── CLIENT STATUS (by subscription expiry date) ───────────────
+// danger  = subscription already expired (debtor)
+// warn    = expires in 0–3 days
+// ok      = expires in 4+ days and subscription active
+// inactive= no active subscription
+function calcClientStatus(c){
+  if(!c._subUuid||!c.expiresDate) return 'inactive';
+  const today=localDateStr(new Date());
+  if(c.expiresDate<today) return 'danger';
+  const daysLeft=Math.round((new Date(c.expiresDate)-new Date(today))/(864e5));
+  return daysLeft<=3?'warn':'ok';
 }
 
 let clientCalOffset={};
@@ -1487,7 +1519,7 @@ async function confirmClientBookings(clientId){
           .update({used_classes:newUsed})
           .eq('id',c._subUuid);
         c.left=Math.max(0,c.total-newUsed);
-        c.status=c.left===0?'inactive':c.left<=1?'danger':c.left<=2?'warn':'ok';
+        c.status=calcClientStatus(c);
       }
     }catch(e){console.error('bulk booking:',e.message);}
   }
@@ -1640,7 +1672,7 @@ async function adminCancelBooking(bookingId, clientId){
   delete clientHistoryCache[uuid];
   await loadClientHistory(clientId);
   const {data:sub}=await sb.from('subscriptions').select('total_classes,used_classes').eq('client_id',uuid).eq('is_active',true).order('created_at',{ascending:false}).limit(1).single();
-  if(sub){ c.left=Math.max(0,sub.total_classes-sub.used_classes); c.status=!c.left?'inactive':c.left<=1?'danger':c.left<=2?'warn':'ok'; renderClientCard(c); renderClients(); }
+  if(sub){ c.left=Math.max(0,sub.total_classes-sub.used_classes); c.status=calcClientStatus(c); renderClientCard(c); renderClients(); }
 }
 
 function sendWhatsApp(clientId,type){
@@ -3468,7 +3500,7 @@ async function dbLoad(){
             const used=bkCounts[c._uuid]||0;
             c.left=Math.max(0,c.total-used);
           } else { c.left=0; }
-          c.status=!c.left?'inactive':c.left<=1?'danger':c.left<=2?'warn':'ok';
+          c.status=calcClientStatus(c);
           if(!data.find(d=>d.id===c._uuid)?.is_active) c.status='inactive';
         });
       }
@@ -3602,7 +3634,7 @@ async function adjustBalance(id,delta){
     }catch(e){toast('Error: '+e.message);return;}
   }
   c.left=newLeft;
-  c.status=newLeft===0?'inactive':newLeft<=1?'danger':newLeft<=2?'warn':'ok';
+  c.status=calcClientStatus(c);
   toast(L(`Υπόλοιπο: ${newLeft}μ`,`Balance: ${newLeft}`,`Баланс: ${newLeft}`));
   selectClient(id); renderClients();
 }
@@ -3641,8 +3673,7 @@ async function updateClientStart(id,isoDate){
   c.start=p[2]+'/'+p[1]; c.startIso=isoDate;
   const ep=expiresIso.split('-');
   c.nextPayment=ep[2]+'/'+ep[1]; c.expiresDate=expiresIso;
-  const days=Math.ceil((end-new Date())/(864e5));
-  c.status=!c.left||c.left===0?'inactive':days<=7?'danger':days<=14?'warn':'ok';
+  c.status=calcClientStatus(c);
   renderClients(); selectClient(id);
   toast(L(`${c.start}→${c.nextPayment}`,`${c.start}→${c.nextPayment}`,`${c.start}→${c.nextPayment}`));
 }
@@ -4352,7 +4383,7 @@ async function bookClientByName(name, repeatCount){
           if(!slotBookingsMap[slotKey].includes(name)) slotBookingsMap[slotKey].push(name);
           if(!dateSlotMap[dKey].includes(name)) dateSlotMap[dKey].push(name);
           // Decrement local client balance only if booking is within subscription period
-          if(bkIsPaid){ client.left=Math.max(0,client.left-1); client.status=client.left===0?'inactive':client.left<=1?'danger':client.left<=2?'warn':'ok'; }
+          if(bkIsPaid){ client.left=Math.max(0,client.left-1); client.status=calcClientStatus(client); }
         }
       } else {
         // Recurring — status depends on each date vs subscription period
