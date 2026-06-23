@@ -2,19 +2,27 @@
 // migrate-prod-to-dev.mjs
 // Copies data from prod Supabase → dev Supabase
 // Run: node scripts/migrate-prod-to-dev.mjs
+// Requires: .env file in project root with PROD_SERVICE_KEY and DEV_SERVICE_KEY
 // ─────────────────────────────────────────────────────────────
 
 import { createClient } from './node_modules/@supabase/supabase-js/dist/index.mjs';
+import { config } from './node_modules/dotenv/lib/main.js';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const PROD = createClient(
-  'https://oaaplxktimcoxgziibzb.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hYXBseGt0aW1jb3hnemlpYnpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTUzNjI1NCwiZXhwIjoyMDk1MTEyMjU0fQ.nXjuXxZYd0zAshE8nxYgVhEcFjz9x2XWKwV5MTD27QI'
-);
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(__dirname, '../.env') });
 
-const DEV = createClient(
-  'https://mihcsujffzyryjsbessb.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1paGNzdWpmZnp5cnlqc2Jlc3NiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjIzNDY2NCwiZXhwIjoyMDk3ODEwNjY0fQ.MTvpP_EzbNZ63bDIcZzMmp5h7pAQcl9CpE3xltN_s_s'
-);
+const PROD_KEY = process.env.PROD_SERVICE_KEY;
+const DEV_KEY  = process.env.DEV_SERVICE_KEY;
+
+if (!PROD_KEY || !DEV_KEY) {
+  console.error('Missing PROD_SERVICE_KEY or DEV_SERVICE_KEY in .env');
+  process.exit(1);
+}
+
+const PROD = createClient('https://oaaplxktimcoxgziibzb.supabase.co', PROD_KEY);
+const DEV  = createClient('https://mihcsujffzyryjsbessb.supabase.co', DEV_KEY);
 
 const STUDIO_ID = 'a0000000-0000-0000-0000-000000000001';
 

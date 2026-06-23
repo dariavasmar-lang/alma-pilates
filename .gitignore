@@ -8,3 +8,7 @@ alma-pilates/
 node_modules/
 scripts/node_modules/
 scripts/package-lock.json
+
+# Environment variables (contains secret service_role keys — never commit)
+.env
+.env.local
