@@ -3613,7 +3613,7 @@ async function dbLoadBookings(){
     const {data,error}=await sb.from('bookings')
       .select('slot_id,class_date,status,subscription_id,clients(full_name),schedule_slots(day_of_week,start_time)')
       .in('class_date',dates)
-      .in('status',['booked','attended'])
+      .in('status',['booked','attended','unpaid_future'])
       .eq('studio_id',STUDIO_ID);
     if(error||!data) return;
     // Reset all maps
