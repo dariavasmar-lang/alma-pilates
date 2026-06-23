@@ -675,18 +675,38 @@ function renderDashboard(){
       <button class="btn primary" onclick="showPage('payments')">${t.newPayment}</button>
     </div>`;
 
+  // Dynamic month labels + real % vs previous month
+  const _dn=new Date();
+  const _moEl=['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
+  const _moEn=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const _moRu=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const _curMo=adminLang==='el'?_moEl[_dn.getMonth()]:adminLang==='en'?_moEn[_dn.getMonth()]:_moRu[_dn.getMonth()];
+  const _prevMoIdx=(_dn.getMonth()+11)%12;
+  const _prevMo=adminLang==='el'?_moEl[_prevMoIdx]:adminLang==='en'?_moEn[_prevMoIdx]:_moRu[_prevMoIdx];
+  // Current month income from PAYMENTS
+  const _curY=_dn.getFullYear(), _curM=_dn.getMonth();
+  const _prevY=_curM===0?_curY-1:_curY, _prevM=(_curM+11)%12;
+  const _incCur=paid.filter(p=>p._paidAt&&new Date(p._paidAt).getFullYear()===_curY&&new Date(p._paidAt).getMonth()===_curM).reduce((s,p)=>s+p.amt,0);
+  const _incPrev=paid.filter(p=>p._paidAt&&new Date(p._paidAt).getFullYear()===_prevY&&new Date(p._paidAt).getMonth()===_prevM).reduce((s,p)=>s+p.amt,0);
+  const _pct=_incPrev>0?Math.round((_incCur-_incPrev)/_incPrev*100):null;
+  const _pctLabel=_pct===null?''
+    :_pct>=0
+      ?`+${_pct}% ${L('vs','vs','к')} ${_prevMo}`
+      :`${_pct}% ${L('vs','vs','к')} ${_prevMo}`;
+  const _pctClass=_pct===null?'':_pct>=0?'up':'down';
+
   // Metrics
   const mr=document.getElementById('dash-metrics-row');
   if(mr) mr.innerHTML=`
     <div class="metric" onclick="showPage('payments')" style="cursor:pointer">
-      <div class="metric-label">${t.income}</div>
-      <div class="metric-val" style="color:var(--green)">€${income.toLocaleString()}</div>
-      <div class="metric-sub up">${t.incomeUp}</div>
+      <div class="metric-label">${L('Έσοδα','Income','Доход')}, ${_curMo}</div>
+      <div class="metric-val" style="color:var(--green)">€${_incCur.toLocaleString()}</div>
+      <div class="metric-sub ${_pctClass}">${_pctLabel}</div>
     </div>
     <div class="metric" onclick="showPage('expenses')" style="cursor:pointer">
-      <div class="metric-label">${t.expLabel}</div>
+      <div class="metric-label">${L('Έξοδα','Expenses','Расходы')}, ${_curMo}</div>
       <div class="metric-val" style="color:var(--red)">€${expenses.toLocaleString()}</div>
-      <div class="metric-sub">${t.expSub}</div>
+      <div class="metric-sub">${L('αυτόν τον μήνα','this month','в этом месяце')}</div>
     </div>
     <div class="metric">
       <div class="metric-label">${t.profit}</div>
@@ -3456,29 +3476,42 @@ async function dbLoad(){
   if(!sb || !STUDIO_ID) return;
   dbLoading = true;
   try{
-    // Load schedule slots: rebuild GSCHED + scheduleSlotIds
-    // Try with valid_from (if migration ran), fallback without it
-    let slots=null;
-    try{
-      const {data:d1}=await sb.from('schedule_slots')
-        .select('id,day_of_week,start_time,valid_from')
-        .eq('studio_id',STUDIO_ID).eq('is_active',true)
-        .order('day_of_week').order('start_time');
-      slots=d1;
-    }catch(_){
-      const {data:d2}=await sb.from('schedule_slots')
-        .select('id,day_of_week,start_time')
-        .eq('studio_id',STUDIO_ID).eq('is_active',true)
-        .order('day_of_week').order('start_time');
-      slots=d2;
-    }
-    if(slots&&slots.length){
+
+    // ── PHASE 1: все независимые запросы параллельно ──────────────
+    // slots: try with valid_from, fallback without (wrapped as promise)
+    const slotsPromise = sb.from('schedule_slots')
+      .select('id,day_of_week,start_time,valid_from')
+      .eq('studio_id',STUDIO_ID).eq('is_active',true)
+      .order('day_of_week').order('start_time')
+      .then(r => r.error
+        ? sb.from('schedule_slots').select('id,day_of_week,start_time')
+            .eq('studio_id',STUDIO_ID).eq('is_active',true)
+            .order('day_of_week').order('start_time')
+        : r);
+
+    const [
+      slotsRes, clientsRes, paymentsRes, expensesRes, studioRes,
+      extraRes, cancRes, slotNamesRes
+    ] = await Promise.allSettled([
+      slotsPromise,
+      sb.from('clients').select('*,subscriptions(*)').eq('studio_id',STUDIO_ID).order('created_at',{ascending:false}),
+      sb.from('payments').select('id,amount,method,status,paid_at,notes,created_at,subscription_id,clients(full_name)').eq('studio_id',STUDIO_ID).order('paid_at',{ascending:false,nullsFirst:false}).limit(300),
+      sb.from('studio_expenses').select('*').eq('studio_id',STUDIO_ID).order('date',{ascending:false}),
+      sb.from('studios').select('expense_cats').eq('id',STUDIO_ID).single(),
+      sb.from('extra_classes').select('class_date,start_time,name').eq('studio_id',STUDIO_ID).eq('is_active',true),
+      sb.from('schedule_cancellations').select('*').eq('studio_id',STUDIO_ID),
+      sb.from('slot_names').select('day_of_week,start_time,name').eq('studio_id',STUDIO_ID),
+    ]);
+
+    // ── Слоты расписания ───────────────────────────────────────────
+    const slots = slotsRes.value?.data;
+    if(slots?.length){
       const today=localDateStr(new Date());
       const newSCH={};
       slots.forEach(s=>{
         const t=s.start_time.slice(0,5);
         scheduleSlotIds[s.day_of_week+'_'+t]=s.id;
-        if(s.valid_from&&s.valid_from>today) return; // future slot, skip for now
+        if(s.valid_from&&s.valid_from>today) return;
         const d=s.day_of_week;
         if(!newSCH[d]) newSCH[d]=[];
         if(!newSCH[d].includes(t)) newSCH[d].push(t);
@@ -3487,139 +3520,137 @@ async function dbLoad(){
       if(Object.keys(newSCH).length>0) GSCHED=newSCH;
     }
 
-    const {data,error}=await sb.from('clients')
-      .select('*,subscriptions(*)')
-      .eq('studio_id',STUDIO_ID)
-      .order('created_at',{ascending:false});
-    if(!error && data && data.length){
-    CLIENTS.length=0;
-    data.forEach((c,i)=>{
-      const sub=c.subscriptions?.find(s=>s.is_active)||null;
-      const total=sub?.total_classes||0;
-      CLIENTS.push({
-        id:i+1,_uuid:c.id,
-        _subUuid:sub?.id||null,
-        name:c.full_name||'',
-        initials:(c.full_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
-        phone:c.phone||'',lang:(c.language||'el').toUpperCase(),
-        type:sub?.type||'—',
-        left:total, // will be recalculated from actual bookings below
-        total,
-        start:sub?.starts_at?isoFmt(sub.starts_at):'—',
-        paid:sub?.paid_at?isoFmt(sub.paid_at.split('T')[0]):'—',
-        nextPayment:sub?.expires_at?isoFmt(sub.expires_at):'—',
-        expiresDate:sub?.expires_at||null,
-        paidAmt:sub?'€'+sub.price:'—',
-        status:'ok',
-        isArchived:!!c.is_archived,
-        isTrial:!!c.is_trial,
-        isNew:i===0,
-        history:[]
+    // ── Платежи ────────────────────────────────────────────────────
+    const payRows = paymentsRes.value?.data;
+    if(payRows){
+      const moEl=['Ιαν','Φεβ','Μαρ','Απρ','Μαΐ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+      const moEn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const moRu=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+      const fmtPayDate=iso=>{
+        if(!iso)return'—';
+        const d=new Date(iso);
+        const mo=adminLang==='el'?moEl[d.getMonth()]:adminLang==='en'?moEn[d.getMonth()]:moRu[d.getMonth()];
+        return d.getDate()+' '+mo+' '+d.getFullYear();
+      };
+      PAYMENTS.length=0;
+      payRows.forEach(p=>{
+        const name=p.clients?.full_name||'—';
+        const init=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+        PAYMENTS.push({
+          _uuid:p.id, _subId:p.subscription_id||null,
+          name, init, detail:p.notes||'', method:p.method||'cash',
+          amt:parseFloat(p.amount)||0,
+          date:fmtPayDate(p.paid_at||p.created_at),
+          _paidAt:p.paid_at||p.created_at||null,
+          status:p.status||'paid'
+        });
       });
-    });
-    // First render — show client names immediately before balance recalc
-    renderClients();
-    // Recalculate balances: count ALL client bookings from subscription start date
-    // (matches client app logic — catches admin-booked classes regardless of subscription_id)
-    const clientUuids=CLIENTS.filter(c=>c._uuid).map(c=>c._uuid);
-    // Build maps: clientUuid → subscription starts_at / expires_at (30-day window)
-    const subStartMap={}, subExpiresMap={};
-    data.forEach(c=>{
-      const sub=c.subscriptions?.find(s=>s.is_active)||null;
-      if(sub?.starts_at) subStartMap[c.id]=sub.starts_at;
-      if(sub?.expires_at) subExpiresMap[c.id]=sub.expires_at;
-    });
-    if(clientUuids.length>0){
-      const {data:bkData}=await sb.from('bookings')
-        .select('client_id,class_date')
-        .in('client_id',clientUuids)
-        .in('status',['booked','attended','missed']); // missed = burned late-cancel
-      if(bkData){
-        const bkCounts={};
-        bkData.forEach(b=>{
-          const starts=subStartMap[b.client_id];
-          const expires=subExpiresMap[b.client_id];
-          // Only count bookings within subscription period (starts_at → expires_at)
-          if(!starts||b.class_date>=starts){
-            if(!expires||b.class_date<=expires)
-              bkCounts[b.client_id]=(bkCounts[b.client_id]||0)+1;
-          }
-        });
-        CLIENTS.forEach(c=>{
-          if(c._subUuid){
-            const used=bkCounts[c._uuid]||0;
-            c.left=Math.max(0,c.total-used);
-          } else { c.left=0; }
-          c.status=calcClientStatus(c);
-          if(!data.find(d=>d.id===c._uuid)?.is_active) c.status='inactive';
-        });
-      }
-    } else {
-      CLIENTS.forEach(c=>{ c.left=0; c.status='inactive'; });
+      renderPayments();
     }
-    dbLoading = false;
-    renderClients(); renderDashboard();
-    // Restore open client card after page refresh (only if clients page is active)
-    const _savedUuid=sessionStorage.getItem('alma_open_client');
-    if(_savedUuid && location.hash==='#clients'){
-      const _savedC=CLIENTS.find(x=>x._uuid===_savedUuid);
-      if(_savedC) selectClient(_savedC.id);
+
+    // ── Категории расходов + расходы ───────────────────────────────
+    const stConf = studioRes.value?.data;
+    if(stConf?.expense_cats&&Object.keys(stConf.expense_cats).length){
+      CATS=stConf.expense_cats;
+      try{localStorage.setItem('alma_cats',JSON.stringify(CATS));}catch(e){}
     }
-    await dbLoadScheduleData();
-    dbLoadBookings();
-    } // end if(clients loaded)
+    const expRows = expensesRes.value?.data;
+    if(expRows){
+      EXPENSES=expRows.map(e=>({
+        id:e.id, cat:e.cat, desc:e.description,
+        amt:parseFloat(e.amount), date:e.date, recurring:e.recurring
+      }));
+      renderExpenses();
+    }
 
-    // Load expense categories from DB (overrides localStorage)
-    try{
-      const {data:stConf}=await sb.from('studios').select('expense_cats').eq('id',STUDIO_ID).single();
-      if(stConf?.expense_cats&&Object.keys(stConf.expense_cats).length){
-        CATS=stConf.expense_cats;
-        try{localStorage.setItem('alma_cats',JSON.stringify(CATS));}catch(e){}
-      }
-    }catch(e){console.warn('load expense_cats:',e);}
+    // ── Экстра-занятия, отмены, названия слотов ───────────────────
+    const exData = extraRes.value?.data||[];
+    Object.keys(dateExtraSlots).forEach(k=>delete dateExtraSlots[k]);
+    exData.forEach(r=>{
+      const d=r.class_date, t=r.start_time.slice(0,5);
+      if(!dateExtraSlots[d]) dateExtraSlots[d]=[];
+      if(!dateExtraSlots[d].find(s=>s.time===t)) dateExtraSlots[d].push({time:t,reason:r.name||t});
+    });
+    const caData = cancRes.value?.data||[];
+    cancellations.length=0;
+    caData.forEach(r=>cancellations.push({
+      _id:r.id, type:r.type, date:r.date, endDate:r.end_date||r.date,
+      slot:r.slot_time||'', reason:r.reason||'', name:r.name||''
+    }));
+    const snData = slotNamesRes.value?.data||[];
+    Object.keys(slotNames).forEach(k=>delete slotNames[k]);
+    snData.forEach(r=>{ slotNames[r.day_of_week+'_'+r.start_time.slice(0,5)]=r.name; });
 
-    // Load expenses from DB
-    try{
-      const {data:expRows}=await sb.from('studio_expenses').select('*').eq('studio_id',STUDIO_ID).order('date',{ascending:false});
-      if(expRows){
-        EXPENSES=expRows.map(e=>({
-          id:e.id, cat:e.cat, desc:e.description,
-          amt:parseFloat(e.amount), date:e.date, recurring:e.recurring
-        }));
-        renderExpenses();
-      }
-    }catch(e){console.warn('load expenses:',e);}
+    // ── Клиенты (первый рендер — имена сразу видны) ────────────────
+    const data = clientsRes.value?.data;
+    const clientsError = clientsRes.value?.error;
+    if(!clientsError && data && data.length){
+      CLIENTS.length=0;
+      data.forEach((c,i)=>{
+        const sub=c.subscriptions?.find(s=>s.is_active)||null;
+        const total=sub?.total_classes||0;
+        CLIENTS.push({
+          id:i+1, _uuid:c.id, _subUuid:sub?.id||null,
+          name:c.full_name||'',
+          initials:(c.full_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+          phone:c.phone||'', lang:(c.language||'el').toUpperCase(),
+          type:sub?.type||'—', left:total, total,
+          start:sub?.starts_at?isoFmt(sub.starts_at):'—',
+          paid:sub?.paid_at?isoFmt(sub.paid_at.split('T')[0]):'—',
+          nextPayment:sub?.expires_at?isoFmt(sub.expires_at):'—',
+          expiresDate:sub?.expires_at||null,
+          paidAmt:sub?'€'+sub.price:'—',
+          status:'ok', isArchived:!!c.is_archived, isTrial:!!c.is_trial, isNew:i===0, history:[]
+        });
+      });
+      renderClients(); // первый рендер — имена видны сразу
 
-    // Load payments from DB
-    try{
-      const {data:payRows}=await sb.from('payments')
-        .select('id,amount,method,status,paid_at,notes,created_at,subscription_id,clients(full_name)')
-        .eq('studio_id',STUDIO_ID)
-        .order('created_at',{ascending:false})
-        .limit(300);
-      if(payRows){
-        const ruMo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-        const fmtPayDate=iso=>{if(!iso)return'—';const d=new Date(iso);return d.getDate()+' '+ruMo[d.getMonth()];};
-        PAYMENTS.length=0;
-        payRows.forEach(p=>{
-          const name=p.clients?.full_name||'—';
-          const init=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-          PAYMENTS.push({
-            _uuid:p.id,
-            _subId:p.subscription_id||null,
-            name,init,
-            detail:p.notes||'',
-            method:p.method||'cash',
-            amt:parseFloat(p.amount)||0,
-            date:fmtPayDate(p.paid_at||p.created_at),
-            _paidAt:p.paid_at||p.created_at||null,
-            status:p.status||'paid'
+      // ── PHASE 2: букинги для расчёта баланса (нужны ID клиентов) ─
+      const clientUuids=CLIENTS.filter(c=>c._uuid).map(c=>c._uuid);
+      const subStartMap={}, subExpiresMap={};
+      data.forEach(c=>{
+        const sub=c.subscriptions?.find(s=>s.is_active)||null;
+        if(sub?.starts_at) subStartMap[c.id]=sub.starts_at;
+        if(sub?.expires_at) subExpiresMap[c.id]=sub.expires_at;
+      });
+      if(clientUuids.length>0){
+        const {data:bkData}=await sb.from('bookings')
+          .select('client_id,class_date')
+          .in('client_id',clientUuids)
+          .in('status',['booked','attended','missed']);
+        if(bkData){
+          const bkCounts={};
+          bkData.forEach(b=>{
+            const starts=subStartMap[b.client_id];
+            const expires=subExpiresMap[b.client_id];
+            if(!starts||b.class_date>=starts){
+              if(!expires||b.class_date<=expires)
+                bkCounts[b.client_id]=(bkCounts[b.client_id]||0)+1;
+            }
           });
-        });
-        renderPayments();
-        renderDashboard(); // re-render after payments loaded (was showing zeros on refresh)
+          CLIENTS.forEach(c=>{
+            if(c._subUuid){
+              c.left=Math.max(0,c.total-(bkCounts[c._uuid]||0));
+            } else { c.left=0; }
+            c.status=calcClientStatus(c);
+            if(!data.find(d=>d.id===c._uuid)?.is_active) c.status='inactive';
+          });
+        }
+      } else {
+        CLIENTS.forEach(c=>{ c.left=0; c.status='inactive'; });
       }
-    }catch(e){console.warn('load payments:',e);}
+      renderClients();
+      // Восстановить открытую карточку клиента после обновления страницы
+      const _savedUuid=sessionStorage.getItem('alma_open_client');
+      if(_savedUuid && location.hash==='#clients'){
+        const _savedC=CLIENTS.find(x=>x._uuid===_savedUuid);
+        if(_savedC) selectClient(_savedC.id);
+      }
+    }
+
+    dbLoading = false;
+    renderDashboard();  // финальный рендер — все данные загружены
+    dbLoadBookings();   // календарь (независимо, без await)
 
   }catch(e){console.error('dbLoad:',e.message);}
   finally{ dbLoading = false; }
