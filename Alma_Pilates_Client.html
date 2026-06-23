@@ -95,12 +95,12 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <strong id="otp-phone" style="font-size:12px;color:var(--text2)"></strong>
       </div>
       <div class="orow">
-        <input class="oi" maxlength="1" id="o1" oninput="onOtp(this,1)">
-        <input class="oi" maxlength="1" id="o2" oninput="onOtp(this,2)">
-        <input class="oi" maxlength="1" id="o3" oninput="onOtp(this,3)">
-        <input class="oi" maxlength="1" id="o4" oninput="onOtp(this,4)">
-        <input class="oi" maxlength="1" id="o5" oninput="onOtp(this,5)">
-        <input class="oi" maxlength="1" id="o6" oninput="onOtp(this,6)">
+        <input class="oi" maxlength="1" id="o1" oninput="onOtp(this,1)" onkeydown="onOtpKey(event,1)">
+        <input class="oi" maxlength="1" id="o2" oninput="onOtp(this,2)" onkeydown="onOtpKey(event,2)">
+        <input class="oi" maxlength="1" id="o3" oninput="onOtp(this,3)" onkeydown="onOtpKey(event,3)">
+        <input class="oi" maxlength="1" id="o4" oninput="onOtp(this,4)" onkeydown="onOtpKey(event,4)">
+        <input class="oi" maxlength="1" id="o5" oninput="onOtp(this,5)" onkeydown="onOtpKey(event,5)">
+        <input class="oi" maxlength="1" id="o6" oninput="onOtp(this,6)" onkeydown="onOtpKey(event,6)">
       </div>
       <button class="btn pr" id="otp-btn" onclick="doOtp()"></button>
       <button class="btn gh" id="otp-resend" onclick="toast2('SMS отправлен / SMS sent')"></button>
@@ -1019,13 +1019,33 @@ function onOtp(el,idx){
     const nxt=$('o'+(idx+1));
     if(nxt) nxt.focus();
   }
-  // check if all filled
   let code='';
-  for(let i=1;i<=6;i++){
-    const oi=$('o'+i);
-    code+=oi?oi.value:'';
-  }
+  for(let i=1;i<=6;i++){const oi=$('o'+i);code+=oi?oi.value:'';}
   if(code.length===6) doOtp();
+}
+
+function onOtpKey(e,idx){
+  if(e.key==='Backspace'){
+    const el=$('o'+idx);
+    if(el.value){
+      // Поле не пустое — просто очищаем текущее (браузер сделает сам, но синхронно)
+      el.value='';
+      e.preventDefault();
+    } else if(idx>1){
+      // Поле пустое — переходим назад и очищаем предыдущее
+      const prev=$('o'+(idx-1));
+      if(prev){ prev.value=''; prev.focus(); }
+      e.preventDefault();
+    }
+  } else if(e.key==='ArrowLeft'&&idx>1){
+    const prev=$('o'+(idx-1));
+    if(prev) prev.focus();
+    e.preventDefault();
+  } else if(e.key==='ArrowRight'&&idx<6){
+    const nxt=$('o'+(idx+1));
+    if(nxt) nxt.focus();
+    e.preventDefault();
+  }
 }
 
 async function doOtp(){
@@ -1754,6 +1774,23 @@ window.onOtp=function(el,idx){
     code+=oi?oi.value:'';
   }
   if(code.length===6) doOtp();
+};
+window.onOtpKey=function(e,idx){
+  if(e.key==='Backspace'){
+    const el=document.getElementById('o'+idx);
+    if(el.value){ el.value=''; e.preventDefault(); }
+    else if(idx>1){
+      const prev=document.getElementById('o'+(idx-1));
+      if(prev){ prev.value=''; prev.focus(); }
+      e.preventDefault();
+    }
+  } else if(e.key==='ArrowLeft'&&idx>1){
+    const prev=document.getElementById('o'+(idx-1));
+    if(prev) prev.focus(); e.preventDefault();
+  } else if(e.key==='ArrowRight'&&idx<6){
+    const nxt=document.getElementById('o'+(idx+1));
+    if(nxt) nxt.focus(); e.preventDefault();
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════
