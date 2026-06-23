@@ -67,7 +67,7 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <div class="ptitle" id="r-title"></div>
       </div>
       <div class="ff"><label id="r-name-l"></label><input id="r-name" type="text"></div>
-      <div class="ff"><label id="r-phone-l"></label><input id="r-phone" type="tel" placeholder="+357 99 123456"><div class="ferr" id="r-phone-err"></div></div>
+      <div class="ff"><label id="r-phone-l"></label><input id="r-phone" type="tel" placeholder="99 123456"><div class="ferr" id="r-phone-err"></div></div>
       <div class="ff"><label id="r-email-l"></label><input id="r-email" type="email" placeholder="maria@example.com"></div>
       <div class="ff"><label id="r-lang-l"></label>
         <select id="r-lang-sel">
@@ -95,12 +95,12 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <strong id="otp-phone" style="font-size:12px;color:var(--text2)"></strong>
       </div>
       <div class="orow">
-        <input class="oi" maxlength="1" id="o1" oninput="onOtp(this,1)">
-        <input class="oi" maxlength="1" id="o2" oninput="onOtp(this,2)">
-        <input class="oi" maxlength="1" id="o3" oninput="onOtp(this,3)">
-        <input class="oi" maxlength="1" id="o4" oninput="onOtp(this,4)">
-        <input class="oi" maxlength="1" id="o5" oninput="onOtp(this,5)">
-        <input class="oi" maxlength="1" id="o6" oninput="onOtp(this,6)">
+        <input class="oi" maxlength="1" id="o1" oninput="onOtp(this,1)" onkeydown="onOtpKey(event,1)">
+        <input class="oi" maxlength="1" id="o2" oninput="onOtp(this,2)" onkeydown="onOtpKey(event,2)">
+        <input class="oi" maxlength="1" id="o3" oninput="onOtp(this,3)" onkeydown="onOtpKey(event,3)">
+        <input class="oi" maxlength="1" id="o4" oninput="onOtp(this,4)" onkeydown="onOtpKey(event,4)">
+        <input class="oi" maxlength="1" id="o5" oninput="onOtp(this,5)" onkeydown="onOtpKey(event,5)">
+        <input class="oi" maxlength="1" id="o6" oninput="onOtp(this,6)" onkeydown="onOtpKey(event,6)">
       </div>
       <button class="btn pr" id="otp-btn" onclick="doOtp()"></button>
       <button class="btn gh" id="otp-resend" onclick="toast2('SMS отправлен / SMS sent')"></button>
@@ -112,7 +112,7 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <button class="btn gh" onclick="go('welcome')">←</button>
         <div class="ptitle" id="l-title"></div>
       </div>
-      <div class="ff"><label id="l-phone-l"></label><input id="l-phone" type="tel" placeholder="+357 99 123456"></div>
+      <div class="ff"><label id="l-phone-l"></label><input id="l-phone" type="tel" placeholder="99 123456"><div class="ferr" id="l-phone-err"></div></div>
       <button class="btn pr" id="l-btn" onclick="doLogin()"></button>
       <!-- Demo login hidden: <div style="text-align:center;font-size:12px;color:var(--text3)">— <span id="l-or"></span> —</div> -->
       <!-- Demo login hidden: <button class="btn ol" id="l-demo-btn" onclick="demoLogin()"></button> -->
@@ -581,8 +581,14 @@ let sbBal={used:0,total:8};
 let bookingByKey=new Map(); // "dow_time" → {id,class_id,date}
 
 function normPhone(p){
-  p=p.replace(/[\s\-()]/g,'');
-  if(!p.startsWith('+')) p='+357'+p.replace(/^0/,'');
+  // Strip spaces, dashes, parens, dots
+  p=p.replace(/[\s\-().]/g,'');
+  // 00357... → +357...
+  if(p.startsWith('00')) p='+'+p.slice(2);
+  // 357XXXXXXXX (no + but starts with country code) → +357...
+  else if(/^357\d{8,}$/.test(p)) p='+'+p;
+  // No + and no country code → assume Cyprus +357, strip leading 0
+  else if(!p.startsWith('+')) p='+357'+p.replace(/^0/,'');
   return p;
 }
 
@@ -975,9 +981,15 @@ async function devLogin(){
 
 async function doLogin(){
   if(!sb){ toast2('Локальный режим — вход недоступен'); return; }
+  const T=tr();
   const rawPhone=$('l-phone').value.trim();
-  if(!rawPhone){ $('l-phone').classList.add('err'); return; }
   $('l-phone').classList.remove('err');
+  if($('l-phone-err')) $('l-phone-err').style.display='none';
+  if(!rawPhone||rawPhone.replace(/\D/g,'').length<8){
+    $('l-phone').classList.add('err');
+    if($('l-phone-err')){ $('l-phone-err').textContent=T.phoneErr; $('l-phone-err').style.display='block'; }
+    return;
+  }
   sbPhone=normPhone(rawPhone); isNewUser=false;
   const btn=$('l-btn'); btn.disabled=true;
   const {error}=await sb.auth.signInWithOtp({phone:sbPhone});
@@ -1009,13 +1021,33 @@ function onOtp(el,idx){
     const nxt=$('o'+(idx+1));
     if(nxt) nxt.focus();
   }
-  // check if all filled
   let code='';
-  for(let i=1;i<=6;i++){
-    const oi=$('o'+i);
-    code+=oi?oi.value:'';
-  }
+  for(let i=1;i<=6;i++){const oi=$('o'+i);code+=oi?oi.value:'';}
   if(code.length===6) doOtp();
+}
+
+function onOtpKey(e,idx){
+  if(e.key==='Backspace'){
+    const el=$('o'+idx);
+    if(el.value){
+      // Поле не пустое — просто очищаем текущее (браузер сделает сам, но синхронно)
+      el.value='';
+      e.preventDefault();
+    } else if(idx>1){
+      // Поле пустое — переходим назад и очищаем предыдущее
+      const prev=$('o'+(idx-1));
+      if(prev){ prev.value=''; prev.focus(); }
+      e.preventDefault();
+    }
+  } else if(e.key==='ArrowLeft'&&idx>1){
+    const prev=$('o'+(idx-1));
+    if(prev) prev.focus();
+    e.preventDefault();
+  } else if(e.key==='ArrowRight'&&idx<6){
+    const nxt=$('o'+(idx+1));
+    if(nxt) nxt.focus();
+    e.preventDefault();
+  }
 }
 
 async function doOtp(){
@@ -1744,6 +1776,23 @@ window.onOtp=function(el,idx){
     code+=oi?oi.value:'';
   }
   if(code.length===6) doOtp();
+};
+window.onOtpKey=function(e,idx){
+  if(e.key==='Backspace'){
+    const el=document.getElementById('o'+idx);
+    if(el.value){ el.value=''; e.preventDefault(); }
+    else if(idx>1){
+      const prev=document.getElementById('o'+(idx-1));
+      if(prev){ prev.value=''; prev.focus(); }
+      e.preventDefault();
+    }
+  } else if(e.key==='ArrowLeft'&&idx>1){
+    const prev=document.getElementById('o'+(idx-1));
+    if(prev) prev.focus(); e.preventDefault();
+  } else if(e.key==='ArrowRight'&&idx<6){
+    const nxt=document.getElementById('o'+(idx+1));
+    if(nxt) nxt.focus(); e.preventDefault();
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════
