@@ -945,14 +945,23 @@ async function selectClient(id){
   const panel=document.getElementById('client-detail');
   if(panel) panel.classList.add('open');
   renderClientCard(c);
-  // Refresh this client's balance live from DB (catches changes made in client app)
+  // Refresh balance — count actual bookings from DB (reliable, not used_classes)
   if(sb&&c._uuid&&c._subUuid){
     try{
-      const {data:sub}=await sb.from('subscriptions').select('total_classes,used_classes,starts_at,expires_at').eq('id',c._subUuid).single();
+      const [{data:sub},{data:bkData}]=await Promise.all([
+        sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',c._subUuid).single(),
+        sb.from('bookings').select('class_date').eq('client_id',c._uuid).in('status',['booked','attended','missed'])
+      ]);
       if(sub){
-        c.left=Math.max(0,sub.total_classes-sub.used_classes);
+        const used=(bkData||[]).filter(b=>
+          (!sub.starts_at||b.class_date>=sub.starts_at)&&
+          (!sub.expires_at||b.class_date<=sub.expires_at)
+        ).length;
+        c.left=Math.max(0,sub.total_classes-used);
         c.total=sub.total_classes;
         c.status=calcClientStatus(c);
+        // Sync used_classes so client app also sees the correct balance
+        await sb.from('subscriptions').update({used_classes:used}).eq('id',c._subUuid);
         renderClientCard(c);
         renderClients();
       }
@@ -4418,8 +4427,14 @@ async function bookClientByName(name, repeatCount){
           if(!dateSlotMap[dKey]) dateSlotMap[dKey]=[];
           if(!slotBookingsMap[slotKey].includes(name)) slotBookingsMap[slotKey].push(name);
           if(!dateSlotMap[dKey].includes(name)) dateSlotMap[dKey].push(name);
-          // Decrement local client balance only if booking is within subscription period
-          if(bkIsPaid){ client.left=Math.max(0,client.left-1); client.status=calcClientStatus(client); }
+          // Decrement local client balance + sync used_classes in DB
+          if(bkIsPaid){
+            client.left=Math.max(0,client.left-1); client.status=calcClientStatus(client);
+            if(client._subUuid){
+              sb.from('subscriptions').select('used_classes').eq('id',client._subUuid).single()
+                .then(({data:s})=>{ if(s) sb.from('subscriptions').update({used_classes:(s.used_classes||0)+1}).eq('id',client._subUuid); });
+            }
+          }
         }
       } else {
         // Recurring — status depends on each date vs subscription period
@@ -4621,9 +4636,29 @@ async function saveRecurringBookings(){
   if(btn){btn.disabled=false;btn.textContent=L('Δημιουργία κρατήσεων','Create bookings','Создать записи');}
   closeModal('recurring-modal');
   toast(L(`Κρατήθηκαν ${saved} μαθ.!`,`Booked ${saved} classes!`,`Записано ${saved} занятий!`));
+
+  // Sync used_classes from actual booking count so balance is correct everywhere
+  if(sb && c._uuid && c._subUuid){
+    try{
+      const [{data:sub},{data:bkData}]=await Promise.all([
+        sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',c._subUuid).single(),
+        sb.from('bookings').select('class_date').eq('client_id',c._uuid).in('status',['booked','attended','missed'])
+      ]);
+      if(sub){
+        const used=(bkData||[]).filter(b=>
+          (!sub.starts_at||b.class_date>=sub.starts_at)&&
+          (!sub.expires_at||b.class_date<=sub.expires_at)
+        ).length;
+        await sb.from('subscriptions').update({used_classes:used}).eq('id',c._subUuid);
+        c.left=Math.max(0,sub.total_classes-used);
+        c.status=calcClientStatus(c);
+        renderClientCard(c); renderClients();
+      }
+    }catch(e){console.warn('sync used_classes after recurring:',e.message);}
+  }
+
   renderSchedule();
   dbLoadBookings();
-  // Refresh client card history so recurring bookings appear immediately
   if(_rmClientId){
     const _rmC=CLIENTS.find(x=>x.id===_rmClientId);
     if(_rmC&&_rmC._uuid) delete clientHistoryCache[_rmC._uuid];
