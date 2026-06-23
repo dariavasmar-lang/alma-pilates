@@ -732,16 +732,8 @@ async function loadBalance(){
     return;
   }
   const total=sub.total_classes;
-  // Count bookings within subscription period only (starts_at → expires_at = 30 days)
-  // 'missed' = late-cancelled (burned, still counts against balance)
-  // Bookings after expires_at = unpaid/scheduled, don't count
-  let used=0;
-  const bkQuery=sb.from('bookings').select('*',{count:'exact',head:true})
-    .eq('client_id',clientId).in('status',['booked','attended','missed']);
-  if(sub.starts_at) bkQuery.gte('class_date',sub.starts_at);
-  if(sub.expires_at) bkQuery.lte('class_date',sub.expires_at);
-  const {count,error:bkErr}=await bkQuery;
-  used=count||0;
+  // Use used_classes directly — source of truth, reflects admin manual adjustments too
+  const used=sub.used_classes||0;
   const left=Math.max(0,total-used);
   console.log('[balance] total=',total,'used=',used,'left=',left,'expires=',sub.expires_at);
   sbBal={used,total,subId:sub.id,startsAt:sub.starts_at,expiresAt:sub.expires_at};
