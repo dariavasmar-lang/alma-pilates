@@ -2504,9 +2504,14 @@ function renderPayments(){
   const mBg={revolut:'#EDE4FF',cash:'#E6F7F0',bank:'#E6F1FB',card:'#FDE8E8'};
 
   // Header
+  const _now=new Date();
+  const _moEl=['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
+  const _moEn=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const _moRu=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const _moName=adminLang==='el'?_moEl[_now.getMonth()]:adminLang==='en'?_moEn[_now.getMonth()]:_moRu[_now.getMonth()];
   const ph=document.getElementById('pay-page-header');
   if(ph) ph.innerHTML=`
-    <div><div class="page-title">${L('Πληρωμές','Payments','Платежи')}</div><div class="page-sub">May 2026 · Alma Pilates</div></div>
+    <div><div class="page-title">${L('Πληρωμές','Payments','Платежи')}</div><div class="page-sub">${_moName} ${_now.getFullYear()} · Alma Pilates</div></div>
     <button class="btn primary" onclick="openPayModal()">+ ${L('Προσθήκη πληρ.','Add payment','Добавить платёж')}</button>`;
 
   // Metrics
@@ -2517,14 +2522,9 @@ function renderPayments(){
   const pm=document.getElementById('pay-metrics');
   if(pm) pm.innerHTML=`
     <div class="metric">
-      <div class="metric-label">${L('Έσοδα Μαΐου','Income, May','Доход за май')}</div>
+      <div class="metric-label">${L('Έσοδα μήνα','Income this month','Доход за месяц')}</div>
       <div class="metric-val" style="color:var(--green)">€${income.toLocaleString()}</div>
-      <div class="metric-sub up">${L('+12% vs Απρ','+12% vs April','+12% vs апрель')}</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">${L('Συναλλαγές','Transactions','Транзакций')}</div>
-      <div class="metric-val">${paid.length}</div>
-      <div class="metric-sub">${L('αυτόν τον μήνα','this month','в этом месяце')}</div>
+      <div class="metric-sub">${paid.length} ${L('συναλλαγές','transactions','транзакций')}</div>
     </div>
     <div class="metric" style="cursor:${pending.length?'pointer':'default'}" onclick="${pending.length?'document.getElementById(\'pay-pending-block\').scrollIntoView({behavior:\'smooth\'})':''}">
       <div class="metric-label">${L('Εκκρεμεί','Pending','Ожидают оплаты')}</div>
@@ -3571,11 +3571,18 @@ async function dbLoad(){
       const {data:payRows}=await sb.from('payments')
         .select('id,amount,method,status,paid_at,notes,created_at,subscription_id,clients(full_name)')
         .eq('studio_id',STUDIO_ID)
-        .order('created_at',{ascending:false})
+        .order('paid_at',{ascending:false, nullsFirst:false})
         .limit(300);
       if(payRows){
-        const ruMo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-        const fmtPayDate=iso=>{if(!iso)return'—';const d=new Date(iso);return d.getDate()+' '+ruMo[d.getMonth()];};
+        const moEl=['Ιαν','Φεβ','Μαρ','Απρ','Μαΐ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+        const moEn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const moRu=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+        const fmtPayDate=iso=>{
+          if(!iso)return'—';
+          const d=new Date(iso);
+          const mo=adminLang==='el'?moEl[d.getMonth()]:adminLang==='en'?moEn[d.getMonth()]:moRu[d.getMonth()];
+          return d.getDate()+' '+mo+' '+d.getFullYear();
+        };
         PAYMENTS.length=0;
         payRows.forEach(p=>{
           const name=p.clients?.full_name||'—';
