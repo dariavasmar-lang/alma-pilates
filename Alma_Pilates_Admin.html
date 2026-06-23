@@ -675,18 +675,38 @@ function renderDashboard(){
       <button class="btn primary" onclick="showPage('payments')">${t.newPayment}</button>
     </div>`;
 
+  // Dynamic month labels + real % vs previous month
+  const _dn=new Date();
+  const _moEl=['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
+  const _moEn=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const _moRu=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const _curMo=adminLang==='el'?_moEl[_dn.getMonth()]:adminLang==='en'?_moEn[_dn.getMonth()]:_moRu[_dn.getMonth()];
+  const _prevMoIdx=(_dn.getMonth()+11)%12;
+  const _prevMo=adminLang==='el'?_moEl[_prevMoIdx]:adminLang==='en'?_moEn[_prevMoIdx]:_moRu[_prevMoIdx];
+  // Current month income from PAYMENTS
+  const _curY=_dn.getFullYear(), _curM=_dn.getMonth();
+  const _prevY=_curM===0?_curY-1:_curY, _prevM=(_curM+11)%12;
+  const _incCur=paid.filter(p=>p._paidAt&&new Date(p._paidAt).getFullYear()===_curY&&new Date(p._paidAt).getMonth()===_curM).reduce((s,p)=>s+p.amt,0);
+  const _incPrev=paid.filter(p=>p._paidAt&&new Date(p._paidAt).getFullYear()===_prevY&&new Date(p._paidAt).getMonth()===_prevM).reduce((s,p)=>s+p.amt,0);
+  const _pct=_incPrev>0?Math.round((_incCur-_incPrev)/_incPrev*100):null;
+  const _pctLabel=_pct===null?''
+    :_pct>=0
+      ?`+${_pct}% ${L('vs','vs','к')} ${_prevMo}`
+      :`${_pct}% ${L('vs','vs','к')} ${_prevMo}`;
+  const _pctClass=_pct===null?'':_pct>=0?'up':'down';
+
   // Metrics
   const mr=document.getElementById('dash-metrics-row');
   if(mr) mr.innerHTML=`
     <div class="metric" onclick="showPage('payments')" style="cursor:pointer">
-      <div class="metric-label">${t.income}</div>
-      <div class="metric-val" style="color:var(--green)">€${income.toLocaleString()}</div>
-      <div class="metric-sub up">${t.incomeUp}</div>
+      <div class="metric-label">${L('Έσοδα','Income','Доход')}, ${_curMo}</div>
+      <div class="metric-val" style="color:var(--green)">€${_incCur.toLocaleString()}</div>
+      <div class="metric-sub ${_pctClass}">${_pctLabel}</div>
     </div>
     <div class="metric" onclick="showPage('expenses')" style="cursor:pointer">
-      <div class="metric-label">${t.expLabel}</div>
+      <div class="metric-label">${L('Έξοδα','Expenses','Расходы')}, ${_curMo}</div>
       <div class="metric-val" style="color:var(--red)">€${expenses.toLocaleString()}</div>
-      <div class="metric-sub">${t.expSub}</div>
+      <div class="metric-sub">${L('αυτόν τον μήνα','this month','в этом месяце')}</div>
     </div>
     <div class="metric">
       <div class="metric-label">${t.profit}</div>
