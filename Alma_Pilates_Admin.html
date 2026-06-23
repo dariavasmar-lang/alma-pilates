@@ -3617,6 +3617,7 @@ async function dbLoad(){
           });
         });
         renderPayments();
+        renderDashboard(); // re-render after payments loaded (was showing zeros on refresh)
       }
     }catch(e){console.warn('load payments:',e);}
 
