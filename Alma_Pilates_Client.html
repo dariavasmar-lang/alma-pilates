@@ -1433,13 +1433,20 @@ async function confirmCancel(){
       const {error}=await sb.from('bookings').update({status:newStatus}).eq('id',bk.id);
       if(error){ console.error('[cancel] update error:',error); toast2('Ошибка: '+error.message); return; }
       updated=true;
+      // Restore balance if cancelled (not missed) and class had a subscription slot
+      if(newStatus==='cancelled'&&bk.subscription_id){
+        const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',bk.subscription_id).single();
+        if(sub&&sub.used_classes>0){
+          await sb.from('subscriptions').update({used_classes:sub.used_classes-1}).eq('id',bk.subscription_id);
+        }
+      }
     } else {
       // bookingByKey only covers current week view — query DB directly by date+slot
       if(classDateMs){
         const slot=SCH[selSlot.di]?.find(s=>s.t===selSlot.time);
         console.log('[cancel] db path: dateStr=',classDateStr,'slot=',slot,'clientId=',clientId);
         if(slot&&clientId){
-          const {data:bks,error:e1}=await sb.from('bookings').select('id,status').eq('client_id',clientId).eq('slot_id',slot.id).eq('class_date',classDateStr).in('status',['booked','attended','unpaid_future']).limit(1);
+          const {data:bks,error:e1}=await sb.from('bookings').select('id,status,subscription_id').eq('client_id',clientId).eq('slot_id',slot.id).eq('class_date',classDateStr).in('status',['booked','attended','unpaid_future']).limit(1);
           console.log('[cancel] found bks=',bks,'error=',e1);
           if(bks&&bks[0]){
             if(bks[0].status==='attended'){
@@ -1449,6 +1456,13 @@ async function confirmCancel(){
             const {error:e2}=await sb.from('bookings').update({status:newStatus}).eq('id',bks[0].id);
             if(e2){ console.error('[cancel] update error:',e2); toast2('Ошибка: '+e2.message); return; }
             updated=true;
+            // Restore balance if cancelled (not missed) and class had a subscription slot
+            if(newStatus==='cancelled'&&bks[0].subscription_id){
+              const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',bks[0].subscription_id).single();
+              if(sub&&sub.used_classes>0){
+                await sb.from('subscriptions').update({used_classes:sub.used_classes-1}).eq('id',bks[0].subscription_id);
+              }
+            }
           }
         }
       }
