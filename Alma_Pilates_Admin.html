@@ -948,15 +948,9 @@ async function selectClient(id){
   // Refresh this client's balance live from DB (catches changes made in client app)
   if(sb&&c._uuid&&c._subUuid){
     try{
-      const {data:sub}=await sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',c._subUuid).single();
+      const {data:sub}=await sb.from('subscriptions').select('total_classes,used_classes,starts_at,expires_at').eq('id',c._subUuid).single();
       if(sub){
-        const bkQ=sb.from('bookings').select('*',{count:'exact',head:true})
-          .eq('client_id',c._uuid).in('status',['booked','attended','missed']);
-        if(sub.starts_at) bkQ.gte('class_date',sub.starts_at);
-        if(sub.expires_at) bkQ.lte('class_date',sub.expires_at);
-        const {count}=await bkQ;
-        const used=count||0;
-        c.left=Math.max(0,sub.total_classes-used);
+        c.left=Math.max(0,sub.total_classes-sub.used_classes);
         c.total=sub.total_classes;
         c.status=calcClientStatus(c);
         renderClientCard(c);
