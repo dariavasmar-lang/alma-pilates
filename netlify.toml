@@ -1,6 +1,10 @@
 [build]
   publish = "."
 
+[dev]
+  port = 8888
+  publish = "."
+
 # Platform Admin
 [[redirects]]
   from = "/platform"
