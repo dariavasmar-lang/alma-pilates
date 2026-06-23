@@ -67,7 +67,7 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <div class="ptitle" id="r-title"></div>
       </div>
       <div class="ff"><label id="r-name-l"></label><input id="r-name" type="text"></div>
-      <div class="ff"><label id="r-phone-l"></label><input id="r-phone" type="tel" placeholder="+357 99 123456"><div class="ferr" id="r-phone-err"></div></div>
+      <div class="ff"><label id="r-phone-l"></label><input id="r-phone" type="tel" placeholder="99 123456"><div class="ferr" id="r-phone-err"></div></div>
       <div class="ff"><label id="r-email-l"></label><input id="r-email" type="email" placeholder="maria@example.com"></div>
       <div class="ff"><label id="r-lang-l"></label>
         <select id="r-lang-sel">
@@ -112,7 +112,7 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <button class="btn gh" onclick="go('welcome')">←</button>
         <div class="ptitle" id="l-title"></div>
       </div>
-      <div class="ff"><label id="l-phone-l"></label><input id="l-phone" type="tel" placeholder="+357 99 123456"></div>
+      <div class="ff"><label id="l-phone-l"></label><input id="l-phone" type="tel" placeholder="99 123456"><div class="ferr" id="l-phone-err"></div></div>
       <button class="btn pr" id="l-btn" onclick="doLogin()"></button>
       <!-- Demo login hidden: <div style="text-align:center;font-size:12px;color:var(--text3)">— <span id="l-or"></span> —</div> -->
       <!-- Demo login hidden: <button class="btn ol" id="l-demo-btn" onclick="demoLogin()"></button> -->
@@ -583,8 +583,14 @@ let sbBal={used:0,total:8};
 let bookingByKey=new Map(); // "dow_time" → {id,class_id,date}
 
 function normPhone(p){
-  p=p.replace(/[\s\-()]/g,'');
-  if(!p.startsWith('+')) p='+357'+p.replace(/^0/,'');
+  // Strip spaces, dashes, parens, dots
+  p=p.replace(/[\s\-().]/g,'');
+  // 00357... → +357...
+  if(p.startsWith('00')) p='+'+p.slice(2);
+  // 357XXXXXXXX (no + but starts with country code) → +357...
+  else if(/^357\d{8,}$/.test(p)) p='+'+p;
+  // No + and no country code → assume Cyprus +357, strip leading 0
+  else if(!p.startsWith('+')) p='+357'+p.replace(/^0/,'');
   return p;
 }
 
@@ -973,9 +979,15 @@ async function devLogin(){
 
 async function doLogin(){
   if(!sb){ toast2('Локальный режим — вход недоступен'); return; }
+  const T=tr();
   const rawPhone=$('l-phone').value.trim();
-  if(!rawPhone){ $('l-phone').classList.add('err'); return; }
   $('l-phone').classList.remove('err');
+  if($('l-phone-err')) $('l-phone-err').style.display='none';
+  if(!rawPhone||rawPhone.replace(/\D/g,'').length<8){
+    $('l-phone').classList.add('err');
+    if($('l-phone-err')){ $('l-phone-err').textContent=T.phoneErr; $('l-phone-err').style.display='block'; }
+    return;
+  }
   sbPhone=normPhone(rawPhone); isNewUser=false;
   const btn=$('l-btn'); btn.disabled=true;
   const {error}=await sb.auth.signInWithOtp({phone:sbPhone});
