@@ -67,7 +67,7 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <div class="ptitle" id="r-title"></div>
       </div>
       <div class="ff"><label id="r-name-l"></label><input id="r-name" type="text"></div>
-      <div class="ff"><label id="r-phone-l"></label><input id="r-phone" type="tel" placeholder="+357 99 123456"><div class="ferr" id="r-phone-err"></div></div>
+      <div class="ff"><label id="r-phone-l"></label><input id="r-phone" type="tel" placeholder="99 123456"><div class="ferr" id="r-phone-err"></div></div>
       <div class="ff"><label id="r-email-l"></label><input id="r-email" type="email" placeholder="maria@example.com"></div>
       <div class="ff"><label id="r-lang-l"></label>
         <select id="r-lang-sel">
@@ -95,12 +95,12 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <strong id="otp-phone" style="font-size:12px;color:var(--text2)"></strong>
       </div>
       <div class="orow">
-        <input class="oi" maxlength="1" id="o1" oninput="onOtp(this,1)">
-        <input class="oi" maxlength="1" id="o2" oninput="onOtp(this,2)">
-        <input class="oi" maxlength="1" id="o3" oninput="onOtp(this,3)">
-        <input class="oi" maxlength="1" id="o4" oninput="onOtp(this,4)">
-        <input class="oi" maxlength="1" id="o5" oninput="onOtp(this,5)">
-        <input class="oi" maxlength="1" id="o6" oninput="onOtp(this,6)">
+        <input class="oi" maxlength="1" id="o1" oninput="onOtp(this,1)" onkeydown="onOtpKey(event,1)">
+        <input class="oi" maxlength="1" id="o2" oninput="onOtp(this,2)" onkeydown="onOtpKey(event,2)">
+        <input class="oi" maxlength="1" id="o3" oninput="onOtp(this,3)" onkeydown="onOtpKey(event,3)">
+        <input class="oi" maxlength="1" id="o4" oninput="onOtp(this,4)" onkeydown="onOtpKey(event,4)">
+        <input class="oi" maxlength="1" id="o5" oninput="onOtp(this,5)" onkeydown="onOtpKey(event,5)">
+        <input class="oi" maxlength="1" id="o6" oninput="onOtp(this,6)" onkeydown="onOtpKey(event,6)">
       </div>
       <button class="btn pr" id="otp-btn" onclick="doOtp()"></button>
       <button class="btn gh" id="otp-resend" onclick="toast2('SMS отправлен / SMS sent')"></button>
@@ -112,7 +112,7 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <button class="btn gh" onclick="go('welcome')">←</button>
         <div class="ptitle" id="l-title"></div>
       </div>
-      <div class="ff"><label id="l-phone-l"></label><input id="l-phone" type="tel" placeholder="+357 99 123456"></div>
+      <div class="ff"><label id="l-phone-l"></label><input id="l-phone" type="tel" placeholder="99 123456"><div class="ferr" id="l-phone-err"></div></div>
       <button class="btn pr" id="l-btn" onclick="doLogin()"></button>
       <!-- Demo login hidden: <div style="text-align:center;font-size:12px;color:var(--text3)">— <span id="l-or"></span> —</div> -->
       <!-- Demo login hidden: <button class="btn ol" id="l-demo-btn" onclick="demoLogin()"></button> -->
@@ -255,11 +255,7 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
       <!-- info panel -->
       <div id="pf-panel-info">
         <div style="display:flex;flex-direction:column;gap:5px" id="pf-rows"></div>
-        <div style="padding:10px 12px;background:var(--bg2);border-radius:12px;font-size:11px;color:var(--text2);line-height:1.6;display:flex;gap:7px">
-          <span style="font-size:14px">🔔</span><span id="pf-notif"></span>
-        </div>
-        <button class="btn ol sm" onclick="openSheet('sh-gdpr')" id="pf-gdpr-btn"></button>
-        <button class="btn ol sm" onclick="doLogout()" id="pf-logout-btn"></button>
+        <button class="btn ol sm" onclick="doLogout()" id="pf-logout-btn" style="margin-top:8px"></button>
         <button class="btn gh sm" onclick="openSheet('sh-del')" id="pf-del-btn"></button>
       </div>
       <!-- history panel -->
@@ -393,6 +389,8 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <h3 id="tc2-h"></h3><p id="tc2-p"></p>
         <h3 id="tc3-h"></h3><p id="tc3-p"></p>
         <h3 id="tc4-h"></h3><p id="tc4-p"></p>
+        <h3 id="tc5-h"></h3><p id="tc5-p"></p>
+        <h3 id="tc6-h"></h3><p id="tc6-p"></p>
       </div>
       <button class="btn pr" style="margin-top:14px" id="sh-terms-close" onclick="closeSheet('sh-terms')"></button>
     </div>
@@ -408,6 +406,8 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
         <h3 id="pr2-h"></h3><p id="pr2-p"></p>
         <h3 id="pr3-h"></h3><p id="pr3-p"></p>
         <h3 id="pr4-h"></h3><p id="pr4-p"></p>
+        <h3 id="pr5-h"></h3><p id="pr5-p"></p>
+        <h3 id="pr6-h"></h3><p id="pr6-p"></p>
       </div>
       <button class="btn pr" style="margin-top:14px" id="sh-priv-close" onclick="closeSheet('sh-priv')"></button>
     </div>
@@ -479,33 +479,31 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
     <div class="sheet" style="max-height:90%">
       <div class="shand"></div>
       <div class="stitle">Privacy Policy</div>
-      <div style="font-size:10px;color:var(--text3);margin-bottom:12px">Effective Date: 19 May 2025</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:12px">Effective Date: 23 June 2026</div>
       <div class="tcon" style="font-size:11px">
-        <p style="margin-bottom:10px">At Alma Pilates Studio we value your privacy and are committed to protecting your personal data.</p>
-        <h3>1. Information We Collect</h3>
-        <p><strong>Personal:</strong> Full name, email, phone, date of birth (optional), profile photo (optional), fitness goals.</p>
-        <p><strong>Usage data:</strong> Bookings, cancellations, attendance, feedback.</p>
-        <p><strong>Technical:</strong> Device type, OS, IP address, app version, crash reports.</p>
-        <p><strong>Location:</strong> With your permission, to suggest nearby classes.</p>
-        <p><strong>Payments:</strong> Processed securely by third-party providers. We do not store card data.</p>
-        <h3>2. How We Use Your Information</h3>
-        <p>To provide access to classes, process bookings, send reminders and notifications, deliver personalised recommendations, improve features, and ensure app security. With consent, we may send marketing communications — you can opt out at any time.</p>
-        <h3>3. Sharing Your Information</h3>
-        <p>We do not sell your data. We share limited data with instructors/partners for booking management, third-party providers (hosting, analytics, payments), and authorities when legally required.</p>
-        <h3>4. Your Rights & Choices</h3>
-        <p>Access, update, correct, or delete your data via your profile. Revoke consent for push notifications or location via device settings. For EU/EEA users, we comply with GDPR including rights to data portability and to lodge complaints with a supervisory authority.</p>
+        <p style="margin-bottom:10px">At Alma Pilates Studio we value your privacy and are committed to protecting your personal data in accordance with the EU General Data Protection Regulation (GDPR) and Cyprus Law 125(I)/2018.</p>
+        <h3>1. Data Controller</h3>
+        <p>Alma Pilates Studio<br>Marathovounou 12, 3071 Limassol, Cyprus<br>📞 96850466 · ✉️ info@almapilatesstudio.com</p>
+        <h3>2. Data We Collect</h3>
+        <p><strong>Personal:</strong> Full name, phone number, email (optional).</p>
+        <p><strong>Usage data:</strong> Bookings, cancellations, attendance, subscription and payment history.</p>
+        <p><strong>Technical:</strong> Session data (essential cookies only). We do not store card data.</p>
+        <h3>3. Legal Basis & Purpose</h3>
+        <p>We process your data on the basis of <strong>contract performance</strong> (Art. 6(1)(b) GDPR) — to manage your bookings and subscriptions. SMS verification is based on your <strong>consent</strong> (Art. 6(1)(a) GDPR), which you may withdraw at any time.</p>
+        <h3>4. Third-Party Processors</h3>
+        <p>We share limited data with trusted processors who comply with GDPR:<br>
+        • <strong>Supabase Inc.</strong> — database hosting (EU region)<br>
+        • <strong>Twilio Inc.</strong> — SMS verification<br>
+        • <strong>Revolut Ltd.</strong> — payment processing<br>
+        We do not sell your data to third parties.</p>
         <h3>5. Data Retention</h3>
-        <p>We retain data only as long as necessary to provide services and comply with legal obligations. Data is then securely deleted or anonymised.</p>
-        <h3>6. Security</h3>
-        <p>We use industry-standard encryption, secure servers, and access controls. No system is completely secure — please protect your login credentials.</p>
-        <h3>7. Children's Privacy</h3>
-        <p>The App is not intended for children under 13 (or under 16 in the EU). Contact us immediately if you believe we have collected such data.</p>
-        <h3>8. Third-Party Links</h3>
-        <p>We are not responsible for the privacy practices of linked third-party websites or platforms.</p>
-        <h3>9. Updates</h3>
-        <p>We will notify you of material changes via the App or email and update the Effective Date.</p>
-        <h3>10. Contact</h3>
-        <p>📧 info@almapilatesstudio.com<br>📍 Marathovounou 12, 3071, Limassol, Cyprus<br>📞 96850466</p>
+        <p>Your data is retained for <strong>3 years</strong> after your last activity with the studio, after which it is securely deleted or anonymised. You may request earlier deletion at any time.</p>
+        <h3>6. Your Rights (GDPR)</h3>
+        <p>You have the right to access, rectify, erase, or export your personal data. To exercise these rights, contact us at info@almapilatesstudio.com. You also have the right to lodge a complaint with the Cyprus Commissioner for Personal Data Protection: <strong>dataprotection.gov.cy</strong></p>
+        <h3>7. Cookies</h3>
+        <p>We use only essential cookies for session management. No tracking, analytics, or advertising cookies are used.</p>
+        <h3>8. Updates</h3>
+        <p>We will notify you of material changes via the app and update the Effective Date above.</p>
       </div>
       <button class="btn pr" style="margin-top:14px" onclick="closeSheet('sh-privacy')">Close / Κλείσιμο / Закрыть</button>
     </div>
@@ -583,8 +581,14 @@ let sbBal={used:0,total:8};
 let bookingByKey=new Map(); // "dow_time" → {id,class_id,date}
 
 function normPhone(p){
-  p=p.replace(/[\s\-()]/g,'');
-  if(!p.startsWith('+')) p='+357'+p.replace(/^0/,'');
+  // Strip spaces, dashes, parens, dots
+  p=p.replace(/[\s\-().]/g,'');
+  // 00357... → +357...
+  if(p.startsWith('00')) p='+'+p.slice(2);
+  // 357XXXXXXXX (no + but starts with country code) → +357...
+  else if(/^357\d{8,}$/.test(p)) p='+'+p;
+  // No + and no country code → assume Cyprus +357, strip leading 0
+  else if(!p.startsWith('+')) p='+357'+p.replace(/^0/,'');
   return p;
 }
 
@@ -883,6 +887,8 @@ function applyLang(){
   tx('tc2-h',T.tc2h); tx('tc2-p',T.tc2p);
   tx('tc3-h',T.tc3h); tx('tc3-p',T.tc3p);
   tx('tc4-h',T.tc4h); tx('tc4-p',T.tc4p);
+  tx('tc5-h',T.tc5h); tx('tc5-p',T.tc5p);
+  tx('tc6-h',T.tc6h); tx('tc6-p',T.tc6p);
   tx('sh-terms-close',T.close);
   // Privacy
   tx('sh-priv-title',T.privTitle);
@@ -890,6 +896,8 @@ function applyLang(){
   tx('pr2-h',T.pr2h); tx('pr2-p',T.pr2p);
   tx('pr3-h',T.pr3h); tx('pr3-p',T.pr3p);
   tx('pr4-h',T.pr4h); tx('pr4-p',T.pr4p);
+  tx('pr5-h',T.pr5h); tx('pr5-p',T.pr5p);
+  tx('pr6-h',T.pr6h); tx('pr6-p',T.pr6p);
   tx('sh-priv-close',T.close);
   // GDPR
   tx('sh-gdpr-title',T.gdprTitle); tx('sh-gdpr-sub',T.gdprSub);
@@ -973,9 +981,15 @@ async function devLogin(){
 
 async function doLogin(){
   if(!sb){ toast2('Локальный режим — вход недоступен'); return; }
+  const T=tr();
   const rawPhone=$('l-phone').value.trim();
-  if(!rawPhone){ $('l-phone').classList.add('err'); return; }
   $('l-phone').classList.remove('err');
+  if($('l-phone-err')) $('l-phone-err').style.display='none';
+  if(!rawPhone||rawPhone.replace(/\D/g,'').length<8){
+    $('l-phone').classList.add('err');
+    if($('l-phone-err')){ $('l-phone-err').textContent=T.phoneErr; $('l-phone-err').style.display='block'; }
+    return;
+  }
   sbPhone=normPhone(rawPhone); isNewUser=false;
   const btn=$('l-btn'); btn.disabled=true;
   const {error}=await sb.auth.signInWithOtp({phone:sbPhone});
@@ -1007,13 +1021,33 @@ function onOtp(el,idx){
     const nxt=$('o'+(idx+1));
     if(nxt) nxt.focus();
   }
-  // check if all filled
   let code='';
-  for(let i=1;i<=6;i++){
-    const oi=$('o'+i);
-    code+=oi?oi.value:'';
-  }
+  for(let i=1;i<=6;i++){const oi=$('o'+i);code+=oi?oi.value:'';}
   if(code.length===6) doOtp();
+}
+
+function onOtpKey(e,idx){
+  if(e.key==='Backspace'){
+    const el=$('o'+idx);
+    if(el.value){
+      // Поле не пустое — просто очищаем текущее (браузер сделает сам, но синхронно)
+      el.value='';
+      e.preventDefault();
+    } else if(idx>1){
+      // Поле пустое — переходим назад и очищаем предыдущее
+      const prev=$('o'+(idx-1));
+      if(prev){ prev.value=''; prev.focus(); }
+      e.preventDefault();
+    }
+  } else if(e.key==='ArrowLeft'&&idx>1){
+    const prev=$('o'+(idx-1));
+    if(prev) prev.focus();
+    e.preventDefault();
+  } else if(e.key==='ArrowRight'&&idx<6){
+    const nxt=$('o'+(idx+1));
+    if(nxt) nxt.focus();
+    e.preventDefault();
+  }
 }
 
 async function doOtp(){
@@ -1742,6 +1776,23 @@ window.onOtp=function(el,idx){
     code+=oi?oi.value:'';
   }
   if(code.length===6) doOtp();
+};
+window.onOtpKey=function(e,idx){
+  if(e.key==='Backspace'){
+    const el=document.getElementById('o'+idx);
+    if(el.value){ el.value=''; e.preventDefault(); }
+    else if(idx>1){
+      const prev=document.getElementById('o'+(idx-1));
+      if(prev){ prev.value=''; prev.focus(); }
+      e.preventDefault();
+    }
+  } else if(e.key==='ArrowLeft'&&idx>1){
+    const prev=document.getElementById('o'+(idx-1));
+    if(prev) prev.focus(); e.preventDefault();
+  } else if(e.key==='ArrowRight'&&idx<6){
+    const nxt=document.getElementById('o'+(idx+1));
+    if(nxt) nxt.focus(); e.preventDefault();
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════

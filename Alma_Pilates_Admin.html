@@ -965,14 +965,23 @@ async function selectClient(id){
   const panel=document.getElementById('client-detail');
   if(panel) panel.classList.add('open');
   renderClientCard(c);
-  // Refresh this client's balance live from DB (catches changes made in client app)
+  // Refresh balance — count actual bookings from DB (reliable, not used_classes)
   if(sb&&c._uuid&&c._subUuid){
     try{
-      const {data:sub}=await sb.from('subscriptions').select('total_classes,used_classes,starts_at,expires_at').eq('id',c._subUuid).single();
+      const [{data:sub},{data:bkData}]=await Promise.all([
+        sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',c._subUuid).single(),
+        sb.from('bookings').select('class_date').eq('client_id',c._uuid).in('status',['booked','attended','missed'])
+      ]);
       if(sub){
-        c.left=Math.max(0,sub.total_classes-sub.used_classes);
+        const used=(bkData||[]).filter(b=>
+          (!sub.starts_at||b.class_date>=sub.starts_at)&&
+          (!sub.expires_at||b.class_date<=sub.expires_at)
+        ).length;
+        c.left=Math.max(0,sub.total_classes-used);
         c.total=sub.total_classes;
         c.status=calcClientStatus(c);
+        // Sync used_classes so client app also sees the correct balance
+        await sb.from('subscriptions').update({used_classes:used}).eq('id',c._subUuid);
         renderClientCard(c);
         renderClients();
       }
@@ -1211,6 +1220,9 @@ function renderHistoryTab(items,type){
 
 // Cache for client history: clientUuid → {bookings,subs}
 const clientHistoryCache={};
+// Pagination state: "clientId_tab" → current page index (0-based)
+const histPageState={};
+const HIST_PAGE_SIZE=15;
 
 async function loadClientHistory(clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c||!c._uuid) return;
@@ -1262,65 +1274,77 @@ async function loadClientHistory(clientId){
   }
 }
 
-function renderHistoryTabById(clientId,tab){
+function renderHistoryPager(clientId,tab,page,total){
+  if(total<=1) return '';
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const prev=page>0?`<button onclick="renderHistoryTabById(${clientId},'${tab}',${page-1})" style="font-size:11px;padding:3px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--accent)">←</button>`
+    :`<button disabled style="font-size:11px;padding:3px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;color:var(--text3);cursor:default">←</button>`;
+  const next=page<total-1?`<button onclick="renderHistoryTabById(${clientId},'${tab}',${page+1})" style="font-size:11px;padding:3px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--accent)">→</button>`
+    :`<button disabled style="font-size:11px;padding:3px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;color:var(--text3);cursor:default">→</button>`;
+  return `<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 0 2px">
+    ${prev}
+    <span style="font-size:11px;color:var(--text3)">${page+1} ${L('από','of','из')} ${total}</span>
+    ${next}
+  </div>`;
+}
+
+function renderHistoryTabById(clientId,tab,page){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
   const uuid=c._uuid;
   const cache=clientHistoryCache[uuid];
   if(!cache) return;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const noRec=adminLang==='el'?'Δεν υπάρχουν εγγραφές':adminLang==='en'?'No records':'Нет записей';
+  const pageKey=clientId+'_'+tab;
+  const currentPage=page!==undefined?page:(histPageState[pageKey]||0);
+  histPageState[pageKey]=currentPage;
 
-  let items=[];
+  const el=document.getElementById('ctab-content-'+clientId);
+  if(!el) return;
+
   if(tab==='bookings'){
     const today=new Date().toISOString().split('T')[0];
     const _d30=new Date(); _d30.setDate(_d30.getDate()+30);
     const monthAhead=_d30.toISOString().split('T')[0];
-    // unpaid_future — show only next 30 days; past unpaid = Cancels
-    const bookings=(cache.bookings||[]).filter(b=>
+    const allBookings=(cache.bookings||[]).filter(b=>
       b.status==='booked'||b.status==='attended'||
       (b.status==='unpaid_future'&&b.class_date>=today&&b.class_date<=monthAhead));
-    const noRec=adminLang==='el'?'Δεν υπάρχουν εγγραφές':adminLang==='en'?'No records':'Нет записей';
-    const el=document.getElementById('ctab-content-'+clientId);
-    if(el){
-      if(!bookings.length){
-        el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">${noRec}</div>`;
-      } else {
-        el.innerHTML=bookings.map(b=>{
-          const time=b.schedule_slots?.start_time?.slice(0,5)||'';
-          const isFuture=b.class_date>=today;
-          const attended=b.status==='attended';
-          const isUnpaidFuture=b.status==='unpaid_future';
-          const dotColor=attended?'var(--green)':isUnpaidFuture?'#E8A84A':isFuture?'var(--accent)':'var(--text3)';
-          const dot=`<span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0"></span>`;
-          const unpaidTag=isUnpaidFuture?` · <span style="font-size:10px;color:#C47A1A;font-weight:600">${L('μη πλ.','unpaid','не опл.')}</span>`:'';
-          const lbl=time+(isFuture&&!isUnpaidFuture?' · '+L('предстоит','upcoming','предстоит'):attended?' · '+L('посетила','attended','посетила'):'')+unpaidTag;
-          const note=isFuture&&!isUnpaidFuture?'⏳':attended?'✓':isUnpaidFuture?'💛':'';
-          // Cancel button: only for non-attended bookings
-          const canCancel=!attended;
-          const cancelBtn=canCancel
-            ? `<button onclick="adminCancelBooking('${b.id}',${clientId})" style="font-size:10px;padding:2px 8px;border:0.5px solid var(--red);border-radius:5px;background:transparent;cursor:pointer;color:var(--red);flex-shrink:0">${L('Ακύρωση','Cancel','Отменить')}</button>`
-            : '';
-          return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
-            ${dot}
-            <span style="font-size:12px;color:var(--text2);white-space:nowrap;min-width:42px">${fmtHistDate(b.class_date)}</span>
-            <span style="font-size:12px;color:var(--text);flex:1">${lbl}</span>
-            ${note?`<span style="font-size:11px;color:var(--text3)">${note}</span>`:''}
-            ${cancelBtn}
-          </div>`;
-        }).join('');
-      }
-    }
-    return; // rendered directly, skip bottom renderHistoryTab call
-  } else if(tab==='payments'){
+    if(!allBookings.length){ el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">${noRec}</div>`; return; }
+    const totalPages=Math.ceil(allBookings.length/HIST_PAGE_SIZE);
+    const pg=Math.min(currentPage,totalPages-1);
+    histPageState[pageKey]=pg;
+    const bookings=allBookings.slice(pg*HIST_PAGE_SIZE,(pg+1)*HIST_PAGE_SIZE);
+    el.innerHTML=bookings.map(b=>{
+      const time=b.schedule_slots?.start_time?.slice(0,5)||'';
+      const isFuture=b.class_date>=today;
+      const attended=b.status==='attended';
+      const isUnpaidFuture=b.status==='unpaid_future';
+      const dotColor=attended?'var(--green)':isUnpaidFuture?'#E8A84A':isFuture?'var(--accent)':'var(--text3)';
+      const dot=`<span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0"></span>`;
+      const unpaidTag=isUnpaidFuture?` · <span style="font-size:10px;color:#C47A1A;font-weight:600">${L('μη πλ.','unpaid','не опл.')}</span>`:'';
+      const lbl=time+(isFuture&&!isUnpaidFuture?' · '+L('предстоит','upcoming','предстоит'):attended?' · '+L('посетила','attended','посетила'):'')+unpaidTag;
+      const note=isFuture&&!isUnpaidFuture?'⏳':attended?'✓':isUnpaidFuture?'💛':'';
+      const canCancel=!attended;
+      const cancelBtn=canCancel
+        ?`<button onclick="adminCancelBooking('${b.id}',${clientId})" style="font-size:10px;padding:2px 8px;border:0.5px solid var(--red);border-radius:5px;background:transparent;cursor:pointer;color:var(--red);flex-shrink:0">${L('Ακύρωση','Cancel','Отменить')}</button>`:'';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+        ${dot}
+        <span style="font-size:12px;color:var(--text2);white-space:nowrap;min-width:42px">${fmtHistDate(b.class_date)}</span>
+        <span style="font-size:12px;color:var(--text);flex:1">${lbl}</span>
+        ${note?`<span style="font-size:11px;color:var(--text3)">${note}</span>`:''}
+        ${cancelBtn}
+      </div>`;
+    }).join('')+renderHistoryPager(clientId,tab,pg,totalPages);
+    return;
+  }
+
+  let items=[];
+  if(tab==='payments'){
     const methodLabel={cash:L('Μετρητά','Cash','Наличные'),card:L('Κάρτα','Card','Карта'),bank:L('Τράπεζα','Bank','Банк'),revolut:'Revolut'};
     items=(cache.subs||[]).map(s=>{
       const typeLabel={'4':'4 '+L('μαθ.','cl.','зан.'),'8':'8 '+L('μαθ.','cl.','зан.'),'12':'12 '+L('προμό','promo','промо'),'12s':'12 '+L('τυπ.','std','стд.'),'single':'1 '+L('μαθ.','cl.','зан.')}[s.type]||s.type;
       const method=methodLabel[s.payment_method]||s.payment_method||'';
-      return {
-        date:fmtHistDate(s.paid_at?s.paid_at.split('T')[0]:s.starts_at),
-        label:`${typeLabel} · €${s.price}`,
-        note:method+(s.is_active?' · '+L('ενεργή','active','активен'):''),
-        color:'var(--green)'
-      };
+      return {date:fmtHistDate(s.paid_at?s.paid_at.split('T')[0]:s.starts_at),label:`${typeLabel} · €${s.price}`,note:method+(s.is_active?' · '+L('ενεργή','active','активен'):''),color:'var(--green)'};
     });
   } else if(tab==='cancels'){
     const today2=new Date().toISOString().split('T')[0];
@@ -1330,17 +1354,16 @@ function renderHistoryTabById(clientId,tab){
         const time=b.schedule_slots?.start_time?.slice(0,5)||'';
         const burned=b.status==='missed';
         const pastUnpaid=b.status==='unpaid_future';
-        return {
-          date:fmtHistDate(b.class_date),
-          label:time+' · '+(burned?L('Έκαψε','Burned','Сгорело'):pastUnpaid?L('Χωρίς πληρωμή','Not paid','Не оплачено'):L('Ακυρώθηκε','Cancelled','Отменено')),
-          note:burned?'🔥':pastUnpaid?'💛':'',
-          color:burned?'var(--red)':pastUnpaid?'#C47A1A':'var(--text3)'
-        };
+        return {date:fmtHistDate(b.class_date),label:time+' · '+(burned?L('Έκαψε','Burned','Сгорело'):pastUnpaid?L('Χωρίς πληρωμή','Not paid','Не оплачено'):L('Ακυρώθηκε','Cancelled','Отменено')),note:burned?'🔥':pastUnpaid?'💛':'',color:burned?'var(--red)':pastUnpaid?'#C47A1A':'var(--text3)'};
       });
   }
 
-  const el=document.getElementById('ctab-content-'+clientId);
-  if(el) el.innerHTML=renderHistoryTab(items,tab);
+  if(!items.length){ el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">${noRec}</div>`; return; }
+  const totalPages=Math.ceil(items.length/HIST_PAGE_SIZE);
+  const pg=Math.min(currentPage,totalPages-1);
+  histPageState[pageKey]=pg;
+  const pageItems=items.slice(pg*HIST_PAGE_SIZE,(pg+1)*HIST_PAGE_SIZE);
+  el.innerHTML=renderHistoryTab(pageItems,tab)+renderHistoryPager(clientId,tab,pg,totalPages);
 }
 
 function switchClientTab(clientId,tab){
@@ -1348,7 +1371,8 @@ function switchClientTab(clientId,tab){
   if(row) row.querySelectorAll('.ctab').forEach(b=>b.classList.remove('on'));
   const btn=row?.querySelector(`.ctab[onclick*="'${tab}'"]`);
   if(btn) btn.classList.add('on');
-  renderHistoryTabById(clientId,tab);
+  histPageState[clientId+'_'+tab]=0; // reset to first page on tab switch
+  renderHistoryTabById(clientId,tab,0);
 }
 
 function toggleManualSettings(clientId){
@@ -4450,8 +4474,14 @@ async function bookClientByName(name, repeatCount){
           if(!dateSlotMap[dKey]) dateSlotMap[dKey]=[];
           if(!slotBookingsMap[slotKey].includes(name)) slotBookingsMap[slotKey].push(name);
           if(!dateSlotMap[dKey].includes(name)) dateSlotMap[dKey].push(name);
-          // Decrement local client balance only if booking is within subscription period
-          if(bkIsPaid){ client.left=Math.max(0,client.left-1); client.status=calcClientStatus(client); }
+          // Decrement local client balance + sync used_classes in DB
+          if(bkIsPaid){
+            client.left=Math.max(0,client.left-1); client.status=calcClientStatus(client);
+            if(client._subUuid){
+              sb.from('subscriptions').select('used_classes').eq('id',client._subUuid).single()
+                .then(({data:s})=>{ if(s) sb.from('subscriptions').update({used_classes:(s.used_classes||0)+1}).eq('id',client._subUuid); });
+            }
+          }
         }
       } else {
         // Recurring — status depends on each date vs subscription period
@@ -4653,9 +4683,29 @@ async function saveRecurringBookings(){
   if(btn){btn.disabled=false;btn.textContent=L('Δημιουργία κρατήσεων','Create bookings','Создать записи');}
   closeModal('recurring-modal');
   toast(L(`Κρατήθηκαν ${saved} μαθ.!`,`Booked ${saved} classes!`,`Записано ${saved} занятий!`));
+
+  // Sync used_classes from actual booking count so balance is correct everywhere
+  if(sb && c._uuid && c._subUuid){
+    try{
+      const [{data:sub},{data:bkData}]=await Promise.all([
+        sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',c._subUuid).single(),
+        sb.from('bookings').select('class_date').eq('client_id',c._uuid).in('status',['booked','attended','missed'])
+      ]);
+      if(sub){
+        const used=(bkData||[]).filter(b=>
+          (!sub.starts_at||b.class_date>=sub.starts_at)&&
+          (!sub.expires_at||b.class_date<=sub.expires_at)
+        ).length;
+        await sb.from('subscriptions').update({used_classes:used}).eq('id',c._subUuid);
+        c.left=Math.max(0,sub.total_classes-used);
+        c.status=calcClientStatus(c);
+        renderClientCard(c); renderClients();
+      }
+    }catch(e){console.warn('sync used_classes after recurring:',e.message);}
+  }
+
   renderSchedule();
   dbLoadBookings();
-  // Refresh client card history so recurring bookings appear immediately
   if(_rmClientId){
     const _rmC=CLIENTS.find(x=>x.id===_rmClientId);
     if(_rmC&&_rmC._uuid) delete clientHistoryCache[_rmC._uuid];
