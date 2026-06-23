@@ -1346,9 +1346,15 @@ async function confirmBook(){
     const bkSubId=isOutsideSub?null:sbBal.subId;
     const {error}=await sb.from('bookings').insert({client_id:clientId,slot_id:slot.id,studio_id:STUDIO_ID,subscription_id:bkSubId,class_date:dateStr,status:bkStatus});
     if(error){toast2('Error: '+error.message);return;}
+    // Increment used_classes if this booking consumes a subscription slot
+    if(bkSubId&&bkStatus==='booked'){
+      const {data:subData}=await sb.from('subscriptions').select('used_classes').eq('id',bkSubId).single();
+      if(subData!=null){
+        await sb.from('subscriptions').update({used_classes:(subData.used_classes||0)+1}).eq('id',bkSubId);
+      }
+    }
     toast2(tr().bookOk);
     await refreshSchedule();
-    // Reload balance: counts actual bookings from DB — no RLS issues, always accurate
     await loadBalance();
   } else {
     const key=wkOff+'_'+selSlot.di+'_'+selSlot.time;
