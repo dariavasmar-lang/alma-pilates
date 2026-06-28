@@ -3856,20 +3856,21 @@ async function dbLoadBookings(){
 // ── BALANCE ADJUST ────────────────────────────────────────────
 async function adjustBalance(id,delta){
   const c=CLIENTS.find(x=>x.id===id); if(!c) return;
-  const newLeft=Math.max(0,Math.min(c.total,c.left+delta));
-  if(newLeft===c.left) return;
-  const newUsed=c.total-newLeft;
+  // Adjust total_classes so the change survives selectClient() recounts.
+  // left = total_classes - used_bookings; shifting total shifts left by the same delta.
+  const usedBookings=c.total-c.left; // derived from current local state
+  const newTotal=Math.max(usedBookings, c.total+delta); // never drop total below used
+  if(newTotal===c.total) return;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   if(sb&&c._subUuid){
-    try{
-      const {error}=await sb.from('subscriptions').update({used_classes:newUsed}).eq('id',c._subUuid);
-      if(error) throw error;
-    }catch(e){toast('Error: '+e.message);return;}
+    const {error}=await sb.from('subscriptions').update({total_classes:newTotal}).eq('id',c._subUuid);
+    if(error){toast('Error: '+error.message);return;}
   }
-  c.left=newLeft;
+  c.total=newTotal;
+  c.left=Math.max(0,newTotal-usedBookings);
   c.status=calcClientStatus(c);
-  toast(L(`Υπόλοιπο: ${newLeft}μ`,`Balance: ${newLeft}`,`Баланс: ${newLeft}`));
-  selectClient(id); renderClients();
+  toast(L(`Υπόλοιπο: ${c.left}μ`,`Balance: ${c.left}`,`Баланс: ${c.left}`));
+  renderClientCard(c); renderClients();
 }
 
 // ── CANCEL SUBSCRIPTION ───────────────────────────────────────
