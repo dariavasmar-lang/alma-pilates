@@ -877,15 +877,14 @@ function renderDashboard(){
       const today=localDateStr(new Date());
       const isDebt=c.status==='debt';
       const isExpired=c.status==='danger';
-      const daysLeft=(!isDebt&&c.expiresDate)?Math.round((new Date(c.expiresDate)-new Date(today))/(864e5)):null;
+      const daysLeft=c.expiresDate?Math.round((new Date(c.expiresDate)-new Date(today))/(864e5)):null;
+      const daysAgo=daysLeft!==null?Math.abs(daysLeft):null;
       const sublbl=isDebt
         ? L(`Χρεωστεί ${Math.abs(c.left)} μαθ.`,`In debt: ${Math.abs(c.left)} classes`,`Долг: ${Math.abs(c.left)} зан.`)
         : isExpired
-          ? L('Λήξη υπέρβαση','Subscription expired','Абонемент истёк')
+          ? (daysAgo!==null?L(`Έληξε ${daysAgo} ημ. πριν`,`Expired ${daysAgo} days ago`,`Истёк ${daysAgo} дн. назад`):L('Έληξε','Expired','Истёк'))
           : daysLeft!==null
-            ? (daysLeft<0
-              ? L(`Έληξε ${Math.abs(daysLeft)} ημ. πριν`,`Expired ${Math.abs(daysLeft)} days ago`,`Истёк ${Math.abs(daysLeft)} дн. назад`)
-              : L(`Λήγει σε ${daysLeft} ημ.`,`Expires in ${daysLeft} days`,`Истекает через ${daysLeft} дн.`))
+            ? L(`Λήγει σε ${daysLeft} ημ.`,`Expires in ${daysLeft} days`,`Истекает через ${daysLeft} дн.`)
             : '';
       const badgeLbl=isDebt?L('Χρεωστεί','In debt','В долге'):isExpired?L('Έληξε','Expired','Истёк'):`${daysLeft}${L('ημ.','d','дн.')}`;
       const dotColor=isDebt?'#C0392B':isExpired?'#C0392B':'#D4A017';
@@ -1087,6 +1086,7 @@ async function selectClient(id){
         c.left=sub.total_classes-used;
         c.total=sub.total_classes;
         c.status=calcClientStatus(c);
+        applyExpiredBurn(c); // classes burn on expiry
         // Sync used_classes so client app also sees the correct balance
         await sb.from('subscriptions').update({used_classes:used}).eq('id',c._subUuid);
         renderClientCard(c);
@@ -1144,10 +1144,11 @@ async function archiveClient(id, archive){
 }
 
 // ── CLIENT STATUS (by subscription expiry date) ───────────────
-// danger  = subscription already expired (debtor)
+// danger  = subscription already expired
 // warn    = expires in 0–3 days
 // ok      = expires in 4+ days and subscription active
 // inactive= no active subscription
+// debt    = used_classes > total_classes (negative balance)
 function calcClientStatus(c){
   if(c.left<0) return 'debt';
   if(!c._subUuid||!c.expiresDate) return 'inactive';
@@ -1155,6 +1156,11 @@ function calcClientStatus(c){
   if(c.expiresDate<today) return 'danger';
   const daysLeft=Math.round((new Date(c.expiresDate)-new Date(today))/(864e5));
   return daysLeft<=3?'warn':'ok';
+}
+// Burn unused classes when subscription is expired.
+// Classes only count within subscription period — on expiry they're gone.
+function applyExpiredBurn(c){
+  if(c.status==='danger'&&c.left>0) c.left=0;
 }
 
 let clientCalOffset={};
@@ -1240,10 +1246,7 @@ function renderClientCard(c){
         <div style="font-size:9px;color:var(--text3);margin-top:3px">${L('+30 ημ. από έναρξη','+30 days from start','+30 дн. от начала')}</div>
       </div>
     </div>
-    ${daysLeft!==null&&daysLeft<=14&&c.left>0&&!isDebt?`<div style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-bottom:10px">⚠ ${daysLeft<0
-      ? `${L('Έληξε','Expired','Истёк')} ${Math.abs(daysLeft)} ${L('ημ. πριν','days ago','дн. назад')} · ${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}`
-      : `${L('Λήγει σε','Expires in','Истекает через')} ${daysLeft} ${L('ημ.','days','дн.')} · ${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}`
-    }</div>`:''}
+    ${daysLeft!==null&&daysLeft>=0&&daysLeft<=14&&c.left>0&&!isDebt?`<div style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-bottom:10px">⚠ ${L('Λήγει σε','Expires in','Истекает через')} ${daysLeft} ${L('ημ.','days','дн.')} · ${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}</div>`:''}
     <button onclick="toggleManualSettings(${c.id})" style="font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px">⚙ ${L('Χειροκίνητες ρυθμίσεις','Manual settings','Ручные настройки')} <span id="manual-arrow-${c.id}">▸</span></button>
     <div id="manual-settings-${c.id}" style="display:none;background:var(--bg2);border-radius:10px;padding:11px 13px;margin-top:7px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -1736,7 +1739,7 @@ async function confirmClientBookings(clientId){
       const {error:subErr}=await sb.from('subscriptions')
         .update({used_classes:newUsed})
         .eq('id',c._subUuid);
-      if(!subErr){ c.left=c.total-newUsed; c.status=calcClientStatus(c); }
+      if(!subErr){ c.left=c.total-newUsed; c.status=calcClientStatus(c); applyExpiredBurn(c); }
     }
   } else if(!sb){
     // Offline mode — commit local updates anyway
@@ -1907,7 +1910,7 @@ async function adminCancelBooking(bookingId, clientId){
   delete clientHistoryCache[uuid];
   await loadClientHistory(clientId);
   const {data:sub}=await sb.from('subscriptions').select('total_classes,used_classes').eq('client_id',uuid).eq('is_active',true).order('created_at',{ascending:false}).limit(1).single();
-  if(sub){ c.left=sub.total_classes-sub.used_classes; c.status=calcClientStatus(c); renderClientCard(c); renderClients(); }
+  if(sub){ c.left=sub.total_classes-sub.used_classes; c.status=calcClientStatus(c); applyExpiredBurn(c); renderClientCard(c); renderClients(); }
 }
 
 function sendWhatsApp(clientId,type){
@@ -3812,6 +3815,7 @@ async function dbLoad(){
               c.left=c.total-(bkCounts[c._uuid]||0);
             } else { c.left=0; }
             c.status=calcClientStatus(c);
+            applyExpiredBurn(c); // classes burn on expiry
             if(!data.find(d=>d.id===c._uuid)?.is_active) c.status='inactive';
           });
         }
@@ -3897,6 +3901,7 @@ async function adjustBalance(id,delta){
   c.total=newTotal;
   c.left=newTotal-usedBookings; // can go negative → shows debt
   c.status=calcClientStatus(c);
+  applyExpiredBurn(c); // classes burn on expiry
   const newLeft=c.left;
   logAction('balance_adjusted',`${c.name} · ${delta>0?'+'+delta:delta} → ${newLeft} left`,'subscription',c._subUuid,{client_name:c.name,delta,old_total:newTotal-delta,new_total:newTotal,client_uuid:c._uuid});
   toast(L(`Υπόλοιπο: ${newLeft}μ`,`Balance: ${newLeft}`,`Баланс: ${newLeft}`));
@@ -3938,6 +3943,7 @@ async function updateClientStart(id,isoDate){
   const ep=expiresIso.split('-');
   c.nextPayment=ep[2]+'/'+ep[1]; c.expiresDate=expiresIso;
   c.status=calcClientStatus(c);
+  applyExpiredBurn(c);
   renderClients(); selectClient(id);
   toast(L(`${c.start}→${c.nextPayment}`,`${c.start}→${c.nextPayment}`,`${c.start}→${c.nextPayment}`));
 }
@@ -4894,6 +4900,7 @@ async function saveRecurringBookings(){
         await sb.from('subscriptions').update({used_classes:used}).eq('id',c._subUuid);
         c.left=sub.total_classes-used;
         c.status=calcClientStatus(c);
+        applyExpiredBurn(c);
         renderClientCard(c); renderClients();
       }
     }catch(e){console.warn('sync used_classes after recurring:',e.message);}
