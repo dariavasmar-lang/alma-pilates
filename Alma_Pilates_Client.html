@@ -1843,7 +1843,11 @@ if(sb){
           // Valid client profile found — restore app state
           await Promise.all([loadWeekBookings(), loadBalance()]);
           // Record login (fire-and-forget, non-blocking)
-          sb.from('client_logins').insert({client_id:sbProfile.id}).then(({error})=>{if(error)console.warn('[login]',error.message);});
+          console.log('[login] client_id=',sbProfile?.id,'user_id=',sbUser?.id);
+          sb.from('client_logins').insert({client_id:sbProfile.id}).then(({error})=>{
+            if(error) console.warn('[login] error:',error.message,error.code);
+            else console.log('[login] recorded OK');
+          });
           $('hdr').style.display='flex';
           $('bnav').classList.add('show');
           applyLang();
