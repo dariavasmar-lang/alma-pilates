@@ -4642,8 +4642,10 @@ async function bookClientByName(name, repeatCount){
     ? (adminLang==='ru'?`Запланировано ${repeatCount} занятий ✓`:adminLang==='en'?`Scheduled ${repeatCount} classes ✓`:`Προγρ. ${repeatCount} μαθ. ✓`)
     : L('Κράτηση ✓','Booked ✓','Записан!');
   toast(bookedMsg);
-  renderSchedule();
-  if(currentSlot) openSlotDetail(currentSlot.di,currentSlot.time,currentSlot.dateStr);
+  // Refresh from DB to avoid race condition with any in-flight dbLoadBookings()
+  const _savedSlot=currentSlot?{...currentSlot}:null;
+  await dbLoadBookings();
+  if(_savedSlot) openSlotDetail(_savedSlot.di,_savedSlot.time,_savedSlot.dateStr);
 }
 
 // ── RECURRING BOOKINGS ───────────────────────────────────────
