@@ -883,7 +883,9 @@ function renderDashboard(){
         : isExpired
           ? L('Λήξη υπέρβαση','Subscription expired','Абонемент истёк')
           : daysLeft!==null
-            ? L(`Λήγει σε ${daysLeft} ημ.`,`Expires in ${daysLeft} days`,`Истекает через ${daysLeft} дн.`)
+            ? (daysLeft<0
+              ? L(`Έληξε ${Math.abs(daysLeft)} ημ. πριν`,`Expired ${Math.abs(daysLeft)} days ago`,`Истёк ${Math.abs(daysLeft)} дн. назад`)
+              : L(`Λήγει σε ${daysLeft} ημ.`,`Expires in ${daysLeft} days`,`Истекает через ${daysLeft} дн.`))
             : '';
       const badgeLbl=isDebt?L('Χρεωστεί','In debt','В долге'):isExpired?L('Έληξε','Expired','Истёк'):`${daysLeft}${L('ημ.','d','дн.')}`;
       const dotColor=isDebt?'#C0392B':isExpired?'#C0392B':'#D4A017';
@@ -1238,7 +1240,10 @@ function renderClientCard(c){
         <div style="font-size:9px;color:var(--text3);margin-top:3px">${L('+30 ημ. από έναρξη','+30 days from start','+30 дн. от начала')}</div>
       </div>
     </div>
-    ${daysLeft!==null&&daysLeft<=14&&c.left>0&&!isDebt?`<div style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-bottom:10px">⚠ ${L('Λήγει σε','Expires in','Истекает через')} ${daysLeft} ${L('ημ.','days','дн.')} · ${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}</div>`:''}
+    ${daysLeft!==null&&daysLeft<=14&&c.left>0&&!isDebt?`<div style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-bottom:10px">⚠ ${daysLeft<0
+      ? `${L('Έληξε','Expired','Истёк')} ${Math.abs(daysLeft)} ${L('ημ. πριν','days ago','дн. назад')} · ${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}`
+      : `${L('Λήγει σε','Expires in','Истекает через')} ${daysLeft} ${L('ημ.','days','дн.')} · ${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}`
+    }</div>`:''}
     <button onclick="toggleManualSettings(${c.id})" style="font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px">⚙ ${L('Χειροκίνητες ρυθμίσεις','Manual settings','Ручные настройки')} <span id="manual-arrow-${c.id}">▸</span></button>
     <div id="manual-settings-${c.id}" style="display:none;background:var(--bg2);border-radius:10px;padding:11px 13px;margin-top:7px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
