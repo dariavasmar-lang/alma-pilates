@@ -4540,6 +4540,7 @@ async function bookClientByName(name, repeatCount){
   repeatCount=repeatCount||1;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   if(!currentBookSlot){
+    console.warn('[book] FAIL: currentBookSlot is null');
     closeModal('book-modal');
     return;
   }
@@ -4548,6 +4549,7 @@ async function bookClientByName(name, repeatCount){
   const baseDateStr=currentSlot?.dateStr||null;
   const client=CLIENTS.find(c=>c.name===name);
   const slotId=scheduleSlotIds[slotKey];
+  console.log('[book] name=',name,'slotKey=',slotKey,'baseDateStr=',baseDateStr,'slotId=',slotId,'client._uuid=',client?._uuid,'left=',client?.left);
 
   // Determine if first booking is paid (single booking + client has balance)
   const isPaidFirst=repeatCount===1&&client?.left>0&&!!client?._subUuid;
@@ -4555,14 +4557,15 @@ async function bookClientByName(name, repeatCount){
   const isRecurring=repeatCount>1;
 
   if(!sb||!baseDateStr){
+    console.warn('[book] FAIL: sb=',!!sb,'baseDateStr=',baseDateStr);
     closeModal('book-modal');
     toast(L('Κράτηση ✓','Booked ✓','Записан!'));
     renderSchedule();
     return;
   }
 
-  if(!client?._uuid){console.warn('bookClientByName: client._uuid missing',name);}
-  else if(!slotId){console.warn('bookClientByName: slotId missing',slotKey);}
+  if(!client?._uuid){console.warn('[book] FAIL: client._uuid missing for',name);}
+  else if(!slotId){console.warn('[book] FAIL: slotId missing for slotKey=',slotKey,'scheduleSlotIds=',JSON.stringify(scheduleSlotIds));}
   else {
     // Build list of dates to book
     const dates=[];
@@ -4593,8 +4596,9 @@ async function bookClientByName(name, repeatCount){
           studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,
           subscription_id:bkSubId,class_date:baseDateStr,status:bkSt
         }).select().single();
-        if(error){toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
+        if(error){console.warn('[book] isPaidFirst insert ERROR:',error.message);toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
         else{
+          console.log('[book] isPaidFirst insert OK, id=',bkData?.id,'status=',bkSt);
           logAction('booking_created',`${name} · ${baseDateStr} ${time}`,'booking',bkData?.id,{booking_id:bkData?.id,client_uuid:client?._uuid,subscription_id:bkSubId||null,client_name:name});
           clientDateBookings[client.id+'_'+baseDateStr+'_'+time]=true;
           // Update local maps
@@ -4618,9 +4622,11 @@ async function bookClientByName(name, repeatCount){
           const {status:bkSt,subscription_id:bkSubId}=resolveBookingStatus(client,d);
           return {studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,subscription_id:bkSubId,class_date:d,status:bkSt};
         });
+        console.log('[book] else-branch rows=',rows);
         const {error}=await sb.from('bookings').insert(rows);
-        if(error){toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
+        if(error){console.warn('[book] else insert ERROR:',error.message);toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
         else{
+          console.log('[book] else insert OK');
           dates.forEach(d=>{
             clientDateBookings[client.id+'_'+d+'_'+time]=true;
             const dKey=d+'_'+slotKey;
