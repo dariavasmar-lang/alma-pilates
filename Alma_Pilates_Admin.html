@@ -947,8 +947,8 @@ function renderDashboard(){
 }
 
 // ── CLIENTS ───────────────────────────────────────────────────
-const BADGE_CLS={ok:'ok',warn:'warn',danger:'danger',inactive:'inactive'};
-const BAR_COLOR={ok:'#4A7C5F',warn:'#D4A017',danger:'#C0392B',inactive:'#B4B2A9'};
+const BADGE_CLS={ok:'ok',warn:'warn',danger:'danger',inactive:'inactive',debt:'debt'};
+const BAR_COLOR={ok:'#4A7C5F',warn:'#D4A017',danger:'#C0392B',inactive:'#B4B2A9',debt:'#C0392B'};
 
 function renderClients(search=''){
   const t=AL();
@@ -1019,11 +1019,13 @@ function renderClients(search=''){
     return;
   }
   if(tbody) tbody.innerHTML=filtered.map(c=>{
-    const pct=c.total>0?Math.round(c.left/c.total*100):0;
-    const isActive=c.status!=='inactive';
+    const isDebtRow=c.left<0;
+    const pct=isDebtRow?100:(c.total>0?Math.round(c.left/c.total*100):0);
+    const isActive=c.status!=='inactive'&&c.status!=='debt';
     const isExpired=c.status==='danger';
     const isExpiring=c.status==='warn';
     const lbl=c.isArchived?L('Αρχείο','Archived','Архив')
+      :isDebtRow?L('Χρεωστεί','In debt','В долге')
       :isExpired?L('Έληξε','Overdue','Просрочен')
       :isExpiring?L('Λήγει','Expiring','Истекает')
       :isActive?t.badgeOk:t.badgeInactive;
@@ -1034,10 +1036,10 @@ function renderClients(search=''){
       : isExpiring
         ? `<span style="color:var(--warn)">${fmtDate(c.nextPayment)}</span><span style="font-size:9px;display:block;color:var(--warn)">${L('σύντομα','soon','скоро')}</span>`
         : `<span style="color:var(--text2)">${fmtDate(c.nextPayment)}</span>`;
-    return `<tr onclick="selectClient(${c.id})" id="row-${c.id}" style="${c.isArchived?'opacity:.6':''}${isExpired?';background:rgba(192,57,43,.04)':''}">
+    return `<tr onclick="selectClient(${c.id})" id="row-${c.id}" style="${c.isArchived?'opacity:.6':''}${isExpired||isDebtRow?';background:rgba(192,57,43,.04)':''}">
       <td><span style="width:26px;height:26px;border-radius:50%;background:var(--bg3);color:${c.isArchived?'var(--text3)':'var(--accent)'};font-size:9px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;margin-right:7px;vertical-align:middle">${c.initials}</span><span style="font-size:12px;font-weight:500;color:${c.isArchived?'var(--text2)':'var(--text)'}">${c.name}</span>${c.isNew?`<span class="badge new-client">NEW</span>`:''}${c.isArchived?`<span style="font-size:9px;color:var(--text3);margin-left:5px">📁</span>`:''}</td>
       <td style="color:var(--text2)">${typeLabel}</td>
-      <td><span style="font-weight:500">${c.left}</span><span style="color:var(--text3)"> / ${c.total}</span><div class="progress" style="min-width:50px"><div class="progress-fill" style="width:${pct}%;background:${BAR_COLOR[c.status]}"></div></div></td>
+      <td><span style="font-weight:500;${isDebtRow?'color:var(--red)':''}">${c.left}</span><span style="color:var(--text3)"> / ${c.total}</span><div class="progress" style="min-width:50px"><div class="progress-fill" style="width:${pct}%;background:${BAR_COLOR[c.status]}"></div></div></td>
       <td style="font-size:11px">${dateLbl}</td>
       <td style="color:var(--text3);font-size:11px">${fmtDate(c.paid)}</td>
       <td><span class="badge ${c.isArchived?'inactive':BADGE_CLS[c.status]}">${lbl}</span></td>
@@ -1074,7 +1076,7 @@ async function selectClient(id){
           (!sub.starts_at||b.class_date>=sub.starts_at)&&
           (!sub.expires_at||b.class_date<=sub.expires_at)
         ).length;
-        c.left=Math.max(0,sub.total_classes-used);
+        c.left=sub.total_classes-used;
         c.total=sub.total_classes;
         c.status=calcClientStatus(c);
         // Sync used_classes so client app also sees the correct balance
@@ -1139,6 +1141,7 @@ async function archiveClient(id, archive){
 // ok      = expires in 4+ days and subscription active
 // inactive= no active subscription
 function calcClientStatus(c){
+  if(c.left<0) return 'debt';
   if(!c._subUuid||!c.expiresDate) return 'inactive';
   const today=localDateStr(new Date());
   if(c.expiresDate<today) return 'danger';
@@ -1156,10 +1159,11 @@ function renderClientCard(c){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const upcoming=c.upcoming||0;
   const attendedMonth=c.attendedMonth||0;
+  const isDebt=c.left<0;
   const used=c.total-c.left;
   const available=Math.max(0,c.left-upcoming);
-  // Bar shows REMAINING (not used), so full bar = full balance
-  const pct=c.total>0?Math.round((c.left/c.total)*100):0;
+  // Bar: if in debt → full red; if normal → % remaining
+  const pct=isDebt?100:(c.total>0?Math.round((c.left/c.total)*100):0);
   const typeLabel={
     '4': L('4 μαθήματα','4 classes','4 занятия'),
     '8': L('8 μαθήματα','8 classes','8 занятий'),
@@ -1175,7 +1179,8 @@ function renderClientCard(c){
     ok: L('Ενεργός','Active','Активен'),
     warn: L('Λήγει σύντομα','Expiring soon','Скоро истекает'),
     danger: L('Λήγει','Expiring','Истекает'),
-    inactive: L('Ανενεργός','Inactive','Неактивен')
+    inactive: L('Ανενεργός','Inactive','Неактивен'),
+    debt: L('Χρεωστεί','In debt','В долге')
   }[c.status]||'';
 
   panel.innerHTML=`
@@ -1207,23 +1212,27 @@ function renderClientCard(c){
     <div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px">
         <span>${L('Χρησιμοποιήθηκαν','Used','Использовано')}: ${used} / ${c.total}</span>
-        <span>${c.left} ${L('απομένουν','left','осталось')}</span>
+        ${isDebt
+          ? `<span style="color:var(--red);font-weight:600">${c.left} ${L('χρεωστεί','in debt','в долге')}</span>`
+          : `<span>${c.left} ${L('απομένουν','left','осталось')}</span>`
+        }
       </div>
       <div class="progress" style="height:5px"><div class="progress-fill" style="width:${pct}%;background:${BAR_COLOR[c.status]}"></div></div>
     </div>
+    ${isDebt?`<div style="background:var(--red-bg);border:0.5px solid var(--red);border-radius:9px;padding:9px 12px;font-size:11px;color:var(--red);line-height:1.5;margin-bottom:10px">⚠ ${L('Χρεωστεί','Client is in debt','Клиент в долге')}: ${Math.abs(c.left)} ${L('μαθήματα','classes','занятий')}</div>`:''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
       <div style="background:var(--bg2);border-radius:9px;padding:9px 11px">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${L('Έναρξη συνδρομής','Subscription start','Начало абонемента')}</div>
         <div style="font-size:12px;font-weight:500;color:var(--text)">${c.start}</div>
         <div style="font-size:9px;color:var(--text3);margin-top:3px">${L('πληρώθηκε','paid','оплачен')}: ${c.paid}</div>
       </div>
-      <div style="background:${isExpiringSoon?'var(--warn-bg)':'var(--bg2)'};border-radius:9px;padding:9px 11px;${isExpiringSoon?'border:0.5px solid #D4B870':''}">
-        <div style="font-size:9px;color:${isExpiringSoon?'var(--warn)':'var(--text3)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${L('Επόμενη πληρωμή','Next payment','Следующая оплата')}</div>
-        <div style="font-size:12px;font-weight:500;color:${isExpiringSoon?'var(--warn)':'var(--text)'}">${c.nextPayment}</div>
+      <div style="background:${isExpiringSoon&&!isDebt?'var(--warn-bg)':'var(--bg2)'};border-radius:9px;padding:9px 11px;${isExpiringSoon&&!isDebt?'border:0.5px solid #D4B870':''}">
+        <div style="font-size:9px;color:${isExpiringSoon&&!isDebt?'var(--warn)':'var(--text3)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${L('Επόμενη πληρωμή','Next payment','Следующая оплата')}</div>
+        <div style="font-size:12px;font-weight:500;color:${isExpiringSoon&&!isDebt?'var(--warn)':'var(--text)'}">${c.nextPayment}</div>
         <div style="font-size:9px;color:var(--text3);margin-top:3px">${L('+30 ημ. από έναρξη','+30 days from start','+30 дн. от начала')}</div>
       </div>
     </div>
-    ${daysLeft!==null&&daysLeft<=14&&c.left>0?`<div style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-bottom:10px">⚠ ${L('Λήγει σε','Expires in','Истекает через')} ${daysLeft} ${L('ημ.','days','дн.')} · ${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}</div>`:''}
+    ${daysLeft!==null&&daysLeft<=14&&c.left>0&&!isDebt?`<div style="background:var(--warn-bg);border:0.5px solid #D4B870;border-radius:9px;padding:9px 12px;font-size:11px;color:var(--warn);line-height:1.5;margin-bottom:10px">⚠ ${L('Λήγει σε','Expires in','Истекает через')} ${daysLeft} ${L('ημ.','days','дн.')} · ${c.left} ${L('μαθ. απομένουν','classes left','зан. осталось')}</div>`:''}
     <button onclick="toggleManualSettings(${c.id})" style="font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px">⚙ ${L('Χειροκίνητες ρυθμίσεις','Manual settings','Ручные настройки')} <span id="manual-arrow-${c.id}">▸</span></button>
     <div id="manual-settings-${c.id}" style="display:none;background:var(--bg2);border-radius:10px;padding:11px 13px;margin-top:7px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -1699,7 +1708,6 @@ async function confirmClientBookings(clientId){
       toast((adminLang==='ru'?'Ошибка: ':adminLang==='en'?'Error: ':'Σφάλμα: ')+error.message);
       return;
     }
-    console.log('[ccal] insert OK, rows=',dbRows.length);
     const datesBooked=localUpdates.map(u=>u.dateStr).join(', ');
     logAction('booking_created',`${c.name} · ${datesBooked}`,'booking',null,{client_name:c.name,client_uuid:c._uuid,dates:localUpdates.map(u=>u.dateStr),count:added});
     // Commit local state updates
@@ -1712,12 +1720,12 @@ async function confirmClientBookings(clientId){
     });
     c.upcoming=(c.upcoming||0)+added;
     // Update subscription balance if applicable
-    if(c._subUuid && added>0 && c.left>0){
-      const newUsed=Math.min(c.total,c.total-c.left+added);
+    if(c._subUuid && added>0){
+      const newUsed=c.total-c.left+added;
       const {error:subErr}=await sb.from('subscriptions')
         .update({used_classes:newUsed})
         .eq('id',c._subUuid);
-      if(!subErr){ c.left=Math.max(0,c.total-newUsed); c.status=calcClientStatus(c); }
+      if(!subErr){ c.left=c.total-newUsed; c.status=calcClientStatus(c); }
     }
   } else if(!sb){
     // Offline mode — commit local updates anyway
@@ -1888,7 +1896,7 @@ async function adminCancelBooking(bookingId, clientId){
   delete clientHistoryCache[uuid];
   await loadClientHistory(clientId);
   const {data:sub}=await sb.from('subscriptions').select('total_classes,used_classes').eq('client_id',uuid).eq('is_active',true).order('created_at',{ascending:false}).limit(1).single();
-  if(sub){ c.left=Math.max(0,sub.total_classes-sub.used_classes); c.status=calcClientStatus(c); renderClientCard(c); renderClients(); }
+  if(sub){ c.left=sub.total_classes-sub.used_classes; c.status=calcClientStatus(c); renderClientCard(c); renderClients(); }
 }
 
 function sendWhatsApp(clientId,type){
@@ -2589,15 +2597,17 @@ function bmFilter(q){
   if(noEl) noEl.style.display=any?'none':'block';
 }
 // Returns booking status and subscription_id for a given date and client.
-// If date is within the client's active subscription period → 'booked' + subUuid
+// If date is within the client's active subscription period AND client has balance → 'booked' + subUuid
+// If client is in debt (left<=0) → 'unpaid_future' (even within period)
 // Otherwise → 'unpaid_future' + null
 function resolveBookingStatus(client, dateStr){
   const hasActiveSub=!!client._subUuid;
   const withinPeriod=hasActiveSub&&client.expiresDate&&dateStr<=client.expiresDate;
+  const hasBal=client.left>0; // debt clients get unpaid_future even within period
   return {
-    status: withinPeriod ? 'booked' : 'unpaid_future',
+    status: withinPeriod&&hasBal ? 'booked' : 'unpaid_future',
     subscription_id: withinPeriod ? client._subUuid : null,
-    isPaid: withinPeriod
+    isPaid: withinPeriod&&hasBal
   };
 }
 
@@ -2641,13 +2651,14 @@ function openBookModal(di, time){
     const noEl=document.getElementById('bm-no-clients');
     if(noEl) noEl.style.display='none';
     list.innerHTML=eligible.map((c,i)=>{
+      const isDebtC=c.left<0;
       const hasBal=c.left>0;
-      const balTxt=hasBal?`${c.left} ${L('μαθ.','cl.','зан.')}`:L('0 μαθ.','0 cl.','0 зан.');
-      const balColor=hasBal?'var(--text3)':'#C47A1A';
-      return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;cursor:pointer;background:var(--bg2);font-size:13px">
+      const balTxt=isDebtC?`${c.left} ${L('χρεωστεί','in debt','в долге')}`:hasBal?`${c.left} ${L('μαθ.','cl.','зан.')}`:L('0 μαθ.','0 cl.','0 зан.');
+      const balColor=isDebtC?'var(--red)':hasBal?'var(--text3)':'#C47A1A';
+      return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:0.5px solid ${isDebtC?'var(--red)':'var(--border)'};border-radius:9px;cursor:pointer;background:${isDebtC?'var(--red-bg)':'var(--bg2)'};font-size:13px">
         <input type="radio" name="bm-client" value="${c.name}" ${i===0?'checked':''} style="accent-color:var(--accent)">
         <span style="flex:1;font-weight:500;color:var(--text)">${c.name}</span>
-        <span style="font-size:11px;color:${balColor};font-weight:${hasBal?'400':'600'}">${balTxt}</span>
+        <span style="font-size:11px;color:${balColor};font-weight:600">${balTxt}</span>
       </label>`;
     }).join('');
   }
@@ -3782,7 +3793,7 @@ async function dbLoad(){
           });
           CLIENTS.forEach(c=>{
             if(c._subUuid){
-              c.left=Math.max(0,c.total-(bkCounts[c._uuid]||0));
+              c.left=c.total-(bkCounts[c._uuid]||0);
             } else { c.left=0; }
             c.status=calcClientStatus(c);
             if(!data.find(d=>d.id===c._uuid)?.is_active) c.status='inactive';
@@ -3860,7 +3871,7 @@ async function adjustBalance(id,delta){
   // Adjust total_classes so the change survives selectClient() recounts.
   // left = total_classes - used_bookings; shifting total shifts left by the same delta.
   const usedBookings=c.total-c.left; // derived from current local state
-  const newTotal=Math.max(usedBookings, c.total+delta); // never drop total below used
+  const newTotal=Math.max(0, c.total+delta); // total_classes can't go below 0
   if(newTotal===c.total) return;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   if(sb&&c._subUuid){
@@ -3868,7 +3879,7 @@ async function adjustBalance(id,delta){
     if(error){toast('Error: '+error.message);return;}
   }
   c.total=newTotal;
-  c.left=Math.max(0,newTotal-usedBookings);
+  c.left=newTotal-usedBookings; // can go negative → shows debt
   c.status=calcClientStatus(c);
   const newLeft=c.left;
   logAction('balance_adjusted',`${c.name} · ${delta>0?'+'+delta:delta} → ${newLeft} left`,'subscription',c._subUuid,{client_name:c.name,delta,old_total:newTotal-delta,new_total:newTotal,client_uuid:c._uuid});
@@ -4357,7 +4368,7 @@ async function bookFromWaitlist(key,idx,name,di,time,dateStr){
           await sb.from('subscriptions')
             .update({used_classes:client.total-client.left+1})
             .eq('id',client._subUuid);
-          client.left=Math.max(0,client.left-1);
+          client.left=client.left-1;
         }
       }catch(e){console.error('waitlist booking:',e.message);}
     }
@@ -4567,7 +4578,6 @@ async function bookClientByName(name, repeatCount){
   repeatCount=repeatCount||1;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   if(!currentBookSlot){
-    console.warn('[book] FAIL: currentBookSlot is null');
     closeModal('book-modal');
     return;
   }
@@ -4576,7 +4586,6 @@ async function bookClientByName(name, repeatCount){
   const baseDateStr=currentSlot?.dateStr||null;
   const client=CLIENTS.find(c=>c.name===name);
   const slotId=scheduleSlotIds[slotKey];
-  console.log('[book] name=',name,'slotKey=',slotKey,'baseDateStr=',baseDateStr,'slotId=',slotId,'client._uuid=',client?._uuid,'left=',client?.left);
 
   // Determine if first booking is paid (single booking + client has balance)
   const isPaidFirst=repeatCount===1&&client?.left>0&&!!client?._subUuid;
@@ -4584,15 +4593,14 @@ async function bookClientByName(name, repeatCount){
   const isRecurring=repeatCount>1;
 
   if(!sb||!baseDateStr){
-    console.warn('[book] FAIL: sb=',!!sb,'baseDateStr=',baseDateStr);
     closeModal('book-modal');
     toast(L('Κράτηση ✓','Booked ✓','Записан!'));
     renderSchedule();
     return;
   }
 
-  if(!client?._uuid){console.warn('[book] FAIL: client._uuid missing for',name);}
-  else if(!slotId){console.warn('[book] FAIL: slotId missing for slotKey=',slotKey,'scheduleSlotIds=',JSON.stringify(scheduleSlotIds));}
+  if(!client?._uuid){console.warn('bookClientByName: client not found:',name);}
+  else if(!slotId){console.warn('bookClientByName: slotId missing for',slotKey);}
   else {
     // Build list of dates to book
     const dates=[];
@@ -4623,9 +4631,8 @@ async function bookClientByName(name, repeatCount){
           studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,
           subscription_id:bkSubId,class_date:baseDateStr,status:bkSt
         }).select().single();
-        if(error){console.warn('[book] isPaidFirst insert ERROR:',error.message);toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
+        if(error){toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
         else{
-          console.log('[book] isPaidFirst insert OK, id=',bkData?.id,'status=',bkSt);
           logAction('booking_created',`${name} · ${baseDateStr} ${time}`,'booking',bkData?.id,{booking_id:bkData?.id,client_uuid:client?._uuid,subscription_id:bkSubId||null,client_name:name});
           clientDateBookings[client.id+'_'+baseDateStr+'_'+time]=true;
           // Update local maps
@@ -4636,7 +4643,7 @@ async function bookClientByName(name, repeatCount){
           if(!dateSlotMap[dKey].includes(name)) dateSlotMap[dKey].push(name);
           // Decrement local client balance + sync used_classes in DB
           if(bkIsPaid){
-            client.left=Math.max(0,client.left-1); client.status=calcClientStatus(client);
+            client.left=client.left-1; client.status=calcClientStatus(client);
             if(client._subUuid){
               sb.from('subscriptions').select('used_classes').eq('id',client._subUuid).single()
                 .then(({data:s})=>{ if(s) sb.from('subscriptions').update({used_classes:(s.used_classes||0)+1}).eq('id',client._subUuid); });
@@ -4649,11 +4656,9 @@ async function bookClientByName(name, repeatCount){
           const {status:bkSt,subscription_id:bkSubId}=resolveBookingStatus(client,d);
           return {studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,subscription_id:bkSubId,class_date:d,status:bkSt};
         });
-        console.log('[book] else-branch rows=',rows);
         const {error}=await sb.from('bookings').insert(rows);
-        if(error){console.warn('[book] else insert ERROR:',error.message);toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
+        if(error){toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
         else{
-          console.log('[book] else insert OK');
           dates.forEach(d=>{
             clientDateBookings[client.id+'_'+d+'_'+time]=true;
             const dKey=d+'_'+slotKey;
@@ -4871,7 +4876,7 @@ async function saveRecurringBookings(){
           (!sub.expires_at||b.class_date<=sub.expires_at)
         ).length;
         await sb.from('subscriptions').update({used_classes:used}).eq('id',c._subUuid);
-        c.left=Math.max(0,sub.total_classes-used);
+        c.left=sub.total_classes-used;
         c.status=calcClientStatus(c);
         renderClientCard(c); renderClients();
       }
