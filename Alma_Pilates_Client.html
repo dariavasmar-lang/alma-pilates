@@ -1465,11 +1465,18 @@ async function confirmCancel(){
       const {error}=await sb.from('bookings').update({status:newStatus}).eq('id',bk.id);
       if(error){ console.error('[cancel] update error:',error); toast2('Ошибка: '+error.message); return; }
       updated=true;
-      // Restore balance if cancelled (not missed) and class had a subscription slot
-      if(newStatus==='cancelled'&&bk.subscription_id){
-        const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',bk.subscription_id).single();
-        if(sub&&sub.used_classes>0){
-          await sb.from('subscriptions').update({used_classes:sub.used_classes-1}).eq('id',bk.subscription_id);
+      // Sync used_classes: recount all active bookings within subscription period
+      if(bk.subscription_id){
+        const [{data:sub},{data:bkData}]=await Promise.all([
+          sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',bk.subscription_id).single(),
+          sb.from('bookings').select('class_date').eq('client_id',clientId).in('status',['booked','attended','missed'])
+        ]);
+        if(sub){
+          const used=(bkData||[]).filter(b=>
+            (!sub.starts_at||b.class_date>=sub.starts_at)&&
+            (!sub.expires_at||b.class_date<=sub.expires_at)
+          ).length;
+          await sb.from('subscriptions').update({used_classes:used}).eq('id',bk.subscription_id);
         }
       }
     } else {
@@ -1488,11 +1495,18 @@ async function confirmCancel(){
             const {error:e2}=await sb.from('bookings').update({status:newStatus}).eq('id',bks[0].id);
             if(e2){ console.error('[cancel] update error:',e2); toast2('Ошибка: '+e2.message); return; }
             updated=true;
-            // Restore balance if cancelled (not missed) and class had a subscription slot
-            if(newStatus==='cancelled'&&bks[0].subscription_id){
-              const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',bks[0].subscription_id).single();
-              if(sub&&sub.used_classes>0){
-                await sb.from('subscriptions').update({used_classes:sub.used_classes-1}).eq('id',bks[0].subscription_id);
+            // Sync used_classes: recount all active bookings within subscription period
+            if(bks[0].subscription_id){
+              const [{data:sub},{data:bkData}]=await Promise.all([
+                sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',bks[0].subscription_id).single(),
+                sb.from('bookings').select('class_date').eq('client_id',clientId).in('status',['booked','attended','missed'])
+              ]);
+              if(sub){
+                const used=(bkData||[]).filter(b=>
+                  (!sub.starts_at||b.class_date>=sub.starts_at)&&
+                  (!sub.expires_at||b.class_date<=sub.expires_at)
+                ).length;
+                await sb.from('subscriptions').update({used_classes:used}).eq('id',bks[0].subscription_id);
               }
             }
           }
@@ -1667,7 +1681,10 @@ async function buildHistPanelAsync(){
   const T=tr();const el=$('pf-hist');if(!el) return;
   const clientId=sbProfile?.id;if(!clientId) return;
   const today=localDateStr(new Date());
-  const {data}=await sb.from('bookings').select('slot_id,class_date,status').eq('client_id',clientId).lt('class_date',today).order('class_date',{ascending:false}).limit(10);
+  // Show past bookings + any cancelled/missed bookings (including future cancellations)
+  const {data}=await sb.from('bookings').select('slot_id,class_date,status').eq('client_id',clientId)
+    .or(`class_date.lt.${today},status.in.(cancelled,missed)`)
+    .order('class_date',{ascending:false}).limit(20);
   if(!data?.length){el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0">—</div>`;return;}
   el.innerHTML=data.map(b=>{
     const date=new Date(b.class_date+'T12:00:00');
@@ -1676,10 +1693,19 @@ async function buildHistPanelAsync(){
     if(!slot) return '';
     const dayStr=date.getDate()+' '+T.months[date.getMonth()];
     const att=b.status==='attended';
+    const cancelled=b.status==='cancelled';
+    const missed=b.status==='missed';
+    const dotColor=att?'var(--green)':cancelled?'var(--text3)':'var(--red)';
+    const statusTag=cancelled
+      ?`<span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;background:var(--bg2);color:var(--text3)">${lang==='el'?'Ακυρώθηκε':lang==='en'?'Cancelled':'Отменено'}</span>`
+      :missed
+      ?`<span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;background:var(--rbg);color:var(--red)">${lang==='el'?'Έχασε':lang==='en'?'Missed':'Пропущено'}</span>`
+      :'';
     return `<div class="hrow">
-      <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${att?'var(--green)':'var(--red)'}"></div>
+      <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${dotColor}"></div>
       <div style="flex:1"><div style="font-size:12px;color:var(--text)">${slot.t}–${nh(slot.t)}</div>
       <div style="font-size:10px;color:var(--text3);margin-top:1px">${T.days[dow]}, ${dayStr}</div></div>
+      ${statusTag}
     </div>`;
   }).filter(Boolean).join('');
 }
