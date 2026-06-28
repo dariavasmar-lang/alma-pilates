@@ -1672,6 +1672,7 @@ async function confirmClientBookings(clientId){
   const pending=Object.keys(pendingSelections).filter(k=>k.startsWith(clientId+'_')&&pendingSelections[k]);
   let added=0;
   const dbRows=[];
+  const localUpdates=[];
   pending.forEach(key=>{
     // key: clientId_dateStr_dow_time  e.g. "1_2026-05-19_1_07:00"
     const rest=key.slice((clientId+'_').length);
@@ -1681,38 +1682,60 @@ async function confirmClientBookings(clientId){
     const dow=parseInt(remainder.slice(0,dowEnd));
     const time=remainder.slice(dowEnd+1);
     const slotKey=dow+'_'+time;
-    if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
-    if(!slotBookingsMap[slotKey].includes(c.name)) slotBookingsMap[slotKey].push(c.name);
-    clientDateBookings[clientId+'_'+dateStr+'_'+time]=true;
-    delete pendingSelections[key];
-    c.history.unshift({d:dateStr,t:'Записан '+time});
     const slotId=scheduleSlotIds[slotKey];
     if(slotId && c._uuid){
       const {status:bkSt,subscription_id:bkSubId}=resolveBookingStatus(c,dateStr);
       dbRows.push({studio_id:STUDIO_ID,client_id:c._uuid,slot_id:slotId,subscription_id:bkSubId,class_date:dateStr,status:bkSt});
+      localUpdates.push({key,slotKey,dateStr,time});
+      added++;
+    } else {
+      console.warn('[ccal] skipping: slotId=',slotId,'c._uuid=',c._uuid,'slotKey=',slotKey,'scheduleSlotIds keys=',Object.keys(scheduleSlotIds).slice(0,10));
     }
-    added++;
   });
-  c.upcoming=(c.upcoming||0)+added;
-  // Save to DB
+  // Save to DB first, then update local state only on success
   if(sb && dbRows.length){
-    try{
-      await sb.from('bookings').insert(dbRows);
-      if(c._subUuid && added>0 && c.left>0){
-        const newUsed=Math.min(c.total,c.total-c.left+added);
-        await sb.from('subscriptions')
-          .update({used_classes:newUsed})
-          .eq('id',c._subUuid);
-        c.left=Math.max(0,c.total-newUsed);
-        c.status=calcClientStatus(c);
-      }
-    }catch(e){console.error('bulk booking:',e.message);}
+    const {error}=await sb.from('bookings').insert(dbRows);
+    if(error){
+      console.warn('[ccal] insert ERROR:',error.message,error.code);
+      toast((adminLang==='ru'?'Ошибка: ':adminLang==='en'?'Error: ':'Σφάλμα: ')+error.message);
+      return;
+    }
+    console.log('[ccal] insert OK, rows=',dbRows.length);
+    // Commit local state updates
+    localUpdates.forEach(({key,slotKey,dateStr,time})=>{
+      if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
+      if(!slotBookingsMap[slotKey].includes(c.name)) slotBookingsMap[slotKey].push(c.name);
+      clientDateBookings[clientId+'_'+dateStr+'_'+time]=true;
+      delete pendingSelections[key];
+      c.history.unshift({d:dateStr,t:'Записан '+time});
+    });
+    c.upcoming=(c.upcoming||0)+added;
+    // Update subscription balance if applicable
+    if(c._subUuid && added>0 && c.left>0){
+      const newUsed=Math.min(c.total,c.total-c.left+added);
+      const {error:subErr}=await sb.from('subscriptions')
+        .update({used_classes:newUsed})
+        .eq('id',c._subUuid);
+      if(!subErr){ c.left=Math.max(0,c.total-newUsed); c.status=calcClientStatus(c); }
+    }
+  } else if(!sb){
+    // Offline mode — commit local updates anyway
+    localUpdates.forEach(({key,slotKey,dateStr,time})=>{
+      if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
+      if(!slotBookingsMap[slotKey].includes(c.name)) slotBookingsMap[slotKey].push(c.name);
+      clientDateBookings[clientId+'_'+dateStr+'_'+time]=true;
+      delete pendingSelections[key];
+    });
+    c.upcoming=(c.upcoming||0)+added;
+  } else if(!dbRows.length){
+    console.warn('[ccal] nothing to insert — all slots missing slotId. scheduleSlotIds=',JSON.stringify(scheduleSlotIds));
+    toast(adminLang==='ru'?'Ошибка: слоты не найдены':adminLang==='en'?'Error: slots not found':'Σφάλμα: δεν βρέθηκαν θέσεις');
+    return;
   }
   toast(`✓ ${adminLang==='ru'?'Подтверждено':adminLang==='en'?'Confirmed':'Επιβεβαιώθηκαν'} ${added} ${adminLang==='ru'?'зан.':adminLang==='en'?'classes':'μαθήματα'}`);
   refreshClientStats(clientId);
   renderClientCalendarModal(clientId);
   renderClients();
-  // Update card balance immediately so it's fresh when modal closes
   renderClientCard(c);
 }
 
