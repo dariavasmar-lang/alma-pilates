@@ -1285,12 +1285,12 @@ function renderClientCard(c){
     <div id="ctab-content-${c.id}"><div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">...</div></div>
   </div>
 
-  <div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
+  ${SHOW_WHATSAPP?`<div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
     <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">${L('Επικοινωνία','Contact client','Связь с клиентом')}</div>
     <button class="btn" onclick="sendWhatsApp(${c.id},'booking')" style="width:100%;justify-content:center">📱 WhatsApp — ${L('υπενθύμιση κράτησης','booking reminder','напоминание о записи')}</button>
     <button class="btn" onclick="sendWhatsApp(${c.id},'payment')" style="width:100%;justify-content:center;${isExpiringSoon?'background:var(--warn-bg);border-color:#D4B870;color:var(--warn)':''}">💰 WhatsApp — ${L('υπενθύμιση πληρωμής','payment reminder','напоминание об оплате')}</button>
     ${SHOW_REVOLUT?`<button class="btn dark" onclick="generateRevolutLink(${c.id})" style="width:100%;justify-content:center">⚡ ${L('Σύνδεσμος Revolut','Generate Revolut link','Ссылка Revolut')}</button>`:''}
-  </div>
+  </div>`:''}
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
     ${c.isArchived
@@ -3554,7 +3554,8 @@ const ADMIN_I18N = I18N;
 
 
 // ── FEATURE FLAGS ─────────────────────────────────────────────
-const SHOW_REVOLUT = false; // set true to re-enable Revolut UI everywhere
+const SHOW_REVOLUT   = false; // set true to re-enable Revolut UI everywhere
+const SHOW_WHATSAPP  = false; // set true to re-enable WhatsApp reminder buttons
 
 // ── SUPABASE — см. js/supabase-init.js ───────────────────────
 let STUDIO_ID = null; // resolved after login via my_studio_id() RPC
