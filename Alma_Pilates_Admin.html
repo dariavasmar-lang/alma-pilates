@@ -68,6 +68,10 @@
     <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4"/></svg>
     <span data-i18n="settings">Settings</span>
   </div>
+  <div class="nav-item" onclick="showPage('log')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><path d="M3 2h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M5 6h6M5 9h4"/></svg>
+    <span data-i18n="log">Log</span>
+  </div>
   <div class="lang-row">
     <button class="lang-btn" onclick="setLang('el',this)">EL</button>
     <button class="lang-btn active" onclick="setLang('en',this)">EN</button>
@@ -307,6 +311,16 @@
     </div>
   </div>
 </div>
+</div>
+
+<!-- LOG -->
+<div id="page-log" class="page" style="display:none">
+  <div class="page-header">
+    <div><div class="page-title" id="log-title">Log</div><div class="page-sub" id="log-sub">Admin actions</div></div>
+  </div>
+  <div class="card" style="padding:0 16px">
+    <div id="log-content"><div style="font-size:12px;color:var(--text3);padding:20px;text-align:center">...</div></div>
+  </div>
 </div>
 
 </div><!-- /main -->
@@ -620,6 +634,89 @@ let GSCHED={
 // MAX_M/MAX_E defined in schedule section
 let clientFilter='all', payFilter='all';
 
+// ── ACTIVITY LOG ─────────────────────────────────────────────
+async function logAction(actionType, description, entityType, entityId, snapshot){
+  if(!sb||!STUDIO_ID) return;
+  try{
+    await sb.from('admin_activity_log').insert({
+      studio_id:STUDIO_ID, action_type:actionType, description,
+      entity_type:entityType||null, entity_id:entityId||null, snapshot:snapshot||null
+    });
+  }catch(e){ console.warn('[log]',e.message); }
+}
+
+async function rollbackAction(logId){
+  if(!sb) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(!confirm(L('Αναίρεση;','Undo this action?','Откатить это действие?'))) return;
+  const {data:entry}=await sb.from('admin_activity_log').select('*').eq('id',logId).single();
+  if(!entry||entry.rolled_back){toast(L('Αδύνατο','Already rolled back','Уже откатили'));return;}
+  const snap=entry.snapshot||{};
+  let ok=false;
+  try{
+    const recount=async(subId,clientUuid)=>{
+      if(!subId||!clientUuid) return;
+      const [{data:sub},{data:bks}]=await Promise.all([
+        sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',subId).single(),
+        sb.from('bookings').select('class_date').eq('client_id',clientUuid).in('status',['booked','attended','missed'])
+      ]);
+      if(sub){
+        const used=(bks||[]).filter(b=>(!sub.starts_at||b.class_date>=sub.starts_at)&&(!sub.expires_at||b.class_date<=sub.expires_at)).length;
+        await sb.from('subscriptions').update({used_classes:used}).eq('id',subId);
+      }
+    };
+    if(entry.action_type==='booking_created'){
+      await sb.from('bookings').update({status:'cancelled'}).eq('id',snap.booking_id);
+      await recount(snap.subscription_id,snap.client_uuid); ok=true;
+    } else if(entry.action_type==='booking_cancelled'){
+      await sb.from('bookings').update({status:snap.prev_status||'booked'}).eq('id',snap.booking_id);
+      await recount(snap.subscription_id,snap.client_uuid); ok=true;
+    } else if(entry.action_type==='recurring_created'){
+      if(snap.booking_ids?.length) await sb.from('bookings').update({status:'cancelled'}).in('id',snap.booking_ids);
+      await recount(snap.subscription_id,snap.client_uuid); ok=true;
+    } else if(entry.action_type==='subscription_created'){
+      await sb.from('subscriptions').update({is_active:false}).eq('id',snap.subscription_id); ok=true;
+    } else if(entry.action_type==='payment_added'){
+      await sb.from('payments').delete().eq('id',snap.payment_id); ok=true;
+    }
+    if(ok){
+      await sb.from('admin_activity_log').update({rolled_back:true,rolled_back_at:new Date().toISOString()}).eq('id',logId);
+      toast(L('Αναιρέθηκε ✓','Rolled back ✓','Откатили ✓'));
+      renderActivityLog();
+      dbLoad();
+    }
+  }catch(e){toast(L('Σφάλμα','Error','Ошибка: ')+e.message);}
+}
+
+async function renderActivityLog(){
+  if(!sb) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const el=document.getElementById('log-content');
+  if(!el) return;
+  el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:20px;text-align:center">...</div>`;
+  const {data}=await sb.from('admin_activity_log').select('*').eq('studio_id',STUDIO_ID).order('created_at',{ascending:false}).limit(200);
+  if(!data?.length){
+    el.innerHTML=`<div style="font-size:13px;color:var(--text3);padding:32px;text-align:center">${L('Δεν υπάρχουν ενέργειες','No actions yet','Действий пока нет')}</div>`;
+    return;
+  }
+  const typeIcon={booking_created:'📅',booking_cancelled:'❌',recurring_created:'🔁',subscription_created:'💳',payment_added:'💰',balance_adjusted:'✏️',client_created:'👤'};
+  el.innerHTML=data.map(e=>{
+    const dt=new Date(e.created_at);
+    const dateStr=dt.toLocaleDateString(adminLang==='el'?'el-GR':adminLang==='en'?'en-GB':'ru-RU',{day:'numeric',month:'short'});
+    const timeStr=dt.toLocaleTimeString(adminLang==='el'?'el-GR':adminLang==='en'?'en-GB':'ru-RU',{hour:'2-digit',minute:'2-digit'});
+    const icon=typeIcon[e.action_type]||'•';
+    const rb=e.rolled_back;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border);opacity:${rb?0.4:1}">
+      <span style="font-size:16px;width:24px;text-align:center;flex-shrink:0">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:var(--text);line-height:1.4">${e.description||e.action_type}${rb?` <span style="font-size:10px;color:var(--text3)">(${L('αναιρέθηκε','undone','откатили')})</span>`:''}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">${dateStr} · ${timeStr}</div>
+      </div>
+      ${!rb?`<button onclick="rollbackAction('${e.id}')" style="font-size:10px;padding:3px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--text3);flex-shrink:0">${L('Αναίρεση','Undo','Откат')}</button>`:''}
+    </div>`;
+  }).join('');
+}
+
 // ── NAVIGATION ────────────────────────────────────────────────
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>{p.style.display='none';p.classList.remove('active')});
@@ -643,6 +740,7 @@ function showPage(id){
   if(id==='settings') renderSettings();
   if(id==='cancellations'){ renderHolidayChips(); renderCancelInline(); }
   if(id==='dashboard') renderDashboard();
+  if(id==='log') renderActivityLog();
   // Remember current page in URL hash
   history.replaceState(null,'','#'+id);
 }
@@ -1173,6 +1271,7 @@ function renderClientCard(c){
       <button class="ctab on" onclick="switchClientTab(${c.id},'bookings')">${L('Κρατήσεις','Bookings','Записи')}</button>
       <button class="ctab" onclick="switchClientTab(${c.id},'payments')">${L('Πληρωμές','Payments','Оплаты')}</button>
       <button class="ctab" onclick="switchClientTab(${c.id},'cancels')">${L('Ακυρώσεις','Cancels','Отмены')}</button>
+      <button class="ctab" onclick="switchClientTab(${c.id},'logins')">${L('Είσοδοι','Logins','Входы')}</button>
     </div>
     <div id="ctab-content-${c.id}"><div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">...</div></div>
   </div>
@@ -1233,7 +1332,7 @@ async function loadClientHistory(clientId){
   const content=document.getElementById('ctab-content-'+clientId);
   if(content) content.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">...</div>`;
 
-  const [{data:bookings},{data:subs}]=await Promise.all([
+  const [{data:bookings},{data:subs},{data:loginsData}]=await Promise.all([
     sb.from('bookings')
       .select('id,class_date,status,slot_id,schedule_slots(start_time)')
       .eq('client_id',uuid)
@@ -1243,6 +1342,11 @@ async function loadClientHistory(clientId){
       .select('id,created_at,paid_at,starts_at,type,total_classes,price,payment_method,is_active')
       .eq('client_id',uuid)
       .order('created_at',{ascending:false})
+      .limit(20),
+    sb.from('client_logins')
+      .select('logged_in_at')
+      .eq('client_id',uuid)
+      .order('logged_in_at',{ascending:false})
       .limit(20)
   ]);
 
@@ -1255,7 +1359,7 @@ async function loadClientHistory(clientId){
     ? (bookings||[]).filter(b=>b.class_date>=firstSubStart)
     : (bookings||[]);
 
-  clientHistoryCache[uuid]={bookings:filteredBookings,subs:allSubs};
+  clientHistoryCache[uuid]={bookings:filteredBookings,subs:allSubs,logins:loginsData||[]};
   renderHistoryTabById(clientId,'bookings');
 
   // Update tab counts
@@ -1356,6 +1460,20 @@ function renderHistoryTabById(clientId,tab,page){
         const pastUnpaid=b.status==='unpaid_future';
         return {date:fmtHistDate(b.class_date),label:time+' · '+(burned?L('Έκαψε','Burned','Сгорело'):pastUnpaid?L('Χωρίς πληρωμή','Not paid','Не оплачено'):L('Ακυρώθηκε','Cancelled','Отменено')),note:burned?'🔥':pastUnpaid?'💛':'',color:burned?'var(--red)':pastUnpaid?'#C47A1A':'var(--text3)'};
       });
+  } else if(tab==='logins'){
+    const logins=cache.logins||[];
+    if(!logins.length){el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">${noRec}</div>`;return;}
+    el.innerHTML=logins.map(l=>{
+      const dt=new Date(l.logged_in_at);
+      const dateStr=dt.toLocaleDateString(adminLang==='el'?'el-GR':adminLang==='en'?'en-GB':'ru-RU',{day:'numeric',month:'short',year:'numeric'});
+      const timeStr=dt.toLocaleTimeString(adminLang==='el'?'el-GR':adminLang==='en'?'en-GB':'ru-RU',{hour:'2-digit',minute:'2-digit'});
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+        <div style="width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0"></div>
+        <span style="font-size:12px;color:var(--text2);flex:1">${dateStr}</span>
+        <span style="font-size:11px;color:var(--text3)">${timeStr}</span>
+      </div>`;
+    }).join('');
+    return;
   }
 
   if(!items.length){ el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">${noRec}</div>`; return; }
@@ -1724,6 +1842,13 @@ async function adminCancelBooking(bookingId, clientId){
   // Update booking status → cancelled
   const {error}=await sb.from('bookings').update({status:'cancelled'}).eq('id',bookingId);
   if(error){ toast(L('Σφάλμα','Error','Ошибка')+': '+error.message); return; }
+
+  const bkForLog=(cache?.bookings||[]).find(b=>b.id===bookingId);
+  logAction('booking_cancelled',
+    `${c.name} · ${bkForLog?.class_date||''} ${bkForLog?.schedule_slots?.start_time?.slice(0,5)||''}`,
+    'booking', bookingId,
+    {booking_id:bookingId, client_uuid:c._uuid, prev_status:bkForLog?.status||'booked', subscription_id:bkForLog?.subscription_id||null, client_name:c.name}
+  );
 
   // Restore 1 class to subscription if booking had one
   if(bk?.subscription_id){
@@ -2890,17 +3015,19 @@ async function submitPayModal(){
       if(subErr) return fail(L('Σφάλμα συνδρ.','Subscription error: ','Ошибка подписки: ')+subErr.message);
       if(!sub) return fail(L('Η συνδρ. δεν δημ.','Subscription not created — check permissions','Подписка не создана — проверьте права доступа'));
       subUuid=sub.id;
+      logAction('subscription_created',`${client} · ${totalClasses} занятий · €${amt}`,'subscription',sub.id,{subscription_id:sub.id,client_name:client,type:subType,amount:amt});
       if(clientRec){
         clientRec._subUuid=subUuid; clientRec.type=subType;
         clientRec.total=totalClasses; clientRec.left=totalClasses; clientRec.status='ok';
       }
     }
-    const {error:payErr}=await sb.from('payments').insert({
+    const {data:payData,error:payErr}=await sb.from('payments').insert({
       studio_id:STUDIO_ID, client_id:clientUuid, subscription_id:subUuid,
       amount:amt, method, status:isRevolut?'pending':'paid',
       paid_at:isRevolut?null:new Date().toISOString(), notes:note||null
-    });
+    }).select().single();
     if(payErr) console.warn('payment insert:',payErr.message);
+    else logAction('payment_added',`${client} · €${amt} · ${method}`,'payment',payData?.id,{payment_id:payData?.id,client_name:client,amount:amt,method});
   }catch(e){
     return fail(L('Σφάλμα','Error','Ошибка: ')+e.message);
   }
@@ -4461,12 +4588,13 @@ async function bookClientByName(name, repeatCount){
       if(isPaidFirst){
         // Single booking — status depends on whether date is within subscription period
         const {status:bkSt,subscription_id:bkSubId,isPaid:bkIsPaid}=resolveBookingStatus(client,baseDateStr);
-        const {error}=await sb.from('bookings').insert({
+        const {data:bkData,error}=await sb.from('bookings').insert({
           studio_id:STUDIO_ID,client_id:client._uuid,slot_id:slotId,
           subscription_id:bkSubId,class_date:baseDateStr,status:bkSt
-        });
+        }).select().single();
         if(error){toast(L('Σφάλμα','Error','Ошибка: ')+error.message);}
         else{
+          logAction('booking_created',`${name} · ${baseDateStr} ${time}`,'booking',bkData?.id,{booking_id:bkData?.id,client_uuid:client?._uuid,subscription_id:bkSubId||null,client_name:name});
           clientDateBookings[client.id+'_'+baseDateStr+'_'+time]=true;
           // Update local maps
           if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
@@ -4659,6 +4787,8 @@ async function saveRecurringBookings(){
   if(btn){btn.disabled=true;btn.textContent=L('Φόρτωση...','Saving...','Сохраняем...');}
 
   let saved=0, skipped=0;
+  const insertedBookingIds=[];
+  let insertedSubId=null;
   for(const {dateStr,dow,time} of dates){
     const slotKey=dow+'_'+time;
     const slotId=scheduleSlotIds[slotKey];
@@ -4669,15 +4799,23 @@ async function saveRecurringBookings(){
     if(sb && c._uuid && slotId){
       try{
         const {status:bkSt,subscription_id:bkSubId}=resolveBookingStatus(c,dateStr);
-        const {error}=await sb.from('bookings').insert({
+        const {data:insertedRow,error}=await sb.from('bookings').insert({
           studio_id:STUDIO_ID, client_id:c._uuid,
           slot_id:slotId, subscription_id:bkSubId,
           class_date:dateStr, status:bkSt
-        });
-        if(!error) saved++;
+        }).select('id,subscription_id').single();
+        if(!error){
+          saved++;
+          if(insertedRow?.id) insertedBookingIds.push(insertedRow.id);
+          if(insertedRow?.subscription_id&&!insertedSubId) insertedSubId=insertedRow.subscription_id;
+        }
         else if(error.code==='23505') skipped++; // duplicate
       }catch(e){ skipped++; }
     } else { saved++; }
+  }
+
+  if(insertedBookingIds.length){
+    logAction('recurring_created',`${c.name} · ${insertedBookingIds.length} занятий`,'booking',null,{booking_ids:insertedBookingIds,client_uuid:c._uuid,subscription_id:insertedSubId,client_name:c.name,count:insertedBookingIds.length});
   }
 
   if(btn){btn.disabled=false;btn.textContent=L('Δημιουργία κρατήσεων','Create bookings','Создать записи');}
