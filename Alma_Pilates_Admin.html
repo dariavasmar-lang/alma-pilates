@@ -283,7 +283,8 @@
           <button class="btn primary" onclick="toast(AL().toastSaved)">Save</button>
         </div>
       </div>
-      <div class="card">
+      <!-- Revolut Business card hidden (SHOW_REVOLUT=false) -->
+      <div class="card" style="display:none" id="revolut-settings-card">
         <div class="card-head">Revolut Business</div>
         <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border-radius:10px;padding:10px 12px;margin-bottom:10px">
           <div>
@@ -808,7 +809,7 @@ function renderDashboard(){
     <div class="metric">
       <div class="metric-label">${t.profit}</div>
       <div class="metric-val" style="color:${profit>=0?'var(--green)':'var(--red)'}">€${profit>=0?'+':''}${profit.toLocaleString()}</div>
-      <div class="metric-sub" style="color:var(--text3)">${L('με αναμ. Revolut:','with pend. Revolut:','с ожид. Revolut:')} <span style="color:${expectedProfit>=0?'var(--green)':'var(--warn)'};font-weight:500">€${expectedProfit>=0?'+':''}${expectedProfit.toLocaleString()}</span></div>
+      ${SHOW_REVOLUT?`<div class="metric-sub" style="color:var(--text3)">${L('με αναμ. Revolut:','with pend. Revolut:','с ожид. Revolut:')} <span style="color:${expectedProfit>=0?'var(--green)':'var(--warn)'};font-weight:500">€${expectedProfit>=0?'+':''}${expectedProfit.toLocaleString()}</span></div>`:''}
     </div>
     <div class="metric" onclick="showPage('clients')" style="cursor:pointer">
       <div class="metric-label">${t.clientsLabel}</div>
@@ -1288,7 +1289,7 @@ function renderClientCard(c){
     <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">${L('Επικοινωνία','Contact client','Связь с клиентом')}</div>
     <button class="btn" onclick="sendWhatsApp(${c.id},'booking')" style="width:100%;justify-content:center">📱 WhatsApp — ${L('υπενθύμιση κράτησης','booking reminder','напоминание о записи')}</button>
     <button class="btn" onclick="sendWhatsApp(${c.id},'payment')" style="width:100%;justify-content:center;${isExpiringSoon?'background:var(--warn-bg);border-color:#D4B870;color:var(--warn)':''}">💰 WhatsApp — ${L('υπενθύμιση πληρωμής','payment reminder','напоминание об оплате')}</button>
-    <button class="btn dark" onclick="generateRevolutLink(${c.id})" style="width:100%;justify-content:center">⚡ ${L('Σύνδεσμος Revolut','Generate Revolut link','Ссылка Revolut')}</button>
+    ${SHOW_REVOLUT?`<button class="btn dark" onclick="generateRevolutLink(${c.id})" style="width:100%;justify-content:center">⚡ ${L('Σύνδεσμος Revolut','Generate Revolut link','Ссылка Revolut')}</button>`:''}
   </div>
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
@@ -2670,18 +2671,18 @@ function openBookModal(di, time){
 
 
 // ── PAYMENTS ─────────────────────────────────────────────────
-let currentPM='revolut';
+let currentPM='cash';
 function selPM(m){
   currentPM=m;
   const t=AL();
-  ['revolut','cash','bank','card'].forEach(id=>{
+  (SHOW_REVOLUT?['revolut','cash','bank','card']:['cash','bank','card']).forEach(id=>{
     const el=document.getElementById('pm-'+id);
     if(!el) return;
     el.classList.toggle('selected',id===m);
     el.classList.toggle('rev',id===m&&m==='revolut');
   });
   const sb=document.getElementById('pay-submit-btn');
-  if(sb) sb.textContent=m==='revolut'?t.paySubmitRev:t.paySubmit;
+  if(sb) sb.textContent=(SHOW_REVOLUT&&m==='revolut')?t.paySubmitRev:t.paySubmit;
 }
 
 function updatePayAmt(){
@@ -2757,7 +2758,7 @@ function renderPayments(){
               <div style="font-size:14px;font-weight:600;color:#92400E;flex-shrink:0">€${p.amt}</div>
               <div style="display:flex;gap:6px;flex-shrink:0">
                 <button onclick="markPendingPaid(${i})" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--green);border-radius:7px;background:transparent;cursor:pointer;color:var(--green);font-weight:500">✓ ${L('Πληρώθηκε','Mark paid','Оплачено')}</button>
-                <button onclick="sendRevolutLink('${p.name}')" style="font-size:11px;padding:4px 10px;border:0.5px solid #7B2FE8;border-radius:7px;background:transparent;cursor:pointer;color:#7B2FE8">⚡ Revolut</button>
+                ${SHOW_REVOLUT?`<button onclick="sendRevolutLink('${p.name}')" style="font-size:11px;padding:4px 10px;border:0.5px solid #7B2FE8;border-radius:7px;background:transparent;cursor:pointer;color:#7B2FE8">⚡ Revolut</button>`:''}
               </div>
             </div>`).join('')}
         </div>
@@ -2769,7 +2770,7 @@ function renderPayments(){
   const pf=document.getElementById('pay-filters');
   if(pf) pf.innerHTML=`
     <button class="fp ${payFilter==='all'?'active':''}" onclick="setPayFilter('all',this)">${L('Όλα','All','Все')}</button>
-    <button class="fp ${payFilter==='revolut'?'active':''}" onclick="setPayFilter('revolut',this)">⚡ Revolut</button>
+    ${SHOW_REVOLUT?`<button class="fp ${payFilter==='revolut'?'active':''}" onclick="setPayFilter('revolut',this)">⚡ Revolut</button>`:''}
     <button class="fp ${payFilter==='cash'?'active':''}" onclick="setPayFilter('cash',this)">💵 ${L('Μετρητά','Cash','Наличные')}</button>
     <button class="fp ${payFilter==='bank'?'active':''}" onclick="setPayFilter('bank',this)">🏦 ${L('Τράπεζα','Bank','Банк')}</button>
     <button class="fp ${payFilter==='card'?'active':''}" onclick="setPayFilter('card',this)">💳 ${L('Κάρτα','Card','Карта')}</button>`;
@@ -2888,9 +2889,10 @@ function openPayModal(prefilledClient){
       <div style="font-family:var(--serif);font-size:17px;color:var(--text)">${L('Νέα πληρωμή','New payment','Новый платёж')}</div>
       <button onclick="closeModal('pay-add-modal')" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer">✕</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-      ${[['revolut','⚡','Revolut'],['cash','💵',L('Μετρητά','Cash','Наличные')],['bank','🏦',L('Τράπεζα','Bank','Банк')],['card','💳',L('Κάρτα','Card','Карта')]].map(([val,icon,lbl])=>`
-        <div onclick="pamSelMethod('${val}')" id="pam-m-${val}" style="padding:10px;border-radius:10px;border:1.5px solid ${val==='revolut'?'var(--accent)':'var(--border)'};background:${val==='revolut'?'var(--accent-bg)':'var(--bg2)'};cursor:pointer;text-align:center">
+    <div style="display:grid;grid-template-columns:${SHOW_REVOLUT?'1fr 1fr 1fr 1fr':'1fr 1fr 1fr'};gap:8px;margin-bottom:14px">
+      ${(SHOW_REVOLUT?[['revolut','⚡','Revolut'],['cash','💵',L('Μετρητά','Cash','Наличные')],['bank','🏦',L('Τράπεζα','Bank','Банк')],['card','💳',L('Κάρτα','Card','Карта')]]:
+                      [           ['cash','💵',L('Μετρητά','Cash','Наличные')],['bank','🏦',L('Τράπεζα','Bank','Банк')],['card','💳',L('Κάρτα','Card','Карта')]]).map(([val,icon,lbl])=>`
+        <div onclick="pamSelMethod('${val}')" id="pam-m-${val}" style="padding:10px;border-radius:10px;border:1.5px solid ${val==='cash'?'var(--accent)':'var(--border)'};background:${val==='cash'?'var(--accent-bg)':'var(--bg2)'};cursor:pointer;text-align:center">
           <div style="font-size:18px;margin-bottom:3px">${icon}</div>
           <div style="font-size:11px;font-weight:500;color:var(--text)">${lbl}</div>
         </div>`).join('')}
@@ -2940,7 +2942,7 @@ function openPayModal(prefilledClient){
     </div>
   </div>`;
   m.classList.add('open');
-  window._pamMethod='revolut';
+  window._pamMethod=SHOW_REVOLUT?'revolut':'cash';
   // Pre-fill client if provided
   if(prefilledClient){
     const si=document.getElementById('pam-client-search');
@@ -2982,7 +2984,7 @@ document.addEventListener('click',function(e){
 
 function pamSelMethod(val){
   window._pamMethod=val;
-  ['revolut','cash','bank','card'].forEach(k=>{
+  (SHOW_REVOLUT?['revolut','cash','bank','card']:['cash','bank','card']).forEach(k=>{
     const el=document.getElementById('pam-m-'+k);
     if(!el) return;
     if(k===val){el.style.borderColor='var(--accent)';el.style.background='var(--accent-bg)';}
@@ -2990,7 +2992,7 @@ function pamSelMethod(val){
   });
   const btn=document.getElementById('pam-submit');
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  if(btn) btn.textContent=val==='revolut'?L('Δημ. συνδέσμου Revolut ↗','Create Revolut link ↗','Создать ссылку Revolut ↗'):L('Αποθήκευση','Save payment','Сохранить платёж');
+  if(btn) btn.textContent=(SHOW_REVOLUT&&val==='revolut')?L('Δημ. συνδέσμου Revolut ↗','Create Revolut link ↗','Создать ссылку Revolut ↗'):L('Αποθήκευση','Save payment','Сохранить платёж');
 }
 
 function pamUpdateAmt(){
@@ -3016,7 +3018,7 @@ async function submitPayModal(){
   const d=new Date(date);
   const dateLabel=d.getDate()+' '+ruMo[d.getMonth()];
   const detail=(detailMap[classes]||'Другое')+(note?' · '+note:'');
-  const isRevolut=window._pamMethod==='revolut';
+  const isRevolut=SHOW_REVOLUT&&window._pamMethod==='revolut';
   const method=window._pamMethod||'cash';
   const clientRec=CLIENTS.find(x=>x.name===client);
   const clientUuid=clientRec?._uuid||null;
@@ -3550,6 +3552,9 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 // ADMIN i18n — см. js/i18n.js
 const ADMIN_I18N = I18N;
 
+
+// ── FEATURE FLAGS ─────────────────────────────────────────────
+const SHOW_REVOLUT = false; // set true to re-enable Revolut UI everywhere
 
 // ── SUPABASE — см. js/supabase-init.js ───────────────────────
 let STUDIO_ID = null; // resolved after login via my_studio_id() RPC
@@ -4403,7 +4408,7 @@ function openNewClientModal(toArchive=false){
           <select id="ncm-sub"><option value="none">—</option><option value="4">4 × €80</option><option value="8">8 × €120</option><option value="12">12 промо × €160</option><option value="12s">12 стандарт × €170</option><option value="single">1 × €25</option></select>
         </div>
         <div class="ff"><label id="ncm-method-lbl"></label>
-          <select id="ncm-method"><option value="revolut">Revolut</option><option value="cash"></option><option value="bank"></option></select>
+          <select id="ncm-method">${SHOW_REVOLUT?'<option value="revolut">Revolut</option>':''}<option value="cash" selected></option><option value="bank"></option></select>
         </div>
       </div>
       <div style="margin-bottom:12px">
@@ -4896,7 +4901,7 @@ async function saveRecurringBookings(){
 renderDashboard();
 renderSchedule();
 applyAdminLang();
-selPM('revolut');
+selPM(SHOW_REVOLUT?'revolut':'cash');
 document.querySelector('.nav-item').classList.add('active');
 </script>
 
