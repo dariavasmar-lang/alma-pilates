@@ -758,7 +758,7 @@ function renderDashboard(){
   const expectedProfit=income+pendingAmt-expenses;
   const catTotals={};
   EXPENSES.forEach(e=>catTotals[e.cat]=(catTotals[e.cat]||0)+e.amt);
-  const warnClients=CLIENTS.filter(c=>c.status==='warn'||c.status==='danger');
+  const warnClients=CLIENTS.filter(c=>c.status==='warn'||c.status==='danger'||c.status==='debt');
   const activeClients=CLIENTS.filter(c=>c.status!=='inactive');
 
   // Page header
@@ -875,21 +875,26 @@ function renderDashboard(){
     ? `<div style="padding:20px;text-align:center;font-size:12px;color:var(--text3)">✓ ${L('Όλα καλά','All good','Всё хорошо')}</div>`
     : warnClients.map(c=>{
       const today=localDateStr(new Date());
+      const isDebt=c.status==='debt';
       const isExpired=c.status==='danger';
-      const daysLeft=c.expiresDate?Math.round((new Date(c.expiresDate)-new Date(today))/(864e5)):null;
-      const sublbl=isExpired
-        ? L('Λήξη υπέρβαση','Subscription expired','Абонемент истёк')
-        : daysLeft!==null
-          ? L(`Λήγει σε ${daysLeft} ημ.`,`Expires in ${daysLeft} days`,`Истекает через ${daysLeft} дн.`)
-          : '';
-      const badgeLbl=isExpired?L('Έληξε','Expired','Истёк'):`${daysLeft}${L('ημ.','d','дн.')}`;
+      const daysLeft=(!isDebt&&c.expiresDate)?Math.round((new Date(c.expiresDate)-new Date(today))/(864e5)):null;
+      const sublbl=isDebt
+        ? L(`Χρεωστεί ${Math.abs(c.left)} μαθ.`,`In debt: ${Math.abs(c.left)} classes`,`Долг: ${Math.abs(c.left)} зан.`)
+        : isExpired
+          ? L('Λήξη υπέρβαση','Subscription expired','Абонемент истёк')
+          : daysLeft!==null
+            ? L(`Λήγει σε ${daysLeft} ημ.`,`Expires in ${daysLeft} days`,`Истекает через ${daysLeft} дн.`)
+            : '';
+      const badgeLbl=isDebt?L('Χρεωστεί','In debt','В долге'):isExpired?L('Έληξε','Expired','Истёк'):`${daysLeft}${L('ημ.','d','дн.')}`;
+      const dotColor=isDebt?'#C0392B':isExpired?'#C0392B':'#D4A017';
+      const badgeCls=isDebt?'debt':isExpired?'danger':'warn';
       return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="showPage('clients');setTimeout(()=>selectClient(${c.id}),100)">
-        <div style="width:6px;height:6px;border-radius:50%;background:${isExpired?'#C0392B':'#D4A017'};flex-shrink:0"></div>
+        <div style="width:6px;height:6px;border-radius:50%;background:${dotColor};flex-shrink:0"></div>
         <div style="flex:1">
           <div style="font-size:12px;font-weight:500;color:var(--text)">${c.name}</div>
           <div style="font-size:10px;color:var(--text3)">${sublbl}</div>
         </div>
-        <span class="badge ${isExpired?'danger':'warn'}">${badgeLbl}</span>
+        <span class="badge ${badgeCls}">${badgeLbl}</span>
       </div>`;
     }).join('');
 
@@ -961,7 +966,7 @@ function renderClients(search=''){
   if(ph) ph.innerHTML=`
     <div>
       <div class="page-title">${t.clients}</div>
-      <div class="page-sub">${CLIENTS.filter(c=>!c.isArchived&&c.status!=='inactive').length} ${L('ενεργοί','active','активных')} · ${CLIENTS.filter(c=>!c.isArchived&&(c.status==='warn'||c.status==='danger')).length} ${L('προσοχή','need attention','требуют внимания')}${archivedCount?` · ${archivedCount} ${L('αρχείο','archived','в архиве')}`:''}
+      <div class="page-sub">${CLIENTS.filter(c=>!c.isArchived&&c.status!=='inactive').length} ${L('ενεργοί','active','активных')} · ${CLIENTS.filter(c=>!c.isArchived&&(c.status==='warn'||c.status==='danger'||c.status==='debt')).length} ${L('προσοχή','need attention','требуют внимания')}${archivedCount?` · ${archivedCount} ${L('αρχείο','archived','в архиве')}`:''}
       </div>
     </div>
     <div style="display:flex;gap:6px">
@@ -977,7 +982,7 @@ function renderClients(search=''){
   const ff=document.getElementById('client-filters');
   if(ff) ff.innerHTML=`
     <button class="fp ${clientFilter==='all'?'active':''}" onclick="setClientFilter('all',this)">${t.allClients||'All'}</button>
-    <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">${t.warningClients||'⚠ Expiring'}${(()=>{const n=CLIENTS.filter(c=>!c.isArchived&&(c.status==='warn'||c.status==='danger')).length;return n?` (${n})`:''})()}</button>
+    <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">${t.warningClients||'⚠ Expiring'}${(()=>{const n=CLIENTS.filter(c=>!c.isArchived&&(c.status==='warn'||c.status==='danger'||c.status==='debt')).length;return n?` (${n})`:''})()}</button>
     <button class="fp ${clientFilter==='active'?'active':''}" onclick="setClientFilter('active',this)">${t.activeClients||'Active'}</button>
     <button class="fp ${clientFilter==='inactive'?'active':''}" onclick="setClientFilter('inactive',this)">${t.inactiveClients||'Inactive'}</button>
     <button class="fp ${clientFilter==='archive'?'active':''}" onclick="setClientFilter('archive',this)">📁 ${L('Αρχείο','Archive','Архив')}${archivedCount?` (${archivedCount})`:''}</button>`;
@@ -1002,7 +1007,7 @@ function renderClients(search=''){
     if(q) return true; // when searching — show ALL matching clients incl. archived
     if(clientFilter==='archive') return c.isArchived;
     if(c.isArchived) return false;
-    if(clientFilter==='warn') return c.status==='warn'||c.status==='danger';
+    if(clientFilter==='warn') return c.status==='warn'||c.status==='danger'||c.status==='debt';
     if(clientFilter==='active') return c.status!=='inactive';
     if(clientFilter==='inactive') return c.status==='inactive';
     return true;
