@@ -637,12 +637,11 @@ let clientFilter='all', payFilter='all';
 // ── ACTIVITY LOG ─────────────────────────────────────────────
 async function logAction(actionType, description, entityType, entityId, snapshot){
   if(!sb||!STUDIO_ID) return;
-  try{
-    await sb.from('admin_activity_log').insert({
-      studio_id:STUDIO_ID, action_type:actionType, description,
-      entity_type:entityType||null, entity_id:entityId||null, snapshot:snapshot||null
-    });
-  }catch(e){ console.warn('[log]',e.message); }
+  const {error}=await sb.from('admin_activity_log').insert({
+    studio_id:STUDIO_ID, action_type:actionType, description,
+    entity_type:entityType||null, entity_id:entityId||null, snapshot:snapshot||null
+  });
+  if(error) console.warn('[log] insert failed:',error.message,error.code);
 }
 
 async function rollbackAction(logId){
@@ -1701,6 +1700,8 @@ async function confirmClientBookings(clientId){
       return;
     }
     console.log('[ccal] insert OK, rows=',dbRows.length);
+    const datesBooked=localUpdates.map(u=>u.dateStr).join(', ');
+    logAction('booking_created',`${c.name} · ${datesBooked}`,'booking',null,{client_name:c.name,client_uuid:c._uuid,dates:localUpdates.map(u=>u.dateStr),count:added});
     // Commit local state updates
     localUpdates.forEach(({key,slotKey,dateStr,time})=>{
       if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
@@ -3869,7 +3870,9 @@ async function adjustBalance(id,delta){
   c.total=newTotal;
   c.left=Math.max(0,newTotal-usedBookings);
   c.status=calcClientStatus(c);
-  toast(L(`Υπόλοιπο: ${c.left}μ`,`Balance: ${c.left}`,`Баланс: ${c.left}`));
+  const newLeft=c.left;
+  logAction('balance_adjusted',`${c.name} · ${delta>0?'+'+delta:delta} → ${newLeft} left`,'subscription',c._subUuid,{client_name:c.name,delta,old_total:newTotal-delta,new_total:newTotal,client_uuid:c._uuid});
+  toast(L(`Υπόλοιπο: ${newLeft}μ`,`Balance: ${newLeft}`,`Баланс: ${newLeft}`));
   renderClientCard(c); renderClients();
 }
 
