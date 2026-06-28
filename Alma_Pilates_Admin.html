@@ -2453,6 +2453,7 @@ function resolveBookingStatus(client, dateStr){
 }
 
 function openBookModal(di, time){
+  currentBookSlot={di,time};
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const DAYS=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
   const info=di!==null?DAYS[di]+', '+toAMPM(time):(adminLang==='ru'?'Выберите занятие':adminLang==='en'?'Select a class':'Επιλέξτε μάθημα');
