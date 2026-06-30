@@ -4457,7 +4457,14 @@ function openNewClientModal(toArchive=false){
   document.getElementById('ncm-cancel-btn').textContent=L('Ακύρωση','Cancel','Отмена');
   document.getElementById('ncm-save-btn').textContent=L('Αποθήκευση','Save','Сохранить');
   const msel=document.getElementById('ncm-method');
-  if(msel){msel.options[1].text=L('Μετρητά','Cash','Наличные');msel.options[2].text=L('Τράπεζα','Bank','Банк');}
+  if(msel){
+    Array.from(msel.options).forEach(o=>{
+      if(o.value==='revolut') o.text='Revolut';
+      if(o.value==='cash')    o.text=L('Μετρητά','Cash','Наличные');
+      if(o.value==='bank')    o.text=L('Τράπεζα','Bank','Банк');
+      if(o.value==='card')    o.text=L('Κάρτα','Card','Карта');
+    });
+  }
   document.getElementById('ncm-name').value='';
   document.getElementById('ncm-phone').value='';
   document.getElementById('ncm-start').value=new Date().toISOString().split('T')[0];
