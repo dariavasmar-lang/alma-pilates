@@ -1459,14 +1459,17 @@ function renderHistoryTabById(clientId,tab,page){
       const lbl=time+(isFuture&&!isUnpaidFuture?' · '+L('предстоит','upcoming','предстоит'):attended?' · '+L('посетила','attended','посетила'):'')+unpaidTag;
       const note=isFuture&&!isUnpaidFuture?'⏳':attended?'✓':isUnpaidFuture?'💛':'';
       const canCancel=isFuture&&!attended;
+      const canDelete=!isFuture; // past bookings can be manually deleted
       const cancelBtn=canCancel
         ?`<button onclick="adminCancelBooking('${b.id}',${clientId})" style="font-size:10px;padding:2px 8px;border:0.5px solid var(--red);border-radius:5px;background:transparent;cursor:pointer;color:var(--red);flex-shrink:0">${L('Ακύρωση','Cancel','Отменить')}</button>`:'';
+      const deleteBtn=canDelete
+        ?`<button onclick="adminDeleteBooking('${b.id}',${clientId})" title="${L('Διαγραφή','Delete record','Удалить запись')}" style="font-size:11px;padding:2px 6px;border:0.5px solid var(--border);border-radius:5px;background:transparent;cursor:pointer;color:var(--text3);flex-shrink:0;line-height:1">🗑</button>`:'';
       return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
         ${dot}
         <span style="font-size:12px;color:var(--text2);white-space:nowrap;min-width:42px">${fmtHistDate(b.class_date)}</span>
         <span style="font-size:12px;color:var(--text);flex:1">${lbl}</span>
         ${note?`<span style="font-size:11px;color:var(--text3)">${note}</span>`:''}
-        ${cancelBtn}
+        ${cancelBtn}${deleteBtn}
       </div>`;
     }).join('')+renderHistoryPager(clientId,tab,pg,totalPages);
     return;
@@ -1910,6 +1913,29 @@ async function cancelAllFutureBookings(clientId){
     console.error('cancelAllFutureBookings:',e.message);
     toast(L('Σφάλμα','Error','Ошибка')+': '+e.message);
   }
+}
+
+async function adminDeleteBooking(bookingId, clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c||!sb) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(!confirm(L('Διαγραφή αυτής της κράτησης;','Delete this booking record?','Удалить эту запись из истории?'))) return;
+  const cache=clientHistoryCache[c._uuid];
+  const bk=(cache?.bookings||[]).find(b=>b.id===bookingId);
+  const {error}=await sb.from('bookings').delete().eq('id',bookingId);
+  if(error){ toast(L('Σφάλμα','Error','Ошибка')+': '+error.message); return; }
+  // Restore used_classes if this booking was counted (booked/attended)
+  if(bk?.subscription_id && (bk.status==='booked'||bk.status==='attended')){
+    const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',bk.subscription_id).single();
+    if(sub&&sub.used_classes>0)
+      await sb.from('subscriptions').update({used_classes:sub.used_classes-1}).eq('id',bk.subscription_id);
+  }
+  logAction('booking_deleted',
+    `${c.name} · ${bk?.class_date||''} ${bk?.schedule_slots?.start_time?.slice(0,5)||''}`,
+    'booking', bookingId,
+    {client_name:c.name, client_uuid:c._uuid, class_date:bk?.class_date}
+  );
+  toast(L('Διαγράφηκε','Deleted','Запись удалена'));
+  await selectClient(clientId);
 }
 
 async function adminCancelBooking(bookingId, clientId){
