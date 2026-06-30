@@ -633,7 +633,7 @@ let GSCHED={
 };
 
 // MAX_M/MAX_E defined in schedule section
-let clientFilter='all', payFilter='all';
+let clientFilter='all', payFilter='all', clientSort='default';
 
 // ── ACTIVITY LOG ─────────────────────────────────────────────
 async function logAction(actionType, description, entityType, entityId, snapshot){
@@ -986,7 +986,8 @@ function renderClients(search=''){
     <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">${t.warningClients||'⚠ Expiring'}${(()=>{const n=CLIENTS.filter(c=>!c.isArchived&&(c.status==='warn'||c.status==='danger'||c.status==='debt')).length;return n?` (${n})`:''})()}</button>
     <button class="fp ${clientFilter==='active'?'active':''}" onclick="setClientFilter('active',this)">${t.activeClients||'Active'}</button>
     <button class="fp ${clientFilter==='inactive'?'active':''}" onclick="setClientFilter('inactive',this)">${t.inactiveClients||'Inactive'}</button>
-    <button class="fp ${clientFilter==='archive'?'active':''}" onclick="setClientFilter('archive',this)">📁 ${L('Αρχείο','Archive','Архив')}${archivedCount?` (${archivedCount})`:''}</button>`;
+    <button class="fp ${clientFilter==='archive'?'active':''}" onclick="setClientFilter('archive',this)">📁 ${L('Αρχείο','Archive','Архив')}${archivedCount?` (${archivedCount})`:''}</button>
+    <button class="fp ${clientSort==='az'?'active':''}" onclick="toggleClientSort()" style="margin-left:auto">${clientSort==='az'?'A→Z ✓':'A→Z'}</button>`;
 
   // Table head
   const thead=document.getElementById('clients-thead');
@@ -1014,6 +1015,7 @@ function renderClients(search=''){
     return true;
   });
   // Show skeleton while loading
+  if(clientSort==='az') filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||'','en'));
   if(tbody && CLIENTS.length===0 && dbLoading){
     tbody.innerHTML=Array(5).fill(0).map(()=>`<tr>
       <td><span style="display:inline-block;width:26px;height:26px;border-radius:50%;background:var(--bg3);margin-right:7px;vertical-align:middle"></span><span style="display:inline-block;width:120px;height:11px;border-radius:4px;background:var(--bg3)"></span></td>
@@ -1059,6 +1061,12 @@ function setClientFilter(f,btn){
   clientFilter=f;
   document.querySelectorAll('#page-clients .fp').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  // keep sort button state
+  if(clientSort==='az') document.querySelector('#client-filters .fp:last-child')?.classList.add('active');
+  renderClients();
+}
+function toggleClientSort(){
+  clientSort=clientSort==='az'?'default':'az';
   renderClients();
 }
 
