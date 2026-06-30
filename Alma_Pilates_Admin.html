@@ -2956,6 +2956,8 @@ function openPayModal(prefilledClient){
   </div>`;
   m.classList.add('open');
   window._pamMethod=SHOW_REVOLUT?'revolut':'cash';
+  // Sync amount with first selected membership option
+  pamUpdateAmt();
   // Pre-fill client if provided
   if(prefilledClient){
     const si=document.getElementById('pam-client-search');
@@ -3023,7 +3025,7 @@ async function submitPayModal(){
   const date=document.getElementById('pam-date')?.value||localDateStr(new Date());
   const note=document.getElementById('pam-note')?.value.trim()||'';
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  if(!client||!amt) return toast(L('Συμπλήρωσε πελάτη και ποσό','Fill in client and amount','Заполни клиента и сумму'));
+  if(!client||amt==null||isNaN(amt)) return toast(L('Συμπλήρωσε πελάτη και ποσό','Fill in client and amount','Заполни клиента и сумму'));
   const classes=typeVal.split('|')[0];
   const detailMap={'4':L('4 μαθ.','4-class membership','4 занятия'),'8':L('8 μαθ.','8-class membership','8 занятий'),'12':L('12 μαθ. προμό','12-class promo','12 занятий промо'),'12s':L('12 μαθ. τυπ.','12-class standard','12 занятий стандарт'),'1':L('Μεμονωμένο','Single class','Разовое'),'0':L('Άλλο','Custom','Другое')};
   const init=client.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -4749,7 +4751,7 @@ function openRecurringModal(clientId){
   const today = localDateStr(todayCY());
   const yearAhead = localDateStr(new Date(new Date().setFullYear(new Date().getFullYear()+1)));
   const rmFrom = document.getElementById('rm-from');
-  if(rmFrom){ rmFrom.value = today; rmFrom.min = today; }
+  if(rmFrom){ rmFrom.value = today; rmFrom.min = ''; }
   document.getElementById('rm-to').value = yearAhead;
 
   // Day checkboxes
