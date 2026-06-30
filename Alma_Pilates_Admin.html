@@ -633,7 +633,7 @@ let GSCHED={
 };
 
 // MAX_M/MAX_E defined in schedule section
-let clientFilter='all', payFilter='all';
+let clientFilter='all', payFilter='all', clientSort='default';
 
 // ── ACTIVITY LOG ─────────────────────────────────────────────
 async function logAction(actionType, description, entityType, entityId, snapshot){
@@ -833,9 +833,9 @@ function renderDashboard(){
     const slot=months.find(m=>m.year===d.getFullYear()&&m.month===d.getMonth());
     if(slot) slot.total+=p.amt;
   });
-  const moNamesEl=['Δεκ','Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιούν','Ιούλ','Αυγ','Σεπ','Οκτ','Νοε'];
-  const moNamesEn=['Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'];
-  const moNamesRu=['Дек','Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя'];
+  const moNamesEl=['Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιούν','Ιούλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+  const moNamesEn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const moNamesRu=['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
   const moNames=adminLang==='el'?moNamesEl:adminLang==='en'?moNamesEn:moNamesRu;
   const cfI=months.map(m=>m.total);
   const cfM=months.map(m=>moNames[m.month]);
@@ -986,7 +986,8 @@ function renderClients(search=''){
     <button class="fp ${clientFilter==='warn'?'active':''}" onclick="setClientFilter('warn',this)">${t.warningClients||'⚠ Expiring'}${(()=>{const n=CLIENTS.filter(c=>!c.isArchived&&(c.status==='warn'||c.status==='danger'||c.status==='debt')).length;return n?` (${n})`:''})()}</button>
     <button class="fp ${clientFilter==='active'?'active':''}" onclick="setClientFilter('active',this)">${t.activeClients||'Active'}</button>
     <button class="fp ${clientFilter==='inactive'?'active':''}" onclick="setClientFilter('inactive',this)">${t.inactiveClients||'Inactive'}</button>
-    <button class="fp ${clientFilter==='archive'?'active':''}" onclick="setClientFilter('archive',this)">📁 ${L('Αρχείο','Archive','Архив')}${archivedCount?` (${archivedCount})`:''}</button>`;
+    <button class="fp ${clientFilter==='archive'?'active':''}" onclick="setClientFilter('archive',this)">📁 ${L('Αρχείο','Archive','Архив')}${archivedCount?` (${archivedCount})`:''}</button>
+    <button class="fp ${clientSort==='az'?'active':''}" onclick="toggleClientSort()" style="margin-left:auto">${clientSort==='az'?'A→Z ✓':'A→Z'}</button>`;
 
   // Table head
   const thead=document.getElementById('clients-thead');
@@ -1014,6 +1015,7 @@ function renderClients(search=''){
     return true;
   });
   // Show skeleton while loading
+  if(clientSort==='az') filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||'','en'));
   if(tbody && CLIENTS.length===0 && dbLoading){
     tbody.innerHTML=Array(5).fill(0).map(()=>`<tr>
       <td><span style="display:inline-block;width:26px;height:26px;border-radius:50%;background:var(--bg3);margin-right:7px;vertical-align:middle"></span><span style="display:inline-block;width:120px;height:11px;border-radius:4px;background:var(--bg3)"></span></td>
@@ -1059,6 +1061,12 @@ function setClientFilter(f,btn){
   clientFilter=f;
   document.querySelectorAll('#page-clients .fp').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  // keep sort button state
+  if(clientSort==='az') document.querySelector('#client-filters .fp:last-child')?.classList.add('active');
+  renderClients();
+}
+function toggleClientSort(){
+  clientSort=clientSort==='az'?'default':'az';
   renderClients();
 }
 
@@ -2956,6 +2964,8 @@ function openPayModal(prefilledClient){
   </div>`;
   m.classList.add('open');
   window._pamMethod=SHOW_REVOLUT?'revolut':'cash';
+  // Sync amount with first selected membership option
+  pamUpdateAmt();
   // Pre-fill client if provided
   if(prefilledClient){
     const si=document.getElementById('pam-client-search');
@@ -3023,7 +3033,7 @@ async function submitPayModal(){
   const date=document.getElementById('pam-date')?.value||localDateStr(new Date());
   const note=document.getElementById('pam-note')?.value.trim()||'';
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  if(!client||!amt) return toast(L('Συμπλήρωσε πελάτη και ποσό','Fill in client and amount','Заполни клиента и сумму'));
+  if(!client||amt==null||isNaN(amt)) return toast(L('Συμπλήρωσε πελάτη και ποσό','Fill in client and amount','Заполни клиента и сумму'));
   const classes=typeVal.split('|')[0];
   const detailMap={'4':L('4 μαθ.','4-class membership','4 занятия'),'8':L('8 μαθ.','8-class membership','8 занятий'),'12':L('12 μαθ. προμό','12-class promo','12 занятий промо'),'12s':L('12 μαθ. τυπ.','12-class standard','12 занятий стандарт'),'1':L('Μεμονωμένο','Single class','Разовое'),'0':L('Άλλο','Custom','Другое')};
   const init=client.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -4457,7 +4467,14 @@ function openNewClientModal(toArchive=false){
   document.getElementById('ncm-cancel-btn').textContent=L('Ακύρωση','Cancel','Отмена');
   document.getElementById('ncm-save-btn').textContent=L('Αποθήκευση','Save','Сохранить');
   const msel=document.getElementById('ncm-method');
-  if(msel){msel.options[1].text=L('Μετρητά','Cash','Наличные');msel.options[2].text=L('Τράπεζα','Bank','Банк');}
+  if(msel){
+    Array.from(msel.options).forEach(o=>{
+      if(o.value==='revolut') o.text='Revolut';
+      if(o.value==='cash')    o.text=L('Μετρητά','Cash','Наличные');
+      if(o.value==='bank')    o.text=L('Τράπεζα','Bank','Банк');
+      if(o.value==='card')    o.text=L('Κάρτα','Card','Карта');
+    });
+  }
   document.getElementById('ncm-name').value='';
   document.getElementById('ncm-phone').value='';
   document.getElementById('ncm-start').value=new Date().toISOString().split('T')[0];
@@ -4742,7 +4759,7 @@ function openRecurringModal(clientId){
   const today = localDateStr(todayCY());
   const yearAhead = localDateStr(new Date(new Date().setFullYear(new Date().getFullYear()+1)));
   const rmFrom = document.getElementById('rm-from');
-  if(rmFrom){ rmFrom.value = today; rmFrom.min = today; }
+  if(rmFrom){ rmFrom.value = today; rmFrom.min = ''; }
   document.getElementById('rm-to').value = yearAhead;
 
   // Day checkboxes
