@@ -1458,7 +1458,7 @@ function renderHistoryTabById(clientId,tab,page){
       const unpaidTag=isUnpaidFuture?` · <span style="font-size:10px;color:#C47A1A;font-weight:600">${L('μη πλ.','unpaid','не опл.')}</span>`:'';
       const lbl=time+(isFuture&&!isUnpaidFuture?' · '+L('предстоит','upcoming','предстоит'):attended?' · '+L('посетила','attended','посетила'):'')+unpaidTag;
       const note=isFuture&&!isUnpaidFuture?'⏳':attended?'✓':isUnpaidFuture?'💛':'';
-      const canCancel=!attended;
+      const canCancel=isFuture&&!attended;
       const cancelBtn=canCancel
         ?`<button onclick="adminCancelBooking('${b.id}',${clientId})" style="font-size:10px;padding:2px 8px;border:0.5px solid var(--red);border-radius:5px;background:transparent;cursor:pointer;color:var(--red);flex-shrink:0">${L('Ακύρωση','Cancel','Отменить')}</button>`:'';
       return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
