@@ -833,9 +833,9 @@ function renderDashboard(){
     const slot=months.find(m=>m.year===d.getFullYear()&&m.month===d.getMonth());
     if(slot) slot.total+=p.amt;
   });
-  const moNamesEl=['Δεκ','Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιούν','Ιούλ','Αυγ','Σεπ','Οκτ','Νοε'];
-  const moNamesEn=['Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'];
-  const moNamesRu=['Дек','Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя'];
+  const moNamesEl=['Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιούν','Ιούλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+  const moNamesEn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const moNamesRu=['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
   const moNames=adminLang==='el'?moNamesEl:adminLang==='en'?moNamesEn:moNamesRu;
   const cfI=months.map(m=>m.total);
   const cfM=months.map(m=>moNames[m.month]);
