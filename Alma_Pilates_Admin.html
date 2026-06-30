@@ -1856,32 +1856,60 @@ function toggleClientBooking(clientId,dateStr,dow,time){
 async function cancelAllFutureBookings(clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  let count=0;
-  Object.keys(slotBookingsMap).forEach(k=>{
-    const arr=slotBookingsMap[k];
-    const idx=arr.indexOf(c.name);
-    if(idx>-1){arr.splice(idx,1);count++;}
-  });
-  Object.keys(clientDateBookings).forEach(k=>{
-    if(k.startsWith(clientId+'_')) delete clientDateBookings[k];
-  });
-  c.upcoming=0;
-  // Cancel in DB — delete all future booked records for this client
-  if(sb && c._uuid){
-    try{
-      await sb.from('bookings')
-        .delete()
-        .eq('studio_id',STUDIO_ID)
-        .eq('client_id',c._uuid)
-        .eq('status','booked')
-        .gte('class_date',localDateStr(new Date()));
-    }catch(e){console.error('cancel all bookings:',e.message);}
+  if(!confirm(L('Ακύρωση όλων των μελλοντικών κρατήσεων;','Cancel all future bookings?','Отменить все будущие записи?'))) return;
+  if(!sb||!c._uuid) return;
+  const today=localDateStr(new Date());
+  try{
+    // 1. Fetch all future active bookings to know real count + subscription ids
+    const {data:futureBks,error:fetchErr}=await sb.from('bookings')
+      .select('id,subscription_id,status')
+      .eq('studio_id',STUDIO_ID)
+      .eq('client_id',c._uuid)
+      .in('status',['booked','unpaid_future'])
+      .gte('class_date',today);
+    if(fetchErr) throw fetchErr;
+    const count=(futureBks||[]).length;
+    if(count===0){ toast(L('Δεν υπάρχουν μελλοντικές κρατήσεις','No future bookings','Будущих записей нет')); return; }
+
+    // 2. Cancel them all in DB
+    const {error:delErr}=await sb.from('bookings')
+      .update({status:'cancelled'})
+      .eq('studio_id',STUDIO_ID)
+      .eq('client_id',c._uuid)
+      .in('status',['booked','unpaid_future'])
+      .gte('class_date',today);
+    if(delErr) throw delErr;
+
+    // 3. Restore subscription balance — count how many paid bookings per sub
+    const subCounts={};
+    (futureBks||[]).forEach(b=>{
+      if(b.subscription_id&&b.status!=='unpaid_future') subCounts[b.subscription_id]=(subCounts[b.subscription_id]||0)+1;
+    });
+    for(const [subId,n] of Object.entries(subCounts)){
+      const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',subId).single();
+      if(sub) await sb.from('subscriptions').update({used_classes:Math.max(0,sub.used_classes-n)}).eq('id',subId);
+    }
+
+    // 4. Update local cache
+    Object.keys(slotBookingsMap).forEach(k=>{
+      const arr=slotBookingsMap[k];
+      const idx=arr.indexOf(c.name);
+      if(idx>-1) arr.splice(idx,1);
+    });
+    Object.keys(clientDateBookings).forEach(k=>{
+      if(k.startsWith(clientId+'_')||k.startsWith(c._uuid+'_')) delete clientDateBookings[k];
+    });
+    c.upcoming=0;
+
+    // 5. Reload client history + subscription from DB
+    await selectClient(clientId);
+    const msg=L(`Ακυρώθηκαν ${count} κρατήσεις`,`Cancelled ${count} bookings`,`Отменено ${count} записей`);
+    toast(msg);
+    logAction('bookings_bulk_cancelled',`${c.name} · ${count} future bookings`,'client',c._uuid,{client_name:c.name,count});
+  }catch(e){
+    console.error('cancelAllFutureBookings:',e.message);
+    toast(L('Σφάλμα','Error','Ошибка')+': '+e.message);
   }
-  const msg=L(`Ακυρώθηκαν ${count} κρατήσεις`,`Cancelled ${count} bookings`,`Отменено ${count} записей`);
-  if(count>0) c.history.unshift({d:localDateStr(new Date()),t:msg});
-  toast(msg);
-  renderClientCard(c);
-  renderClients();
 }
 
 async function adminCancelBooking(bookingId, clientId){
