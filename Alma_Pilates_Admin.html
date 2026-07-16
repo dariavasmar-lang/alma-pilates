@@ -25,18 +25,9 @@
       <button onclick="loginSetLang('ru')" id="ls-ru" style="padding:3px 10px;border-radius:20px;border:1px solid var(--border);font-size:12px;cursor:pointer;background:var(--bg2);color:var(--text2)">RU</button>
     </div>
     <div id="ls-subtitle" style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:4px"></div>
-    <!-- Step 1: email -->
-    <div id="ls-step1">
-      <input id="adm-email" type="email" placeholder="Email" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);outline:none;margin-bottom:10px" onkeydown="if(event.key==='Enter')adminSendOtp()">
-      <button onclick="adminSendOtp()" id="ls-login-btn" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600"></button>
-    </div>
-    <!-- Step 2: OTP code -->
-    <div id="ls-step2" style="display:none">
-      <div id="ls-otp-hint" style="font-size:12px;color:var(--text2);text-align:center;margin-bottom:10px"></div>
-      <input id="adm-otp" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:22px;letter-spacing:8px;text-align:center;background:var(--bg);outline:none;margin-bottom:10px" onkeydown="if(event.key==='Enter')adminVerifyOtp()">
-      <button onclick="adminVerifyOtp()" id="ls-verify-btn" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600"></button>
-      <button onclick="adminBackToEmail()" style="width:100%;padding:8px;background:none;border:none;font-size:12px;color:var(--text3);cursor:pointer;margin-top:4px" id="ls-back-btn"></button>
-    </div>
+    <input id="adm-email" type="email" placeholder="Email" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);outline:none">
+    <input id="adm-pass" type="password" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);outline:none" onkeydown="if(event.key==='Enter')adminLogin()">
+    <button onclick="adminLogin()" id="ls-login-btn" style="padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600"></button>
     <div id="adm-err" style="font-size:12px;color:var(--red);text-align:center;display:none"></div>
   </div>
 </div>
@@ -517,11 +508,9 @@ function loginSetLang(lang){
   if(sub) sub.textContent = lang==='el' ? 'Σύνδεση στο σύστημα διαχείρισης'
                            : lang==='ru' ? 'Вход в систему управления'
                            : 'Sign in to admin panel';
-  if(loginBtn) loginBtn.textContent = lang==='el' ? 'Αποστολή κωδικού' : lang==='ru' ? 'Получить код' : 'Send code';
-  const verifyBtn=document.getElementById('ls-verify-btn');
-  if(verifyBtn) verifyBtn.textContent = lang==='el' ? 'Σύνδεση' : lang==='ru' ? 'Войти' : 'Sign in';
-  const backBtn=document.getElementById('ls-back-btn');
-  if(backBtn) backBtn.textContent = lang==='el' ? '← Αλλαγή email' : lang==='ru' ? '← Изменить email' : '← Change email';
+  const passInp=document.getElementById('adm-pass');
+  if(passInp) passInp.placeholder = lang==='el' ? 'Κωδικός' : lang==='ru' ? 'Пароль' : 'Password';
+  if(loginBtn) loginBtn.textContent = lang==='el' ? 'Σύνδεση' : lang==='ru' ? 'Войти' : 'Sign in';
 }
 
 function setLang(lang, btn){
@@ -3649,52 +3638,19 @@ const SHOW_WHATSAPP  = false; // set true to re-enable WhatsApp reminder buttons
 // ── SUPABASE — см. js/supabase-init.js ───────────────────────
 let STUDIO_ID = null; // resolved after login via my_studio_id() RPC
 
-async function adminSendOtp(){
+async function adminLogin(){
   const email=document.getElementById('adm-email').value.trim();
+  const pass=document.getElementById('adm-pass').value;
   const err=document.getElementById('adm-err');
-  const btn=document.getElementById('ls-login-btn');
   err.style.display='none';
   if(!sb){err.textContent='Нет подключения к БД';err.style.display='block';return;}
-  if(!email){err.textContent='Введите email';err.style.display='block';return;}
-  btn.disabled=true; btn.textContent='...';
-  const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
-  btn.disabled=false;
-  loginSetLang(adminLang);
-  if(error){err.textContent=error.message;err.style.display='block';return;}
-  // Show OTP input step
-  document.getElementById('ls-step1').style.display='none';
-  document.getElementById('ls-step2').style.display='block';
-  const hint=document.getElementById('ls-otp-hint');
-  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  if(hint) hint.textContent=L(`Κωδικός στάλθηκε στο ${email}`,`Code sent to ${email}`,`Код отправлен на ${email}`);
-  setTimeout(()=>document.getElementById('adm-otp')?.focus(),100);
-}
-
-async function adminVerifyOtp(){
-  const email=document.getElementById('adm-email').value.trim();
-  const token=document.getElementById('adm-otp').value.trim();
-  const err=document.getElementById('adm-err');
-  const btn=document.getElementById('ls-verify-btn');
-  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  err.style.display='none';
-  if(!token||token.length<6){err.textContent=L('Εισάγετε τον 6ψήφιο κωδικό','Enter the 6-digit code','Введите 6-значный код');err.style.display='block';return;}
-  btn.disabled=true; btn.textContent='...';
-  const {data,error}=await sb.auth.verifyOtp({email,token,type:'email'});
-  btn.disabled=false;
-  loginSetLang(adminLang);
-  if(error){err.textContent=L('Неверный код или истёк','Invalid or expired code','Неверный код или истёк');err.style.display='block';return;}
-  // Check admin_users
+  if(!email||!pass){err.textContent='Введите email и пароль';err.style.display='block';return;}
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){err.textContent='Неверный email или пароль';err.style.display='block';return;}
   const {data:admin}=await sb.from('admin_users').select('role,studio_id').eq('user_id',data.user.id).single();
-  if(!admin){await sb.auth.signOut();err.textContent=L('Δεν έχετε πρόσβαση','No access to admin panel','Нет доступа к панели');err.style.display='block';return;}
+  if(!admin){await sb.auth.signOut();err.textContent='Нет доступа к панели управления';err.style.display='block';return;}
   STUDIO_ID=admin.studio_id;
   showApp();
-}
-
-function adminBackToEmail(){
-  document.getElementById('ls-step2').style.display='none';
-  document.getElementById('ls-step1').style.display='block';
-  document.getElementById('adm-otp').value='';
-  document.getElementById('adm-err').style.display='none';
 }
 
 function showApp(){
