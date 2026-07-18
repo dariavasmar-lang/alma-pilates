@@ -1785,9 +1785,12 @@ function renderClientCalendarModal(clientId){
       else if(full){bg='var(--red-bg)';color='var(--red)';border='#E8A0A0';}
       else if(isPast){bg='transparent';color='var(--text3)';border='var(--border)';}
       else{bg='var(--bg2)';color='var(--text2)';border='var(--border)';}
-      slotsHtml+=`<div onclick="${!full&&!isBooked?`toggleClientBooking(${clientId},'${dateStr}',${dow},'${t}')`:''}"
-        style="font-size:10px;padding:3px 5px;border-radius:4px;background:${bg};color:${color};cursor:${full||isBooked?'default':'pointer'};display:flex;justify-content:space-between;line-height:1.6;border:0.5px solid ${border};${extra}margin-bottom:1px">
-        <span style="font-weight:500">${toAMPM(t)}</span><span style="opacity:.8">${isBooked?(isPast?'✓ att':'✓'):isPending?'●':isPast?'+':bk+'/'+CAP}</span>
+      const slotOnclick = isBooked && isPast
+        ? `deleteBookingByDatetime(${clientId},'${dateStr}','${t}')`
+        : (!full && !isBooked ? `toggleClientBooking(${clientId},'${dateStr}',${dow},'${t}')` : '');
+      slotsHtml+=`<div onclick="${slotOnclick}"
+        style="font-size:10px;padding:3px 5px;border-radius:4px;background:${bg};color:${color};cursor:${full||(isBooked&&!isPast)?'default':'pointer'};display:flex;justify-content:space-between;line-height:1.6;border:0.5px solid ${border};${extra}margin-bottom:1px">
+        <span style="font-weight:500">${toAMPM(t)}</span><span style="opacity:.8">${isBooked?(isPast?'✓ att 🗑':'✓'):isPending?'●':isPast?'+':bk+'/'+CAP}</span>
       </div>`;
     });
     const minH=slots.length?slots.length*22+18:32;
@@ -2045,6 +2048,37 @@ async function cancelAllFutureBookings(clientId){
     console.error('cancelAllFutureBookings:',e.message);
     toast(L('Σφάλμα','Error','Ошибка')+': '+e.message);
   }
+}
+
+async function deleteBookingByDatetime(clientId, dateStr, time){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c||!sb) return;
+  const L=(a,b,r)=>adminLang==='el'?a:adminLang==='en'?b:r;
+  if(!confirm(L(`Διαγραφή κράτησης ${dateStr} ${time};`,`Delete booking ${dateStr} ${time}?`,`Удалить запись ${dateStr} ${time}?`))) return;
+  // Find the booking by client UUID + date + time
+  const {data:rows,error:fe}=await sb.from('bookings')
+    .select('id,subscription_id,status,schedule_slots(start_time)')
+    .eq('client_id',c._uuid).eq('studio_id',STUDIO_ID).eq('class_date',dateStr)
+    .in('status',['booked','attended','unpaid_future','missed']);
+  if(fe||!rows?.length){ toast(L('Δεν βρέθηκε','Not found','Запись не найдена')); return; }
+  // Match by time
+  const bk=rows.find(b=>b.schedule_slots?.start_time?.startsWith(time));
+  if(!bk){ toast(L('Δεν βρέθηκε','Not found','Запись не найдена')); return; }
+  const {error}=await sb.from('bookings').delete().eq('id',bk.id);
+  if(error){ toast(L('Σφάλμα','Error','Ошибка')+': '+error.message); return; }
+  // Restore used_classes if booked/attended
+  if(bk.subscription_id&&(bk.status==='booked'||bk.status==='attended')){
+    const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',bk.subscription_id).single();
+    if(sub&&sub.used_classes>0)
+      await sb.from('subscriptions').update({used_classes:sub.used_classes-1}).eq('id',bk.subscription_id);
+  }
+  // Clear local cache
+  delete clientDateBookings[clientId+'_'+dateStr+'_'+time];
+  delete clientHistoryCache[c._uuid];
+  logAction('booking_deleted',`${c.name} · ${dateStr} ${time}`,'booking',bk.id,{client_name:c.name,client_uuid:c._uuid,class_date:dateStr});
+  toast(L('Διαγράφηκε','Deleted','Запись удалена'));
+  // Reload and re-render
+  await loadClientBookings(clientId);
+  renderClientCalendarModal(clientId);
 }
 
 async function adminDeleteBooking(bookingId, clientId){
