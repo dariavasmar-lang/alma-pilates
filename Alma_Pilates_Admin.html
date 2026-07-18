@@ -3681,7 +3681,17 @@ loginSetLang(adminLang);
 
 // Session restore via onAuthStateChange — same reliable pattern as client app
 if(sb){
+  let _authFired=false;
+  // Fallback: if Supabase unreachable (paused project etc), show login after 6s
+  const _authTimeout=setTimeout(()=>{
+    if(!_authFired){
+      const err=document.getElementById('adm-err');
+      if(err){err.textContent='⚠ База данных недоступна. Проверьте подключение.';err.style.display='block';}
+      document.getElementById('login-screen').style.display='flex';
+    }
+  },6000);
   sb.auth.onAuthStateChange(async(event,session)=>{
+    _authFired=true; clearTimeout(_authTimeout);
     if(event==='INITIAL_SESSION'){
       if(!session){
         document.getElementById('login-screen').style.display='flex';
