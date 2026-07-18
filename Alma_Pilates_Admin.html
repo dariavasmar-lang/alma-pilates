@@ -1097,6 +1097,21 @@ async function selectClient(id){
         applyExpiredBurn(c); // classes burn on expiry
         // Sync used_classes so client app also sees the correct balance
         await sb.from('subscriptions').update({used_classes:used}).eq('id',c._subUuid);
+        // Auto-convert unpaid_future → booked if subscription has capacity
+        const available=sub.total_classes-used;
+        if(available>0){
+          const {data:unpaid}=await sb.from('bookings')
+            .select('id').eq('client_id',c._uuid).eq('studio_id',STUDIO_ID)
+            .eq('status','unpaid_future')
+            .order('class_date',{ascending:true}).limit(available);
+          if(unpaid&&unpaid.length>0){
+            const ids=unpaid.map(b=>b.id);
+            await sb.from('bookings').update({status:'booked',subscription_id:c._subUuid}).in('id',ids);
+            await sb.from('subscriptions').update({used_classes:used+ids.length}).eq('id',c._subUuid);
+            c.left=available-ids.length;
+            logAction('unpaid_converted',`${c.name} · ${ids.length} → booked (auto-sync)`,'subscription',c._subUuid,{count:ids.length});
+          }
+        }
         renderClientCard(c);
         renderClients();
       }
@@ -3244,10 +3259,10 @@ async function submitPayModal(){
         clientRec._subUuid=subUuid; clientRec.type=subType;
         clientRec.total=totalClasses; clientRec.left=totalClasses; clientRec.status='ok';
       }
-      // Auto-convert unpaid_future bookings to booked (up to totalClasses limit)
+      // Auto-convert unpaid_future bookings to booked (all, up to totalClasses limit)
       const {data:unpaidBks}=await sb.from('bookings')
         .select('id').eq('client_id',clientUuid).eq('studio_id',STUDIO_ID)
-        .eq('status','unpaid_future').gte('class_date',date)
+        .eq('status','unpaid_future')
         .order('class_date',{ascending:true}).limit(totalClasses);
       if(unpaidBks&&unpaidBks.length>0){
         const ids=unpaidBks.map(b=>b.id);
