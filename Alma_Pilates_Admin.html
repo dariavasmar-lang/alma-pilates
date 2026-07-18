@@ -3254,6 +3254,8 @@ async function submitPayModal(){
       if(subErr) return fail(L('Σφάλμα συνδρ.','Subscription error: ','Ошибка подписки: ')+subErr.message);
       if(!sub) return fail(L('Η συνδρ. δεν δημ.','Subscription not created — check permissions','Подписка не создана — проверьте права доступа'));
       subUuid=sub.id;
+      // Force correct paid_at (DB trigger may override INSERT value)
+      await sb.from('subscriptions').update({paid_at:new Date(date+'T12:00:00').toISOString()}).eq('id',subUuid);
       logAction('subscription_created',`${client} · ${totalClasses} занятий · €${amt}`,'subscription',sub.id,{subscription_id:sub.id,client_name:client,type:subType,amount:amt});
       if(clientRec){
         clientRec._subUuid=subUuid; clientRec.type=subType;
