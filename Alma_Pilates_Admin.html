@@ -508,7 +508,6 @@ function loginSetLang(lang){
   if(sub) sub.textContent = lang==='el' ? 'Σύνδεση στο σύστημα διαχείρισης'
                            : lang==='ru' ? 'Вход в систему управления'
                            : 'Sign in to admin panel';
-  const passInp=document.getElementById('adm-pass');
   if(passInp) passInp.placeholder = lang==='el' ? 'Κωδικός' : lang==='ru' ? 'Пароль' : 'Password';
   if(loginBtn) loginBtn.textContent = lang==='el' ? 'Σύνδεση' : lang==='ru' ? 'Войти' : 'Sign in';
 }
