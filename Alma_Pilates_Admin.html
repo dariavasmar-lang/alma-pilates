@@ -2354,8 +2354,8 @@ function renderSchedule(){
   const sg=document.getElementById('sched-grid'); if(sg) sg.style.display='grid';
 
   // legend
-  const legL=['leg-avail','leg-full','leg-cancel'];
-  const legT=adminLang==='el'?['Διαθέσιμο','Πλήρες','Ακυρωμένο']:adminLang==='en'?['Available','Full','Cancelled']:['Свободно','Мест нет','Отменено'];
+  const legL=['leg-avail','leg-full','leg-cancel','leg-unpaid'];
+  const legT=adminLang==='el'?['Διαθέσιμο','Πλήρες','Ακυρωμένο','Απλήρωτο']:adminLang==='en'?['Available','Full','Cancelled','Unpaid']:['Свободно','Мест нет','Отменено','Не оплачено'];
   legL.forEach((id,i)=>{const e=document.getElementById(id);if(e)e.textContent=legT[i];});
 
   // stat labels
