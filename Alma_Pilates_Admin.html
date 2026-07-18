@@ -3285,6 +3285,11 @@ async function submitPayModal(){
   closeModal('pay-add-modal');
   // Reload all client data from DB to sync balances
   await dbLoad();
+  // Refresh client history cache if this client's card is open
+  if(clientRec&&currentSelectedClientId===clientRec.id){
+    delete clientHistoryCache[clientUuid];
+    await loadClientHistory(clientRec.id);
+  }
   toast(isRevolut
     ?L('Σύνδεσμος Revolut','Revolut link created','Ссылка Revolut создана')
     :L('Αποθηκεύτηκε ✓','Payment saved ✓','Платёж сохранён ✓'));
