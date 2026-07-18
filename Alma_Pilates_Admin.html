@@ -159,6 +159,7 @@
     <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--card);border:0.5px solid var(--border);display:inline-block"></span><span id="leg-avail">Свободно</span></span>
     <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--rbg);border:0.5px solid #E8A0A0;display:inline-block"></span><span id="leg-full">Мест нет</span></span>
     <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#EDE4D8;border:0.5px solid #C4AA94;display:inline-block;opacity:.6"></span><span id="leg-cancel">Отменено</span></span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="font-size:10px;font-weight:700;color:#C47A1A">+N</span><span id="leg-unpaid">Не оплачено</span></span>
   </div>
 
   <div class="sched-grid" id="sched-grid"></div>
@@ -805,11 +806,6 @@ function renderDashboard(){
       <div class="metric-label">${L('Έξοδα','Expenses','Расходы')}, ${_curMo}</div>
       <div class="metric-val" style="color:var(--red)">€${expenses.toLocaleString()}</div>
       <div class="metric-sub">${L('αυτόν τον μήνα','this month','в этом месяце')}</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">${t.profit}</div>
-      <div class="metric-val" style="color:${profit>=0?'var(--green)':'var(--red)'}">€${profit>=0?'+':''}${profit.toLocaleString()}</div>
-      ${SHOW_REVOLUT?`<div class="metric-sub" style="color:var(--text3)">${L('με αναμ. Revolut:','with pend. Revolut:','с ожид. Revolut:')} <span style="color:${expectedProfit>=0?'var(--green)':'var(--warn)'};font-weight:500">€${expectedProfit>=0?'+':''}${expectedProfit.toLocaleString()}</span></div>`:''}
     </div>
     <div class="metric" onclick="showPage('clients')" style="cursor:pointer">
       <div class="metric-label">${t.clientsLabel}</div>
@@ -3366,10 +3362,16 @@ function renderExpenses(){
   const fmtISO=d=>{const p=d.split('-');const mo=adminLang==='el'?moEl:adminLang==='en'?moEn:moRu;return parseInt(p[2],10)+' '+mo[parseInt(p[1],10)-1];};
   const entryCount=n=>adminLang==='en'?n+(n===1?' entry':' entries'):adminLang==='el'?n+' εγγρ.':n+' '+(n===1?'запись':n<5?'записи':'записей');
 
+  // Dynamic current month label
+  const _now=new Date();
+  const _locale=adminLang==='el'?'el-GR':adminLang==='en'?'en-US':'ru-RU';
+  const _curMonthLabel=_now.toLocaleString(_locale,{month:'long',year:'numeric'});
+  const _curMonthShort=_now.toLocaleString(_locale,{month:'long'});
+
   // Header
   const ph=document.getElementById('exp-page-header');
   if(ph) ph.innerHTML=`
-    <div><div class="page-title">${L('Έξοδα','Expenses','Расходы')}</div><div class="page-sub">May 2026</div></div>
+    <div><div class="page-title">${L('Έξοδα','Expenses','Расходы')}</div><div class="page-sub">${_curMonthLabel}</div></div>
     <div style="display:flex;gap:8px">
       <button class="btn" onclick="openCatsEditor()">${L('Κατηγορίες','Categories','Категории')}</button>
       <button class="btn primary" onclick="openExpModal()">+ ${L('Προσθήκη εξόδου','Add expense','Добавить расход')}</button>
@@ -3390,7 +3392,7 @@ function renderExpenses(){
     <div class="card" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px">
         <div>
-          <div style="font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${L('Δαπανήθηκε Μάιο','Spent in May','Потрачено в мае')}</div>
+          <div style="font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${L(`Δαπανήθηκε ${_curMonthShort}`,`Spent in ${_curMonthShort}`,`Потрачено в ${_curMonthShort}`)}</div>
           <div style="font-size:24px;font-weight:700;color:var(--text);line-height:1">€${totalSpent.toLocaleString()} <span style="font-size:14px;color:var(--text3);font-weight:400">${L('από','of','из')} €${totalBudget.toLocaleString()}</span></div>
         </div>
         <div style="text-align:right">
