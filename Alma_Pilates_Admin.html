@@ -3244,6 +3244,17 @@ async function submitPayModal(){
         clientRec._subUuid=subUuid; clientRec.type=subType;
         clientRec.total=totalClasses; clientRec.left=totalClasses; clientRec.status='ok';
       }
+      // Auto-convert unpaid_future bookings to booked (up to totalClasses limit)
+      const {data:unpaidBks}=await sb.from('bookings')
+        .select('id').eq('client_id',clientUuid).eq('studio_id',STUDIO_ID)
+        .eq('status','unpaid_future').gte('class_date',date)
+        .order('class_date',{ascending:true}).limit(totalClasses);
+      if(unpaidBks&&unpaidBks.length>0){
+        const ids=unpaidBks.map(b=>b.id);
+        await sb.from('bookings').update({status:'booked',subscription_id:subUuid}).in('id',ids);
+        await sb.from('subscriptions').update({used_classes:ids.length}).eq('id',subUuid);
+        logAction('unpaid_converted',`${client} · ${ids.length} занятий → booked`,'subscription',subUuid,{count:ids.length});
+      }
     }
     const {data:payData,error:payErr}=await sb.from('payments').insert({
       studio_id:STUDIO_ID, client_id:clientUuid, subscription_id:subUuid,
