@@ -1794,7 +1794,7 @@ function renderClientCalendarModal(clientId){
         : (!full && !isBooked ? `toggleClientBooking(${clientId},'${dateStr}',${dow},'${t}')` : '');
       slotsHtml+=`<div onclick="${slotOnclick}"
         style="font-size:10px;padding:3px 5px;border-radius:4px;background:${bg};color:${color};cursor:${full||(isBooked&&!isPast)?'default':'pointer'};display:flex;justify-content:space-between;line-height:1.6;border:0.5px solid ${border};${extra}margin-bottom:1px">
-        <span style="font-weight:500">${toAMPM(t)}</span><span style="opacity:.8">${isBooked?(isPast?'✓ · отменить':'✓'):isPending?'●':isPast?'+':bk+'/'+CAP}</span>
+        <span style="font-weight:500">${toAMPM(t)}</span><span style="opacity:.8">${isBooked?(isPast?'✓ ×':'✓'):isPending?'●':isPast?'+':bk+'/'+CAP}</span>
       </div>`;
     });
     const minH=slots.length?slots.length*22+18:32;
