@@ -2940,7 +2940,7 @@ function renderPayments(){
     </div>
     <div class="metric">
       <div class="metric-label">${L('Συναλλαγές','Transactions','Транзакций')}</div>
-      <div class="metric-val">${paid.length}</div>
+      <div class="metric-val">${paid.filter(p=>p._paidAt&&p._paidAt.startsWith(_curMonthStr)).length}</div>
       <div class="metric-sub">${L('αυτόν τον μήνα','this month','в этом месяце')}</div>
     </div>
     <div class="metric" style="cursor:${pending.length?'pointer':'default'}" onclick="${pending.length?'document.getElementById(\'pay-pending-block\').scrollIntoView({behavior:\'smooth\'})':''}">
