@@ -3247,7 +3247,7 @@ async function submitPayModal(){
       const {data:sub,error:subErr}=await sb.from('subscriptions').insert({
         studio_id:STUDIO_ID, client_id:clientUuid, type:subType,
         total_classes:totalClasses, used_classes:0, price:amt,
-        paid_at:new Date().toISOString(), starts_at:date,
+        paid_at:new Date(date+'T12:00:00').toISOString(), starts_at:date,
         expires_at:expDate.toISOString().split('T')[0],
         payment_method:method, is_active:true
       }).select().single();
@@ -3274,7 +3274,7 @@ async function submitPayModal(){
     const {data:payData,error:payErr}=await sb.from('payments').insert({
       studio_id:STUDIO_ID, client_id:clientUuid, subscription_id:subUuid,
       amount:amt, method, status:isRevolut?'pending':'paid',
-      paid_at:isRevolut?null:new Date().toISOString(), notes:note||null
+      paid_at:isRevolut?null:new Date(date+'T12:00:00').toISOString(), notes:note||null
     }).select().single();
     if(payErr) console.warn('payment insert:',payErr.message);
     else logAction('payment_added',`${client} · €${amt} · ${method}`,'payment',payData?.id,{payment_id:payData?.id,client_name:client,amount:amt,method});
