@@ -1301,6 +1301,7 @@ function renderClientCard(c){
       <button class="ctab on" onclick="switchClientTab(${c.id},'bookings')">${L('Κρατήσεις','Bookings','Записи')}</button>
       <button class="ctab" onclick="switchClientTab(${c.id},'payments')">${L('Πληρωμές','Payments','Оплаты')}</button>
       <button class="ctab" onclick="switchClientTab(${c.id},'cancels')">${L('Ακυρώσεις','Cancels','Отмены')}</button>
+      <button class="ctab" onclick="switchClientTab(${c.id},'calendar')">📅</button>
       <button class="ctab" onclick="switchClientTab(${c.id},'logins')">${L('Είσοδοι','Logins','Входы')}</button>
     </div>
     <div id="ctab-content-${c.id}"><div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">...</div></div>
@@ -1352,6 +1353,8 @@ const clientHistoryCache={};
 // Pagination state: "clientId_tab" → current page index (0-based)
 const histPageState={};
 const HIST_PAGE_SIZE=15;
+// Calendar tab month offset: clientId → integer offset from current month
+const clientCalHistOffset={};
 
 async function loadClientHistory(clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c||!c._uuid) return;
@@ -1429,6 +1432,7 @@ function renderHistoryTabById(clientId,tab,page){
   if(!cache) return;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const noRec=adminLang==='el'?'Δεν υπάρχουν εγγραφές':adminLang==='en'?'No records':'Нет записей';
+  if(tab==='calendar'){ renderCalendarTab(clientId); return; }
   const pageKey=clientId+'_'+tab;
   const currentPage=page!==undefined?page:(histPageState[pageKey]||0);
   histPageState[pageKey]=currentPage;
@@ -1515,6 +1519,111 @@ function renderHistoryTabById(clientId,tab,page){
   histPageState[pageKey]=pg;
   const pageItems=items.slice(pg*HIST_PAGE_SIZE,(pg+1)*HIST_PAGE_SIZE);
   el.innerHTML=renderHistoryTab(pageItems,tab)+renderHistoryPager(clientId,tab,pg,totalPages);
+}
+
+function renderCalendarTab(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const el=document.getElementById('ctab-content-'+clientId); if(!el) return;
+  const uuid=c._uuid;
+  const cache=clientHistoryCache[uuid]||{};
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+
+  const offset=clientCalHistOffset[clientId]||0;
+  const todayStr=localDateStr(new Date());
+  const now=new Date();
+  const ref=new Date(now.getFullYear(),now.getMonth()+offset,1);
+  const curM=ref.getMonth(), curY=ref.getFullYear();
+  const lLocale=adminLang==='el'?'el-GR':adminLang==='en'?'en-US':'ru-RU';
+  const monthLabel=ref.toLocaleString(lLocale,{month:'long',year:'numeric'});
+
+  // Build date → bookings map
+  const bkByDate={};
+  (cache.bookings||[]).forEach(b=>{
+    if(!b.class_date) return;
+    if(!bkByDate[b.class_date]) bkByDate[b.class_date]=[];
+    bkByDate[b.class_date].push({status:b.status,time:b.schedule_slots?.start_time?.slice(0,5)||''});
+  });
+
+  // Build date → payments map (from subscriptions paid_at)
+  const payByDate={};
+  (cache.subs||[]).forEach(s=>{
+    const d=s.paid_at?s.paid_at.split('T')[0]:null;
+    if(!d) return;
+    if(!payByDate[d]) payByDate[d]=[];
+    payByDate[d].push({price:s.price,type:s.type});
+  });
+
+  const DAYS7=adminLang==='el'
+    ?['Δε','Τρ','Τε','Πε','Πα','Σα','Κυ']
+    :adminLang==='en'
+    ?['Mo','Tu','We','Th','Fr','Sa','Su']
+    :['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+  const first=new Date(curY,curM,1);
+  const startDow=(first.getDay()+6)%7;
+  const cells=[];
+  for(let i=startDow;i>0;i--){const d=new Date(first);d.setDate(d.getDate()-i);cells.push(d);}
+  const last=new Date(curY,curM+1,0);
+  for(let d=new Date(first);d<=last;){cells.push(new Date(d));d.setDate(d.getDate()+1);}
+  const rem=(7-cells.length%7)%7;
+  for(let i=1;i<=rem;i++){const d=new Date(last);d.setDate(d.getDate()+i);cells.push(d);}
+
+  let html=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0 8px">
+    <button onclick="clientCalHistOffset[${clientId}]=(clientCalHistOffset[${clientId}]||0)-1;renderCalendarTab(${clientId})"
+      style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--accent);padding:0 4px;line-height:1">‹</button>
+    <span style="font-size:12px;font-weight:600;color:var(--text)">${monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1)}</span>
+    <button onclick="clientCalHistOffset[${clientId}]=(clientCalHistOffset[${clientId}]||0)+1;renderCalendarTab(${clientId})"
+      style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--accent);padding:0 4px;line-height:1">›</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:3px">
+    ${DAYS7.map((d,i)=>`<div style="text-align:center;font-size:9px;font-weight:600;padding:2px 0;color:${i>=5?'var(--red)':'var(--text3)'}">${d}</div>`).join('')}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">`;
+
+  cells.forEach(date=>{
+    const isCur=date.getMonth()===curM;
+    const dateStr=localDateStr(date);
+    const isToday=dateStr===todayStr;
+    const bks=bkByDate[dateStr]||[];
+    const pays=payByDate[dateStr]||[];
+
+    let dotsHtml='';
+    bks.forEach(bk=>{
+      const color=bk.status==='attended'?'#4CAF50'
+        :bk.status==='booked'?'var(--accent)'
+        :bk.status==='unpaid_future'?'#E8A84A'
+        :'var(--text3)';
+      const title=bk.time+' · '+bk.status;
+      dotsHtml+=`<span title="${title}" style="width:6px;height:6px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>`;
+    });
+
+    let payHtml='';
+    if(pays.length>0){
+      const total=pays.reduce((s,p)=>s+(Number(p.price)||0),0);
+      payHtml=`<div style="font-size:7px;background:#E8F5E9;color:#2E7D32;border-radius:3px;padding:1px 2px;margin-top:2px;line-height:1.4;text-align:center;font-weight:600">€${total}</div>`;
+    }
+
+    const hasContent=bks.length>0||pays.length>0;
+    const bg=isToday?'rgba(139,109,82,.08)':hasContent&&isCur?'var(--card)':'transparent';
+    const border=isToday?'1.5px solid var(--accent)':hasContent&&isCur?'0.5px solid var(--border)':'0.5px solid transparent';
+
+    html+=`<div style="border:${border};border-radius:5px;padding:3px;min-height:34px;background:${bg};opacity:${isCur?1:.2}">
+      <div style="font-size:9px;font-weight:${isToday?700:400};color:${isToday?'var(--accent)':isCur?'var(--text)':'var(--text3)'};line-height:1;margin-bottom:2px">${date.getDate()}</div>
+      ${dotsHtml?`<div style="display:flex;flex-wrap:wrap;gap:1px">${dotsHtml}</div>`:''}
+      ${payHtml}
+    </div>`;
+  });
+
+  html+=`</div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:#4CAF50;display:inline-block"></span><span style="font-size:10px;color:var(--text3)">${L('Παρακολούθησε','Attended','Посещено')}</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block"></span><span style="font-size:10px;color:var(--text3)">${L('Κρατήθηκε','Booked','Запись')}</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:#E8A84A;display:inline-block"></span><span style="font-size:10px;color:var(--text3)">${L('Απλήρωτο','Unpaid','Не опл.')}</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:var(--text3);display:inline-block"></span><span style="font-size:10px;color:var(--text3)">${L('Ακυρώθηκε','Cancelled','Отменено')}</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><span style="font-size:9px;background:#E8F5E9;color:#2E7D32;border-radius:3px;padding:0 3px;font-weight:600">€</span><span style="font-size:10px;color:var(--text3)">${L('Πληρωμή','Payment','Оплата')}</span></div>
+  </div>`;
+
+  el.innerHTML=html;
 }
 
 function switchClientTab(clientId,tab){
