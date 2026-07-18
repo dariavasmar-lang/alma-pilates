@@ -807,11 +807,6 @@ function renderDashboard(){
       <div class="metric-val" style="color:var(--red)">€${expenses.toLocaleString()}</div>
       <div class="metric-sub">${L('αυτόν τον μήνα','this month','в этом месяце')}</div>
     </div>
-    <div class="metric">
-      <div class="metric-label">${t.profit}</div>
-      <div class="metric-val" style="color:${profit>=0?'var(--green)':'var(--red)'}">€${profit>=0?'+':''}${profit.toLocaleString()}</div>
-      ${SHOW_REVOLUT?`<div class="metric-sub" style="color:var(--text3)">${L('με αναμ. Revolut:','with pend. Revolut:','с ожид. Revolut:')} <span style="color:${expectedProfit>=0?'var(--green)':'var(--warn)'};font-weight:500">€${expectedProfit>=0?'+':''}${expectedProfit.toLocaleString()}</span></div>`:''}
-    </div>
     <div class="metric" onclick="showPage('clients')" style="cursor:pointer">
       <div class="metric-label">${t.clientsLabel}</div>
       <div class="metric-val">${activeClients.length}</div>
