@@ -1370,6 +1370,8 @@ const histPageState={};
 const HIST_PAGE_SIZE=15;
 // Calendar tab month offset: clientId → integer offset from current month
 const clientCalHistOffset={};
+// Track the currently active tab per client so re-renders restore it
+const clientActiveTab={};
 
 async function loadClientHistory(clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c||!c._uuid) return;
@@ -1408,7 +1410,8 @@ async function loadClientHistory(clientId){
     : (bookings||[]);
 
   clientHistoryCache[uuid]={bookings:filteredBookings,subs:allSubs,logins:loginsData||[]};
-  renderHistoryTabById(clientId,'bookings');
+  // Restore the last active tab (don't reset to bookings if user switched)
+  renderHistoryTabById(clientId, clientActiveTab[clientId]||'bookings');
 
   // Update tab counts
   const _today=new Date().toISOString().split('T')[0];
@@ -1646,6 +1649,7 @@ function switchClientTab(clientId,tab){
   if(row) row.querySelectorAll('.ctab').forEach(b=>b.classList.remove('on'));
   const btn=row?.querySelector(`.ctab[onclick*="'${tab}'"]`);
   if(btn) btn.classList.add('on');
+  clientActiveTab[clientId]=tab; // remember active tab so re-renders restore it
   histPageState[clientId+'_'+tab]=0; // reset to first page on tab switch
   renderHistoryTabById(clientId,tab,0);
 }
