@@ -1256,7 +1256,7 @@ function renderClientCard(c){
       </div>
       <div class="progress" style="height:5px"><div class="progress-fill" style="width:${pct}%;background:${BAR_COLOR[c.status]}"></div></div>
     </div>
-    ${isDebt?`<div style="background:var(--red-bg);border:0.5px solid var(--red);border-radius:9px;padding:9px 12px;font-size:11px;color:var(--red);line-height:1.5;margin-bottom:10px">⚠ ${L('Χρεωστεί','Client is in debt','Клиент в долге')}: ${Math.abs(c.left)} ${L('μαθήματα','classes','занятий')}</div>`:''}
+    ${isDebt?`<div style="background:var(--red-bg);border:0.5px solid var(--red);border-radius:9px;padding:9px 12px;font-size:11px;color:var(--red);line-height:1.5;margin-bottom:10px">⚠ ${c.total===0?L('Χωρίς πληρωμή','No payment','Нет оплаты')+': '+Math.abs(c.left)+' '+L('μαθ. απλήρωτα','unpaid classes','зан. не оплачено'):L('Χρεωστεί','Client is in debt','Клиент в долге')+': '+Math.abs(c.left)+' '+L('μαθήματα','classes','занятий')}</div>`:''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
       <div style="background:var(--bg2);border-radius:9px;padding:9px 11px">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${L('Έναρξη συνδρομής','Subscription start','Начало абонемента')}</div>
@@ -4011,10 +4011,15 @@ async function dbLoad(){
         if(sub?.expires_at) subExpiresMap[c.id]=sub.expires_at;
       });
       if(clientUuids.length>0){
-        const {data:bkData}=await sb.from('bookings')
-          .select('client_id,class_date')
-          .in('client_id',clientUuids)
-          .in('status',['booked','attended','missed']);
+        const today2=localDateStr(new Date());
+        const [{data:bkData},{data:unpaidData}]=await Promise.all([
+          sb.from('bookings').select('client_id,class_date')
+            .in('client_id',clientUuids).in('status',['booked','attended','missed']),
+          sb.from('bookings').select('client_id')
+            .in('client_id',clientUuids).eq('status','unpaid_future').gte('class_date',today2)
+        ]);
+        const unpaidCounts={};
+        (unpaidData||[]).forEach(b=>{ unpaidCounts[b.client_id]=(unpaidCounts[b.client_id]||0)+1; });
         if(bkData){
           const bkCounts={};
           bkData.forEach(b=>{
@@ -4028,10 +4033,14 @@ async function dbLoad(){
           CLIENTS.forEach(c=>{
             if(c._subUuid){
               c.left=c.total-(bkCounts[c._uuid]||0);
+            } else if(unpaidCounts[c._uuid]){
+              // No subscription but has unpaid future bookings → treat as debt
+              c.left=-(unpaidCounts[c._uuid]);
+              c.total=0;
             } else { c.left=0; }
             c.status=calcClientStatus(c);
             applyExpiredBurn(c); // classes burn on expiry
-            if(!data.find(d=>d.id===c._uuid)?.is_active) c.status='inactive';
+            if(!data.find(d=>d.id===c._uuid)?.is_active&&c.status!=='debt') c.status='inactive';
           });
         }
       } else {
