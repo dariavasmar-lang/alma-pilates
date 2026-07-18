@@ -1765,7 +1765,7 @@ function renderClientCalendarModal(clientId){
     const dow=(date.getDay()+6)%7;
     const isSun=dow===6;
     const dateStr=localDateStr(date);
-    const slots=!isCur||isPast?[]:[...(SCH[dow]||[]),(dateExtraSlots[dateStr]||[]).map(s=>s.time)].flat().filter((v,i,a)=>a.indexOf(v)===i).sort();
+    const slots=!isCur?[]:[...(SCH[dow]||[]),(dateExtraSlots[dateStr]||[]).map(s=>s.time)].flat().filter((v,i,a)=>a.indexOf(v)===i).sort();
     let slotsHtml='';
     slots.forEach(t=>{
       const key=dow+'_'+t;
@@ -1774,20 +1774,23 @@ function renderClientCalendarModal(clientId){
       const pendKey=clientId+'_'+dateStr+'_'+dow+'_'+t;
       const isBooked=clientDateBookings[bookKey]===true;
       const isPending=!isBooked&&pendingSelections[pendKey]===true;
-      const full=!isBooked&&!isPending&&bk>=CAP;
+      const full=!isBooked&&!isPending&&!isPast&&bk>=CAP;
       let bg,color,border,extra='';
-      if(isBooked){bg='var(--accent)';color='var(--bg)';border='var(--accent)';}
+      if(isBooked&&isPast){bg='#E8F5E9';color='#2E7D32';border='#A5D6A7';} // attended style
+      else if(isBooked){bg='var(--accent)';color='var(--bg)';border='var(--accent)';}
+      else if(isPending&&isPast){bg='#F3E5F5';color='#6A1B9A';border='#CE93D8';extra='border-style:dashed;';}
       else if(isPending){bg='var(--warn-bg)';color='var(--warn)';border='#D4B870';extra='border-style:dashed;';}
       else if(full){bg='var(--red-bg)';color='var(--red)';border='#E8A0A0';}
+      else if(isPast){bg='transparent';color='var(--text3)';border='var(--border)';}
       else{bg='var(--bg2)';color='var(--text2)';border='var(--border)';}
       slotsHtml+=`<div onclick="${!full&&!isBooked?`toggleClientBooking(${clientId},'${dateStr}',${dow},'${t}')`:''}"
         style="font-size:10px;padding:3px 5px;border-radius:4px;background:${bg};color:${color};cursor:${full||isBooked?'default':'pointer'};display:flex;justify-content:space-between;line-height:1.6;border:0.5px solid ${border};${extra}margin-bottom:1px">
-        <span style="font-weight:500">${toAMPM(t)}</span><span style="opacity:.8">${isBooked?'✓':isPending?'●':bk+'/'+CAP}</span>
+        <span style="font-weight:500">${toAMPM(t)}</span><span style="opacity:.8">${isBooked?(isPast?'✓ att':'✓'):isPending?'●':isPast?'+':bk+'/'+CAP}</span>
       </div>`;
     });
     const minH=slots.length?slots.length*22+18:32;
     grid+=`<div style="border:${isToday?'2px solid var(--accent)':'0.5px solid var(--border)'};border-radius:8px;padding:6px;min-height:${minH}px;background:${isToday?'#FBF7F2':isCur?'var(--card)':'transparent'};opacity:${isCur?1:.3}">
-      <div style="font-size:12px;font-weight:${isToday?700:500};color:${isToday?'var(--accent)':isPast?'var(--text3)':'var(--text)'};margin-bottom:3px">${date.getDate()}</div>
+      <div style="font-size:12px;font-weight:${isToday?700:500};color:${isToday?'var(--accent)':isPast?'var(--text3)':'var(--text)'};margin-bottom:3px">${date.getDate()}${isPast&&slots.length?'':''}</div>
       ${slotsHtml}
     </div>`;
   });
@@ -1840,9 +1843,12 @@ async function confirmClientBookings(clientId){
     const time=remainder.slice(dowEnd+1);
     const slotKey=dow+'_'+time;
     const slotId=scheduleSlotIds[slotKey];
+    const todayStr2=localDateStr(new Date());
     if(slotId && c._uuid){
+      const isPastDate=dateStr<todayStr2;
       const {status:bkSt,subscription_id:bkSubId}=resolveBookingStatus(c,dateStr);
-      dbRows.push({studio_id:STUDIO_ID,client_id:c._uuid,slot_id:slotId,subscription_id:bkSubId,class_date:dateStr,status:bkSt});
+      const finalStatus=isPastDate?'attended':bkSt;
+      dbRows.push({studio_id:STUDIO_ID,client_id:c._uuid,slot_id:slotId,subscription_id:bkSubId,class_date:dateStr,status:finalStatus});
       localUpdates.push({key,slotKey,dateStr,time});
       added++;
     } else {
