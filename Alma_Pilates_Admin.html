@@ -1666,11 +1666,13 @@ async function loadClientBookings(clientId){
   if(!sb||!c?._uuid) return;
   Object.keys(clientDateBookings).forEach(k=>{ if(k.startsWith(clientId+'_')) delete clientDateBookings[k]; });
   try{
-    const today=localDateStr(todayCY());
+    // Load 3 months back so past bookings show in the calendar modal
+    const d3m=new Date(); d3m.setMonth(d3m.getMonth()-3);
+    const from3months=localDateStr(d3m);
     const {data}=await sb.from('bookings')
       .select('class_date,schedule_slots(start_time)')
       .eq('client_id',c._uuid).eq('studio_id',STUDIO_ID)
-      .gte('class_date',today).in('status',['booked','attended','unpaid_future']);
+      .gte('class_date',from3months).in('status',['booked','attended','unpaid_future']);
     if(data) data.forEach(b=>{
       const t=b.schedule_slots?.start_time?.slice(0,5);
       if(b.class_date&&t) clientDateBookings[clientId+'_'+b.class_date+'_'+t]=true;
