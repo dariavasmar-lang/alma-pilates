@@ -1523,10 +1523,10 @@ function renderHistoryTabById(clientId,tab,page){
 
 function renderCalendarTab(clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
-  const el=document.getElementById('ctab-content-'+clientId); if(!el) return;
+  const container=document.getElementById('ctab-content-'+clientId); if(!container) return;
   const uuid=c._uuid;
   const cache=clientHistoryCache[uuid]||{};
-  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const L=(a,b,r)=>adminLang==='el'?a:adminLang==='en'?b:r;
 
   const offset=clientCalHistOffset[clientId]||0;
   const todayStr=localDateStr(new Date());
@@ -1623,7 +1623,7 @@ function renderCalendarTab(clientId){
     <div style="display:flex;align-items:center;gap:4px"><span style="font-size:9px;background:#E8F5E9;color:#2E7D32;border-radius:3px;padding:0 3px;font-weight:600">€</span><span style="font-size:10px;color:var(--text3)">${L('Πληρωμή','Payment','Оплата')}</span></div>
   </div>`;
 
-  el.innerHTML=html;
+  container.innerHTML=html;
 }
 
 function switchClientTab(clientId,tab){
