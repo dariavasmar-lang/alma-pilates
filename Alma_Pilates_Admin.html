@@ -2909,22 +2909,34 @@ function renderPayments(){
   const mBg={revolut:'#EDE4FF',cash:'#E6F7F0',bank:'#E6F1FB',card:'#FDE8E8'};
 
   // Header
+  const _now=new Date();
+  const _curM=_now.getMonth(), _curY=_now.getFullYear();
+  const _lLocale=adminLang==='el'?'el-GR':adminLang==='en'?'en-US':'ru-RU';
+  const _curMonthLabel=_now.toLocaleString(_lLocale,{month:'long',year:'numeric'});
+  const _curMonthShort=_now.toLocaleString(_lLocale,{month:'long'});
+  const _prevMonthShort=new Date(_curY,_curM-1,1).toLocaleString(_lLocale,{month:'long'});
+  const _curMonthStr=`${_curY}-${String(_curM+1).padStart(2,'0')}`;
+  const _prevMonthStr=`${new Date(_curY,_curM-1,1).getFullYear()}-${String(new Date(_curY,_curM-1,1).getMonth()+1).padStart(2,'0')}`;
+  const paid=PAYMENTS.filter(p=>p.status==='paid');
+  const pending=PAYMENTS.filter(p=>p.status==='pending');
+  const incomeThisMonth=paid.filter(p=>p._paidAt&&p._paidAt.startsWith(_curMonthStr)).reduce((s,p)=>s+p.amt,0);
+  const incomePrevMonth=paid.filter(p=>p._paidAt&&p._paidAt.startsWith(_prevMonthStr)).reduce((s,p)=>s+p.amt,0);
+  const income=incomeThisMonth||paid.reduce((s,p)=>s+p.amt,0);
+  const pendingAmt=pending.reduce((s,p)=>s+p.amt,0);
+  const pctVsPrev=incomePrevMonth>0?Math.round(((incomeThisMonth-incomePrevMonth)/incomePrevMonth)*100):null;
+  const trendLabel=pctVsPrev===null?'—':( pctVsPrev>=0?`+${pctVsPrev}%`:`${pctVsPrev}%`)+` vs ${_prevMonthShort}`;
   const ph=document.getElementById('pay-page-header');
   if(ph) ph.innerHTML=`
-    <div><div class="page-title">${L('Πληρωμές','Payments','Платежи')}</div><div class="page-sub">May 2026 · Alma Pilates</div></div>
+    <div><div class="page-title">${L('Πληρωμές','Payments','Платежи')}</div><div class="page-sub">${_curMonthLabel.charAt(0).toUpperCase()+_curMonthLabel.slice(1)} · Alma Pilates</div></div>
     <button class="btn primary" onclick="openPayModal()">+ ${L('Προσθήκη πληρ.','Add payment','Добавить платёж')}</button>`;
 
   // Metrics
-  const paid=PAYMENTS.filter(p=>p.status==='paid');
-  const pending=PAYMENTS.filter(p=>p.status==='pending');
-  const income=paid.reduce((s,p)=>s+p.amt,0);
-  const pendingAmt=pending.reduce((s,p)=>s+p.amt,0);
   const pm=document.getElementById('pay-metrics');
   if(pm) pm.innerHTML=`
     <div class="metric">
-      <div class="metric-label">${L('Έσοδα Μαΐου','Income, May','Доход за май')}</div>
+      <div class="metric-label">${L('Έσοδα','Income','Доход')}, ${_curMonthShort}</div>
       <div class="metric-val" style="color:var(--green)">€${income.toLocaleString()}</div>
-      <div class="metric-sub up">${L('+12% vs Απρ','+12% vs April','+12% vs апрель')}</div>
+      <div class="metric-sub${pctVsPrev!==null&&pctVsPrev>=0?' up':''}">${trendLabel}</div>
     </div>
     <div class="metric">
       <div class="metric-label">${L('Συναλλαγές','Transactions','Транзакций')}</div>
@@ -3283,7 +3295,7 @@ async function submitPayModal(){
   }catch(e){
     return fail(L('Σφάλμα','Error','Ошибка: ')+e.message);
   }
-  PAYMENTS.unshift({name:client,init,detail,method,amt,date:dateLabel,status:isRevolut?'pending':'paid'});
+  PAYMENTS.unshift({name:client,init,detail,method,amt,date:dateLabel,status:isRevolut?'pending':'paid',_paidAt:isRevolut?null:new Date(date+'T12:00:00').toISOString()});
   closeModal('pay-add-modal');
   // Reload all client data from DB to sync balances
   await dbLoad();
