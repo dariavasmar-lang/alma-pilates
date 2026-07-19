@@ -1,0 +1,21 @@
+{
+  "name": "Alma Pilates",
+  "short_name": "Alma Pilates",
+  "description": "Alma Pilates Studio",
+  "start_url": "/alma-pilates",
+  "display": "standalone",
+  "background_color": "#C9BB9F",
+  "theme_color": "#C9BB9F",
+  "icons": [
+    {
+      "src": "/alma-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/alma-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
