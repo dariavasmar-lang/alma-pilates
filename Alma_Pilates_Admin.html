@@ -2643,6 +2643,17 @@ function cancelSlotFromDetail(){
 }
 
 // ── ADD SLOT MODAL ────────────────────────────────────────────
+function openAddSlotModal(){
+  const dateEl=document.getElementById('asm-date');
+  if(dateEl) dateEl.value=localDateStr(new Date());
+  const actionEl=document.getElementById('asm-action');
+  if(actionEl) actionEl.value='add';
+  const sunWarn=document.getElementById('asm-sun-warn');
+  if(sunWarn) sunWarn.style.display='none';
+  asmToggle();
+  document.getElementById('add-slot-modal').classList.add('open');
+}
+
 function asmToggle(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const action=document.getElementById('asm-action').value;
