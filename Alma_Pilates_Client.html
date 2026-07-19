@@ -629,8 +629,21 @@ let bkCounts={};
 // ═══════════════════════════════════════════════════════════════
 // DB LOADERS
 // ═══════════════════════════════════════════════════════════════
+let CANC=[]; // studio cancellations: [{type,date,endDate,slot}]
+
+function isDayCancelled(dateStr){
+  return CANC.some(c=>c.type!=='slot'&&dateStr>=c.date&&dateStr<=(c.endDate||c.date));
+}
+function isSlotCancelledClient(dateStr,time){
+  if(isDayCancelled(dateStr)) return true;
+  return CANC.some(c=>c.type==='slot'&&c.date===dateStr&&c.slot===time);
+}
+
 async function loadClasses(){
-  const {data}=await sb.from('schedule_slots').select('*').eq('studio_id',STUDIO_ID).eq('is_active',true).order('day_of_week').order('start_time');
+  const [{data},{data:canc}]=await Promise.all([
+    sb.from('schedule_slots').select('*').eq('studio_id',STUDIO_ID).eq('is_active',true).order('day_of_week').order('start_time'),
+    sb.from('schedule_cancellations').select('type,date,end_date,slot').eq('studio_id',STUDIO_ID)
+  ]);
   if(!data||!data.length) return;
   Object.keys(SCH).forEach(k=>delete SCH[k]);
   data.forEach(s=>{
@@ -640,6 +653,7 @@ async function loadClasses(){
     const tp=t<'12:00'?'mo':'ev';
     SCH[dow].push({id:s.id,t,tp,capacity:s.capacity||4});
   });
+  CANC=(canc||[]).map(r=>({type:r.type,date:r.date,endDate:r.end_date||r.date,slot:r.slot||''}));
 }
 
 async function loadWeekBookings(){
@@ -1214,8 +1228,8 @@ function buildMonthView(){
     const isToday=date.toDateString()===today.toDateString();
     const dow=(date.getDay()+6)%7;
     const isSun=dow===6;
-    const slots=isCur&&!isSun?(SCH[dow]||[]):[];
     const dateKey=localDateStr(date);
+    const slots=isCur&&!isSun?(SCH[dow]||[]).filter(s=>!isSlotCancelledClient(dateKey,s.t)):[];
     const hasMine=slots.some(s=>mineByDate[dateKey+'_'+s.t]);
     const hasUnpaid=!hasMine&&slots.some(s=>unpaidByDate[dateKey+'_'+s.t]);
     const hasSlots=slots.length>0;
@@ -1241,7 +1255,8 @@ function buildMonthView(){
 
 function openDaySlots(dow,date){
   const T=tr();
-  const slots=SCH[dow]||[];
+  const dateKey=localDateStr(date);
+  const slots=(SCH[dow]||[]).filter(s=>!isSlotCancelledClient(dateKey,s.t));
   const dateLabel=T.days[dow]+', '+date.getDate()+' '+T.months[date.getMonth()];
   tx('shd-title',dateLabel);
   const dateMs=date.getTime();
@@ -1283,7 +1298,8 @@ function buildSchedule(){
   if(!grid) return;
   grid.style.cssText='display:flex;flex-direction:column;gap:5px';
   grid.innerHTML=dates.map((date,di)=>{
-    const daySlots=SCH[di]||[];
+    const dateStr=localDateStr(date);
+    const daySlots=(SCH[di]||[]).filter(s=>!isSlotCancelledClient(dateStr,s.t));
     if(!daySlots.length) return '';
     const isToday=date.toDateString()===today.toDateString();
     const isPast=localDateStr(date)<localDateStr(today);
