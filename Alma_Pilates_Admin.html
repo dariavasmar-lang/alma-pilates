@@ -1478,6 +1478,10 @@ function renderHistoryTabById(clientId,tab,page){
       const note=isFuture&&!isUnpaidFuture?'⏳':attended?'✓':isUnpaidFuture?'💛':'';
       const canCancel=isFuture&&!attended;
       const canDelete=!isFuture; // past bookings can be manually deleted
+      const c=CLIENTS.find(x=>x.id===clientId);
+      const hasBalance=c&&c.left>0&&c._subUuid;
+      const payBtn=isUnpaidFuture&&isFuture&&hasBalance
+        ?`<button onclick="applyBalanceToBooking('${b.id}',${clientId})" style="font-size:10px;padding:2px 8px;border:0.5px solid var(--green);border-radius:5px;background:transparent;cursor:pointer;color:var(--green);flex-shrink:0">${L('Πληρωμή','Pay','Оплатить')}</button>`:'';
       const cancelBtn=canCancel
         ?`<button onclick="adminCancelBooking('${b.id}',${clientId})" style="font-size:10px;padding:2px 8px;border:0.5px solid var(--red);border-radius:5px;background:transparent;cursor:pointer;color:var(--red);flex-shrink:0">${L('Ακύρωση','Cancel','Отменить')}</button>`:'';
       const deleteBtn=canDelete
@@ -1487,7 +1491,7 @@ function renderHistoryTabById(clientId,tab,page){
         <span style="font-size:12px;color:var(--text2);white-space:nowrap;min-width:42px">${fmtHistDate(b.class_date)}</span>
         <span style="font-size:12px;color:var(--text);flex:1">${lbl}</span>
         ${note?`<span style="font-size:11px;color:var(--text3)">${note}</span>`:''}
-        ${cancelBtn}${deleteBtn}
+        ${payBtn}${cancelBtn}${deleteBtn}
       </div>`;
     }).join('')+renderHistoryPager(clientId,tab,pg,totalPages);
     return;
@@ -2103,6 +2107,21 @@ async function adminDeleteBooking(bookingId, clientId){
     {client_name:c.name, client_uuid:c._uuid, class_date:bk?.class_date}
   );
   toast(L('Διαγράφηκε','Deleted','Запись удалена'));
+  await selectClient(clientId);
+}
+
+async function applyBalanceToBooking(bookingId, clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c||!sb) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(!c._subUuid||c.left<=0){ toast(L('Δεν υπάρχει διαθέσιμο υπόλοιπο','No balance available','Нет доступного баланса')); return; }
+  const {error}=await sb.from('bookings').update({status:'booked',subscription_id:c._subUuid}).eq('id',bookingId);
+  if(error){ toast(L('Σφάλμα','Error','Ошибка')+': '+error.message); return; }
+  const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',c._subUuid).single();
+  if(sub) await sb.from('subscriptions').update({used_classes:sub.used_classes+1}).eq('id',c._subUuid);
+  const bk=(clientHistoryCache[c._uuid]?.bookings||[]).find(b=>b.id===bookingId);
+  logAction('unpaid_converted',`${c.name} · ${bk?.class_date||''} ${bk?.schedule_slots?.start_time?.slice(0,5)||''}`,'booking',bookingId,{client_name:c.name,client_uuid:c._uuid,subscription_id:c._subUuid});
+  toast(L('Πληρώθηκε','Paid','Оплачено из баланса'));
+  delete clientHistoryCache[c._uuid];
   await selectClient(clientId);
 }
 
