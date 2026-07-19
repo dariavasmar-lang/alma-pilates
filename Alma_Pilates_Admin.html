@@ -2592,7 +2592,11 @@ async function removeFromSlot(key,idx,isUnpaid,dateStr){
 }
 
 function openBookFromSlot(){
-  if(!currentSlot) return;
+  if(!currentSlot){
+    const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+    toast(L('Επιλέξτε πρώτα ένα slot','Select a slot first','Сначала выберите занятие в расписании'));
+    return;
+  }
   const DAYS=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:['Пн','Вт','Ср','Чт','Пт','Сб'];
   openBookModal(currentSlot.di, currentSlot.time);
 }
