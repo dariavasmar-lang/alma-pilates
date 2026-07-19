@@ -4477,12 +4477,98 @@ function removeExtraClassOnDay(dateStr, time){
   openDayModal(new Date(dateStr+'T12:00:00'));
 }
 
+// Refund bookings for a date (optionally filtered to one start_time).
+// Cancels booked bookings and restores used_classes on their subscriptions.
+async function refundCancelledBookings(dateStr, slotTime=null){
+  if(!sb) return 0;
+  // Find slot IDs matching the time (if filtering by slot)
+  let slotIds=null;
+  if(slotTime){
+    slotIds=Object.entries(scheduleSlotIds)
+      .filter(([key])=>key.endsWith('_'+slotTime))
+      .map(([,id])=>id);
+    if(!slotIds.length) return 0;
+  }
+  let q=sb.from('bookings').select('id,subscription_id')
+    .eq('studio_id',STUDIO_ID).eq('class_date',dateStr).eq('status','booked');
+  if(slotIds) q=q.in('slot_id',slotIds);
+  const {data:bks}=await q;
+  if(!bks||!bks.length) return 0;
+  await sb.from('bookings').update({status:'cancelled'}).in('id',bks.map(b=>b.id));
+  const bySubId={};
+  bks.forEach(b=>{if(b.subscription_id) bySubId[b.subscription_id]=(bySubId[b.subscription_id]||0)+1;});
+  await Promise.all(Object.entries(bySubId).map(async([subId,n])=>{
+    const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',subId).single();
+    if(sub) await sb.from('subscriptions').update({used_classes:Math.max(0,sub.used_classes-n)}).eq('id',subId);
+  }));
+  return bks.length;
+}
+
+// Save the Add/Cancel slot modal form
+async function saveSlotAction(){
+  if(!sb) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const action=document.getElementById('asm-action').value;
+  const dateStr=document.getElementById('asm-date').value;
+  if(!dateStr){ toast(L('Επιλέξτε ημερομηνία','Select a date','Выберите дату')); return; }
+  const slotRaw=document.getElementById('asm-slot')?.value||'';
+  const slotTime=slotRaw.split('–')[0].split('-')[0].trim(); // e.g. "07:00"
+  const reason=document.getElementById('asm-reason')?.value||'';
+  const addTime=document.getElementById('asm-time')?.value||'';
+  const addName=document.getElementById('asm-add-name')?.value||'';
+  const vacEnd=document.getElementById('asm-vac-end')?.value||dateStr;
+  const reason2=document.getElementById('asm-reason2')?.value||'';
+
+  if(action==='add'){
+    // Add extra class — save to schedule_extras (or cancellations with type='add')
+    if(!addTime){ toast(L('Επιλέξτε ώρα','Select a time','Выберите время')); return; }
+    const obj={type:'add',date:dateStr,endDate:dateStr,slot:addTime,reason:addName||addTime,name:addName||addTime};
+    await dbSaveCancellation(obj);
+    if(!dateExtraSlots[dateStr]) dateExtraSlots[dateStr]=[];
+    dateExtraSlots[dateStr].push({time:addTime,reason:addName||addTime});
+    toast(L('Προστέθηκε','Added','Занятие добавлено'));
+  } else {
+    // Cancellation types
+    let obj;
+    let refundDate=null, refundSlot=null;
+    if(action==='slot'){
+      if(!slotTime){ toast(L('Επιλέξτε slot','Select slot','Выберите слот')); return; }
+      obj={type:'slot',date:dateStr,endDate:dateStr,slot:slotTime,reason,name:reason||slotTime};
+      refundDate=dateStr; refundSlot=slotTime;
+    } else if(action==='all'){
+      obj={type:'all',date:dateStr,endDate:dateStr,slot:'',reason,name:L('Όλη η μέρα','All day','Весь день')};
+      refundDate=dateStr;
+    } else if(action==='holiday'){
+      obj={type:'holiday',date:dateStr,endDate:dateStr,slot:'',reason,name:reason||L('Αργία','Holiday','Праздник')};
+      refundDate=dateStr;
+    } else if(action==='vacation'){
+      const end=vacEnd||dateStr;
+      obj={type:'vacation',date:dateStr,endDate:end,slot:'',reason:reason2,name:reason2||L('Διακοπές','Vacation','Отпуск')};
+      refundDate=dateStr; // refund only start date — multi-day refunds are complex; log as 1-day
+    }
+    const id=await dbSaveCancellation(obj);
+    if(id) obj._id=id;
+    cancellations.push(obj);
+    let refunded=0;
+    if(refundDate) refunded=await refundCancelledBookings(refundDate, refundSlot);
+    toast(refunded>0
+      ? L(`Ακυρώθηκε · ${refunded} κλ. επιστράφηκαν`,`Cancelled · ${refunded} class(es) refunded`,`Отменено · ${refunded} кл. возвращено на баланс`)
+      : L('Αποθηκεύτηκε','Saved','Сохранено'));
+  }
+  closeModal('add-slot-modal');
+  renderSchedule();
+}
+
 async function cancelSlotOnDate(dow,time,dateStr){
   const obj={type:'slot',date:dateStr,endDate:dateStr,slot:time,reason:'',name:time};
   const id=await dbSaveCancellation(obj);
   if(id) obj._id=id;
   cancellations.push(obj);
-  toast(adminLang==='ru'?'Занятие отменено':'Class cancelled');
+  const refunded=await refundCancelledBookings(dateStr,time);
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  toast(refunded>0
+    ? L(`Ακυρώθηκε · ${refunded} κλ. επιστράφηκαν`,`Cancelled · ${refunded} class(es) refunded`,`Занятие отменено · ${refunded} кл. возвращено на баланс`)
+    : L('Ακυρώθηκε','Cancelled','Занятие отменено'));
   renderSchedule(); openDayModal(new Date(dateStr+'T12:00:00'));
 }
 async function restoreSlotOnDate(dow,time,dateStr){
@@ -4493,12 +4579,16 @@ async function restoreSlotOnDate(dow,time,dateStr){
   renderSchedule(); openDayModal(new Date(dateStr+'T12:00:00'));
 }
 async function cancelWholeDay(dateStr){
-  if(!confirm(adminLang==='ru'?`Отменить все занятия ${dateStr}?`:`Cancel all classes on ${dateStr}?`)) return;
-  const obj={type:'all',date:dateStr,endDate:dateStr,slot:'',reason:'',name:adminLang==='ru'?'Весь день':'All day'};
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(!confirm(L(`Ακύρωση όλων ${dateStr};`,`Cancel all classes on ${dateStr}?`,`Отменить все занятия ${dateStr}?`))) return;
+  const obj={type:'all',date:dateStr,endDate:dateStr,slot:'',reason:'',name:L('Όλη η μέρα','All day','Весь день')};
   const id=await dbSaveCancellation(obj);
   if(id) obj._id=id;
   cancellations.push(obj);
-  toast(adminLang==='ru'?'Все занятия дня отменены':'All classes cancelled');
+  const refunded=await refundCancelledBookings(dateStr);
+  toast(refunded>0
+    ? L(`Ακυρώθηκε · ${refunded} κλ. επιστράφηκαν`,`Day cancelled · ${refunded} class(es) refunded`,`День отменён · ${refunded} кл. возвращено на баланс`)
+    : L('Ακυρώθηκε','Day cancelled','День отменён'));
   closeModal('day-modal'); renderSchedule();
 }
 async function restoreWholeDay(dateStr){
