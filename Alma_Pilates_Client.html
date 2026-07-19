@@ -642,7 +642,7 @@ function isSlotCancelledClient(dateStr,time){
 async function loadClasses(){
   const [{data},{data:canc}]=await Promise.all([
     sb.from('schedule_slots').select('*').eq('studio_id',STUDIO_ID).eq('is_active',true).order('day_of_week').order('start_time'),
-    sb.from('schedule_cancellations').select('type,date,end_date,slot').eq('studio_id',STUDIO_ID)
+    sb.from('schedule_cancellations').select('type,date,end_date,slot_time').eq('studio_id',STUDIO_ID)
   ]);
   if(!data||!data.length) return;
   Object.keys(SCH).forEach(k=>delete SCH[k]);
@@ -653,7 +653,7 @@ async function loadClasses(){
     const tp=t<'12:00'?'mo':'ev';
     SCH[dow].push({id:s.id,t,tp,capacity:s.capacity||4});
   });
-  CANC=(canc||[]).map(r=>({type:r.type,date:r.date,endDate:r.end_date||r.date,slot:r.slot||''}));
+  CANC=(canc||[]).filter(r=>r.type!=='add').map(r=>({type:r.type,date:r.date,endDate:r.end_date||r.date,slot:r.slot_time||''}));
 }
 
 async function loadWeekBookings(){
