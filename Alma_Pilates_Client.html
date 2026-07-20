@@ -1711,12 +1711,28 @@ async function buildHistPanelAsync(){
   const T=tr();const el=$('pf-hist');if(!el) return;
   const clientId=sbProfile?.id;if(!clientId) return;
   const today=localDateStr(new Date());
-  // Show past bookings + any cancelled/missed bookings (including future cancellations)
-  const {data}=await sb.from('bookings').select('slot_id,class_date,status').eq('client_id',clientId)
-    .or(`class_date.lt.${today},status.in.(cancelled,missed)`)
-    .order('class_date',{ascending:false}).limit(20);
-  if(!data?.length){el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0">—</div>`;return;}
-  el.innerHTML=data.map(b=>{
+  const [{data:bkData},{data:subData}]=await Promise.all([
+    sb.from('bookings').select('slot_id,class_date,status').eq('client_id',clientId)
+      .or(`class_date.lt.${today},status.in.(cancelled,missed)`)
+      .order('class_date',{ascending:false}).limit(30),
+    sb.from('subscriptions').select('paid_at,starts_at,type,total_classes,price,payment_method')
+      .eq('client_id',clientId).order('paid_at',{ascending:false}).limit(10)
+  ]);
+  const methLabel={cash:lang==='el'?'Μετρητά':lang==='en'?'Cash':'Наличные',card:lang==='el'?'Κάρτα':lang==='en'?'Card':'Карта',bank:lang==='el'?'Τράπεζα':lang==='en'?'Bank':'Банк',revolut:'Revolut'};
+  const payRows=(subData||[]).map(s=>{
+    const d=new Date((s.paid_at||s.starts_at)+'T12:00:00');
+    const dayStr=d.getDate()+' '+T.months[d.getMonth()]+' '+d.getFullYear();
+    const typeLabel={'4':'4','8':'8','12':'12','12s':'12','single':'1'}[s.type]||s.type;
+    const lbl=typeLabel+' '+(lang==='el'?'μαθήματα':lang==='en'?'classes':'занятий')+' · €'+s.price;
+    const meth=methLabel[s.payment_method]||s.payment_method||'';
+    return `<div class="hrow">
+      <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--green)"></div>
+      <div style="flex:1"><div style="font-size:12px;color:var(--text)">${lbl}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:1px">${dayStr}${meth?' · '+meth:''}</div></div>
+      <span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;background:var(--gbg);color:var(--green)">€${s.price}</span>
+    </div>`;
+  });
+  const bkRows=(bkData||[]).map(b=>{
     const date=new Date(b.class_date+'T12:00:00');
     const dow=(date.getDay()+6)%7;
     const slot=SCH[dow]?.find(s=>s.id===b.slot_id);
@@ -1737,7 +1753,11 @@ async function buildHistPanelAsync(){
       <div style="font-size:10px;color:var(--text3);margin-top:1px">${T.days[dow]}, ${dayStr}</div></div>
       ${statusTag}
     </div>`;
-  }).filter(Boolean).join('');
+  }).filter(Boolean);
+  if(!payRows.length&&!bkRows.length){el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0">—</div>`;return;}
+  const paySection=payRows.length?`<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${lang==='el'?'Πληρωμές':lang==='en'?'Payments':'Оплаты'}</div>${payRows.join('')}<div style="height:8px"></div>`:'';
+  const bkSection=bkRows.length?`<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${lang==='el'?'Ιστορικό':lang==='en'?'History':'История'}</div>${bkRows.join('')}`:'';
+  el.innerHTML=paySection+bkSection;
 }
 
 function buildProfileRows(){
@@ -1871,8 +1891,9 @@ if(sb){
         if(sbProfile){
           // Valid client profile found — restore app state
           await Promise.all([loadWeekBookings(), loadBalance()]);
-          // Record login (fire-and-forget, non-blocking)
+          // Record login — write to both tables for backward compat
           sb.from('client_logins').insert({client_id:sbProfile.id});
+          sb.from('admin_activity_log').insert({studio_id:sbProfile.studio_id,action_type:'client_login',description:sbProfile.full_name,entity_type:'client',entity_id:sbProfile.id});
           $('hdr').style.display='flex';
           $('bnav').classList.add('show');
           applyLang();
