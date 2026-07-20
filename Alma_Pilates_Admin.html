@@ -1381,7 +1381,7 @@ async function loadClientHistory(clientId){
   const content=document.getElementById('ctab-content-'+clientId);
   if(content) content.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">...</div>`;
 
-  const [{data:bookings},{data:subs},{data:loginsData}]=await Promise.all([
+  const [{data:bookings},{data:subs},{data:loginsData},{data:activityLogins}]=await Promise.all([
     sb.from('bookings')
       .select('id,class_date,status,slot_id,schedule_slots(start_time)')
       .eq('client_id',uuid)
@@ -1396,6 +1396,12 @@ async function loadClientHistory(clientId){
       .select('logged_in_at')
       .eq('client_id',uuid)
       .order('logged_in_at',{ascending:false})
+      .limit(20),
+    sb.from('admin_activity_log')
+      .select('created_at')
+      .eq('action_type','client_login')
+      .eq('entity_id',uuid)
+      .order('created_at',{ascending:false})
       .limit(20)
   ]);
 
@@ -1408,7 +1414,11 @@ async function loadClientHistory(clientId){
     ? (bookings||[]).filter(b=>b.class_date>=firstSubStart)
     : (bookings||[]);
 
-  clientHistoryCache[uuid]={bookings:filteredBookings,subs:allSubs,logins:loginsData||[]};
+  const mergedLogins=[
+    ...(loginsData||[]).map(r=>({logged_in_at:r.logged_in_at})),
+    ...(activityLogins||[]).map(r=>({logged_in_at:r.created_at}))
+  ].sort((a,b)=>b.logged_in_at.localeCompare(a.logged_in_at)).slice(0,30);
+  clientHistoryCache[uuid]={bookings:filteredBookings,subs:allSubs,logins:mergedLogins};
   // Restore the last active tab (don't reset to bookings if user switched)
   renderHistoryTabById(clientId, clientActiveTab[clientId]||'bookings');
 
