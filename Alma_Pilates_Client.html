@@ -1720,7 +1720,8 @@ async function buildHistPanelAsync(){
   ]);
   const methLabel={cash:lang==='el'?'Μετρητά':lang==='en'?'Cash':'Наличные',card:lang==='el'?'Κάρτα':lang==='en'?'Card':'Карта',bank:lang==='el'?'Τράπεζα':lang==='en'?'Bank':'Банк',revolut:'Revolut'};
   const payRows=(subData||[]).map(s=>{
-    const d=new Date((s.paid_at||s.starts_at)+'T12:00:00');
+    const rawDate=(s.paid_at||s.starts_at||'').split('T')[0];
+    const d=new Date(rawDate+'T12:00:00');
     const dayStr=d.getDate()+' '+T.months[d.getMonth()]+' '+d.getFullYear();
     const typeLabel={'4':'4','8':'8','12':'12','12s':'12','single':'1'}[s.type]||s.type;
     const lbl=typeLabel+' '+(lang==='el'?'μαθήματα':lang==='en'?'classes':'занятий')+' · €'+s.price;
