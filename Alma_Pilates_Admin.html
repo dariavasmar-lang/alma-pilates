@@ -1392,11 +1392,10 @@ async function loadClientHistory(clientId){
       .eq('client_id',uuid)
       .order('created_at',{ascending:false})
       .limit(20),
-    sb.from('admin_activity_log')
-      .select('created_at')
-      .eq('action_type','client_login')
-      .eq('entity_id',uuid)
-      .order('created_at',{ascending:false})
+    sb.from('client_logins')
+      .select('logged_in_at')
+      .eq('client_id',uuid)
+      .order('logged_in_at',{ascending:false})
       .limit(20)
   ]);
 
@@ -1409,7 +1408,7 @@ async function loadClientHistory(clientId){
     ? (bookings||[]).filter(b=>b.class_date>=firstSubStart)
     : (bookings||[]);
 
-  clientHistoryCache[uuid]={bookings:filteredBookings,subs:allSubs,logins:(loginsData||[]).map(r=>({logged_in_at:r.created_at}))};
+  clientHistoryCache[uuid]={bookings:filteredBookings,subs:allSubs,logins:loginsData||[]};
   // Restore the last active tab (don't reset to bookings if user switched)
   renderHistoryTabById(clientId, clientActiveTab[clientId]||'bookings');
 
