@@ -1114,6 +1114,10 @@ async function doOtp(){
     return;
   }
   sbProfile=clientData;
+  // Record actual sign-in (OTP path)
+  if(sb && sbProfile){
+    sb.from('admin_activity_log').insert({studio_id:sbProfile.studio_id||STUDIO_ID,action_type:'client_login',description:sbProfile.full_name,entity_type:'client',entity_id:sbProfile.id});
+  }
   startApp();
 }
 
