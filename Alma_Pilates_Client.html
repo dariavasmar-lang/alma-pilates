@@ -1443,6 +1443,7 @@ function isLateCancellation(date,time){
 
 function openCancelSheet(di,time,dateMs){
   const date=dateMs?new Date(dateMs):getWeekDates()[di];
+  if(localDateStr(date)<localDateStr(new Date())) return;
   const late=isLateCancellation(date,time);
   // Check if this is an unpaid (post-period) booking
   const dateKey=dateMs?localDateStr(new Date(dateMs)):localDateStr(getWeekDates()[di]);
