@@ -1114,10 +1114,6 @@ async function doOtp(){
     return;
   }
   sbProfile=clientData;
-  // Record actual sign-in (OTP path)
-  if(sb && sbProfile){
-    sb.from('admin_activity_log').insert({studio_id:sbProfile.studio_id||STUDIO_ID,action_type:'client_login',description:sbProfile.full_name,entity_type:'client',entity_id:sbProfile.id});
-  }
   startApp();
 }
 
@@ -1147,6 +1143,10 @@ async function startApp(){
     await loadClasses();
     await loadProfile();
     await Promise.all([loadWeekBookings(), loadBalance()]);
+    if(sb && sbProfile){
+      const {error:loginErr}=await sb.from('admin_activity_log').insert({studio_id:sbProfile.studio_id||STUDIO_ID,action_type:'client_login',description:sbProfile.full_name,entity_type:'client',entity_id:sbProfile.id});
+      if(loginErr) console.error('[login record]',loginErr);
+    }
   }
   if(isNewUser){
     obStep=0;
