@@ -269,19 +269,20 @@
           <div class="ff"><label>City</label><input value="Лимассол, Кипр"></div>
         </div>
         <div class="form-grid-2">
-          <div class="ff"><label>4-class membership (€)</label><input type="number" value="80"></div>
-          <div class="ff"><label>8-class membership (€)</label><input type="number" value="120"></div>
+          <div class="ff"><label>4-class membership (€)</label><input id="sett-price-4" type="number"></div>
+          <div class="ff"><label>8-class membership (€)</label><input id="sett-price-8" type="number"></div>
         </div>
         <div class="form-grid-2">
-          <div class="ff"><label>12 promo membership (€)</label><input type="number" value="160"></div>
-          <div class="ff"><label>12 standard membership (€)</label><input type="number" value="170"></div>
+          <div class="ff"><label>12 promo membership (€)</label><input id="sett-price-12" type="number"></div>
+          <div class="ff"><label>12 standard membership (€)</label><input id="sett-price-12s" type="number"></div>
         </div>
         <div class="form-grid-2">
-          <div class="ff"><label>Single class (€)</label><input type="number" value="25"></div>
-          <div class="ff"><label>Class capacity</label><input type="number" value="4"></div>
+          <div class="ff"><label>Single class (€)</label><input id="sett-price-single" type="number"></div>
+          <div class="ff"><label>Class capacity</label><input id="sett-capacity" type="number"></div>
         </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Изменения применяются к новым абонементам после сохранения</div>
         <div style="display:flex;justify-content:flex-end;margin-top:6px">
-          <button class="btn primary" onclick="toast(AL().toastSaved)">Save</button>
+          <button class="btn primary" onclick="saveStudioSettings()">Save</button>
         </div>
       </div>
       <!-- Revolut Business card hidden (SHOW_REVOLUT=false) -->
@@ -1204,7 +1205,7 @@ function renderClientCard(c){
     '12s': L('12 μαθ. (τυπ.)','12 classes (std)','12 занятий (стандарт)'),
     'single': L('Μονό','Single','Разовое')
   }[c.type]||c.type;
-  const price={'4':'€80','8':'€120','12':'€160','12s':'€170','single':'€25'}[c.type]||'';
+  const price=c.type&&PRICES[c.type]?'€'+PRICES[c.type]:'';
   const langFlag={RU:'🇷🇺',EL:'🇬🇷',EN:'🇬🇧'}[c.lang]||'';
   const isExpiringSoon=c.expiresDate&&new Date(c.expiresDate)<=new Date(Date.now()+14*864e5);
   const daysLeft=c.expiresDate?Math.ceil((new Date(c.expiresDate)-new Date())/(864e5)):null;
@@ -1279,11 +1280,11 @@ function renderClientCard(c){
         <div>
           <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${L('Τύπος συνδρομής','Subscription type','Тип абонемента')}</div>
           <select onchange="updateClientSubType(${c.id},this.value)" style="font-size:12px;border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;background:var(--card);color:var(--text);width:100%">
-            <option value="4" ${c.type==='4'?'selected':''}>4 — €80</option>
-            <option value="8" ${c.type==='8'?'selected':''}>8 — €120</option>
-            <option value="12" ${c.type==='12'?'selected':''}>12 промо — €160</option>
-            <option value="12s" ${c.type==='12s'?'selected':''}>12 стандарт — €170</option>
-            <option value="single" ${c.type==='single'?'selected':''}>1 — €25</option>
+            <option value="4" ${c.type==='4'?'selected':''}>4 — €${PRICES['4']}</option>
+            <option value="8" ${c.type==='8'?'selected':''}>8 — €${PRICES['8']}</option>
+            <option value="12" ${c.type==='12'?'selected':''}>12 промо — €${PRICES['12']}</option>
+            <option value="12s" ${c.type==='12s'?'selected':''}>12 стандарт — €${PRICES['12s']}</option>
+            <option value="single" ${c.type==='single'?'selected':''}>1 — €${PRICES['single']}</option>
           </select>
         </div>
       </div>
@@ -2213,7 +2214,7 @@ function sendWhatsApp(clientId,type){
 
 function generateRevolutLink(clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
-  const amt={'4':80,'8':120,'12':160,'12s':170,'single':25}[c.type]||120;
+  const amt=PRICES[c.type]||PRICES['8'];
   const link=`https://revolut.me/almapilates?amount=${amt}&currency=EUR&description=${encodeURIComponent('Alma Pilates '+c.type+' classes - '+c.name)}`;
   navigator.clipboard?.writeText(link).catch(()=>{});
   const el=document.createElement('div');
@@ -2243,6 +2244,8 @@ async function updateClientSubType(clientId,type){
 
 // ── SCHEDULE ──────────────────────────────────────────────────
 let CAP=4; const MAX_M=3, MAX_E=4;
+let PRICES={'4':80,'8':120,'12':160,'12s':170,'single':25};
+let STUDIO_CONFIG={};
 const SLOT_BOOKINGS_DATA = {};
 
 // Map di_time -> array of names (mutable, date-agnostic — for week view only)
@@ -3233,11 +3236,11 @@ function openPayModal(prefilledClient){
       <div class="ff">
         <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Πακέτο','Membership','Абонемент')}</label>
         <select id="pam-type" onchange="pamUpdateAmt()" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px">
-          <option value="4|80">${L('4 μαθ. — €80','4 classes — €80','4 занятия — €80')}</option>
-          <option value="8|120">${L('8 μαθ. — €120','8 classes — €120','8 занятий — €120')}</option>
-          <option value="12|160">${L('12 μαθ. προμό — €160','12 classes promo — €160','12 занятий промо — €160')}</option>
-          <option value="12s|170">${L('12 μαθ. τυπ. — €170','12 classes standard — €170','12 занятий стандарт — €170')}</option>
-          <option value="1|25">${L('Μεμονωμένο — €25','Single class — €25','Разовое — €25')}</option>
+          <option value="4|${PRICES['4']}">${L('4 μαθ.','4 classes','4 занятия')} — €${PRICES['4']}</option>
+          <option value="8|${PRICES['8']}">${L('8 μαθ.','8 classes','8 занятий')} — €${PRICES['8']}</option>
+          <option value="12|${PRICES['12']}">${L('12 μαθ. προμό','12 classes promo','12 занятий промо')} — €${PRICES['12']}</option>
+          <option value="12s|${PRICES['12s']}">${L('12 μαθ. τυπ.','12 classes standard','12 занятий стандарт')} — €${PRICES['12s']}</option>
+          <option value="1|${PRICES['single']}">${L('Μεμονωμένο','Single class','Разовое')} — €${PRICES['single']}</option>
           <option value="0|0">${L('Άλλο','Custom amount','Другая сумма')}</option>
         </select>
       </div>
@@ -3866,9 +3869,53 @@ function renderSettingsSummary(){
     `<div style="color:var(--text3);font-size:12px">${L('Κανένα μάθημα','No slots','Нет слотов')}</div>`;
 }
 
+function updatePriceDropdowns(){
+  // Update static ncm-sub select in new-client modal
+  const ncmSub=document.getElementById('ncm-sub');
+  if(ncmSub){
+    const cur=ncmSub.value;
+    ncmSub.innerHTML=`<option value="none">—</option>
+      <option value="4">4 × €${PRICES['4']}</option>
+      <option value="8">8 × €${PRICES['8']}</option>
+      <option value="12">12 промо × €${PRICES['12']}</option>
+      <option value="12s">12 стандарт × €${PRICES['12s']}</option>
+      <option value="single">1 × €${PRICES['single']}</option>`;
+    if(ncmSub.querySelector(`option[value="${cur}"]`)) ncmSub.value=cur;
+  }
+}
+
+async function saveStudioSettings(){
+  if(!sb||!STUDIO_ID) return;
+  const v=id=>parseInt(document.getElementById(id)?.value)||0;
+  const p4=v('sett-price-4')||PRICES['4'];
+  const p8=v('sett-price-8')||PRICES['8'];
+  const p12=v('sett-price-12')||PRICES['12'];
+  const p12s=v('sett-price-12s')||PRICES['12s'];
+  const pSingle=v('sett-price-single')||PRICES['single'];
+  const cap=v('sett-capacity')||CAP;
+  const newConfig={...STUDIO_CONFIG, price_4:p4, price_12s:p12s};
+  const {error}=await sb.from('studios').update({
+    price_8:p8, price_12:p12, price_single:pSingle, capacity:cap, config:newConfig
+  }).eq('id',STUDIO_ID);
+  if(error){toast('Ошибка: '+error.message);return;}
+  PRICES={'4':p4,'8':p8,'12':p12,'12s':p12s,'single':pSingle};
+  CAP=cap; STUDIO_CONFIG=newConfig;
+  updatePriceDropdowns();
+  logAction('studio_settings','Цены обновлены');
+  toast(AL().toastSaved);
+}
+
 function renderSettings(){
   const t=AL();
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  // Populate price inputs from PRICES
+  const setVal=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
+  setVal('sett-price-4',PRICES['4']);
+  setVal('sett-price-8',PRICES['8']);
+  setVal('sett-price-12',PRICES['12']);
+  setVal('sett-price-12s',PRICES['12s']);
+  setVal('sett-price-single',PRICES['single']);
+  setVal('sett-capacity',CAP);
   // Update section labels
   const settCards=document.querySelectorAll('#page-settings .card-head');
   if(settCards[0])settCards[0].childNodes[0].textContent=t.settStudio;
@@ -4021,7 +4068,7 @@ async function dbLoad(){
       sb.from('clients').select('*,subscriptions(*)').eq('studio_id',STUDIO_ID).order('created_at',{ascending:false}),
       sb.from('payments').select('id,amount,method,status,paid_at,notes,created_at,subscription_id,clients(full_name)').eq('studio_id',STUDIO_ID).order('paid_at',{ascending:false,nullsFirst:false}).limit(300),
       sb.from('studio_expenses').select('*').eq('studio_id',STUDIO_ID).order('date',{ascending:false}),
-      sb.from('studios').select('expense_cats').eq('id',STUDIO_ID).single(),
+      sb.from('studios').select('expense_cats,price_8,price_12,price_single,capacity,config').eq('id',STUDIO_ID).single(),
       sb.from('extra_classes').select('class_date,start_time,name').eq('studio_id',STUDIO_ID).eq('is_active',true),
       sb.from('schedule_cancellations').select('*').eq('studio_id',STUDIO_ID),
       sb.from('slot_names').select('day_of_week,start_time,name').eq('studio_id',STUDIO_ID),
@@ -4074,9 +4121,19 @@ async function dbLoad(){
 
     // ── Категории расходов + расходы ───────────────────────────────
     const stConf = studioRes.value?.data;
-    if(stConf?.expense_cats&&Object.keys(stConf.expense_cats).length){
-      CATS=stConf.expense_cats;
-      try{localStorage.setItem('alma_cats',JSON.stringify(CATS));}catch(e){}
+    if(stConf){
+      if(stConf.expense_cats&&Object.keys(stConf.expense_cats).length){
+        CATS=stConf.expense_cats;
+        try{localStorage.setItem('alma_cats',JSON.stringify(CATS));}catch(e){}
+      }
+      STUDIO_CONFIG=stConf.config||{};
+      if(stConf.price_8)  PRICES['8']=stConf.price_8;
+      if(stConf.price_12) PRICES['12']=stConf.price_12;
+      if(stConf.price_single) PRICES['single']=stConf.price_single;
+      if(STUDIO_CONFIG.price_4)   PRICES['4']=STUDIO_CONFIG.price_4;
+      if(STUDIO_CONFIG.price_12s) PRICES['12s']=STUDIO_CONFIG.price_12s;
+      if(stConf.capacity) CAP=stConf.capacity;
+      updatePriceDropdowns();
     }
     const expRows = expensesRes.value?.data;
     if(expRows){
@@ -4952,7 +5009,7 @@ async function saveNewClient(){
       if(data){
         uuid=data.id;
         if(subType!=='none'){
-          const priceMap={'4':80,'8':120,'12':160,'12s':170,'single':25};
+          const priceMap=PRICES;
           const totalCl={'4':4,'8':8,'12':12,'12s':12,'single':1}[subType]||8;
           const end=new Date(startDate); end.setDate(end.getDate()+30);
           const {data:sub}=await sb.from('subscriptions').insert({
