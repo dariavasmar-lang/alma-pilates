@@ -280,8 +280,13 @@
           <div class="ff"><label>Single class (€)</label><input id="sett-price-single" type="number"></div>
           <div class="ff"><label>Class capacity</label><input id="sett-capacity" type="number"></div>
         </div>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">Изменения применяются к новым абонементам после сохранения</div>
-        <div style="display:flex;justify-content:flex-end;margin-top:6px">
+        <div class="form-grid-2" style="margin-top:4px">
+          <div class="ff"><label>Valid from / Действует с</label><input id="sett-valid-from" type="date"></div>
+          <div style="display:flex;align-items:flex-end;padding-bottom:1px">
+            <div style="font-size:11px;color:var(--text3);line-height:1.4">Цены — новые абонементы.<br>Вместимость — все занятия с этой даты.</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
           <button class="btn primary" onclick="saveStudioSettings()">Save</button>
         </div>
       </div>
@@ -3893,15 +3898,23 @@ async function saveStudioSettings(){
   const p12s=v('sett-price-12s')||PRICES['12s'];
   const pSingle=v('sett-price-single')||PRICES['single'];
   const cap=v('sett-capacity')||CAP;
-  const newConfig={...STUDIO_CONFIG, price_4:p4, price_12s:p12s};
+  const validFrom=document.getElementById('sett-valid-from')?.value||localDateStr(new Date());
+  const newConfig={...STUDIO_CONFIG, price_4:p4, price_12s:p12s, settings_valid_from:validFrom};
   const {error}=await sb.from('studios').update({
     price_8:p8, price_12:p12, price_single:pSingle, capacity:cap, config:newConfig
   }).eq('id',STUDIO_ID);
   if(error){toast('Ошибка: '+error.message);return;}
+  // Update capacity on all schedule slots from validFrom onwards
+  if(cap!==CAP){
+    await sb.from('schedule_slots')
+      .update({capacity:cap})
+      .eq('studio_id',STUDIO_ID)
+      .gte('valid_from',validFrom);
+  }
   PRICES={'4':p4,'8':p8,'12':p12,'12s':p12s,'single':pSingle};
   CAP=cap; STUDIO_CONFIG=newConfig;
   updatePriceDropdowns();
-  logAction('studio_settings','Цены обновлены');
+  logAction('studio_settings',`Настройки обновлены (с ${validFrom}): цены €${p4}/€${p8}/€${p12}/€${p12s}/€${pSingle}, вместимость ${cap}`);
   toast(AL().toastSaved);
 }
 
@@ -3916,6 +3929,7 @@ function renderSettings(){
   setVal('sett-price-12s',PRICES['12s']);
   setVal('sett-price-single',PRICES['single']);
   setVal('sett-capacity',CAP);
+  setVal('sett-valid-from', STUDIO_CONFIG.settings_valid_from || localDateStr(new Date()));
   // Update section labels
   const settCards=document.querySelectorAll('#page-settings .card-head');
   if(settCards[0])settCards[0].childNodes[0].textContent=t.settStudio;
