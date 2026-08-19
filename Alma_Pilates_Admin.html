@@ -2358,6 +2358,15 @@ function getWeekDates(){
 }
 function localDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
+function normPhone(p){
+  if(!p) return p;
+  p=p.trim().replace(/[\s\-().]/g,'');
+  if(p.startsWith('00')) return '+'+p.slice(2);
+  if(/^357\d{8,}$/.test(p)) return '+'+p;
+  if(!p.startsWith('+')) return '+357'+p.replace(/^0/,'');
+  return p;
+}
+
 // Convert "HH:MM" → "H:MM AM/PM"
 function toAMPM(t){ const [h,m]=t.split(':').map(Number); return (h%12||12)+':'+(m<10?'0':'')+m+' '+(h<12?'AM':'PM'); }
 
@@ -4999,7 +5008,7 @@ function openNewClientModal(toArchive=false){
 async function saveNewClient(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const name=document.getElementById('ncm-name').value.trim();
-  const phone=document.getElementById('ncm-phone').value.trim();
+  const phone=normPhone(document.getElementById('ncm-phone').value.trim());
   const lang=document.getElementById('ncm-lang').value;
   const startDate=document.getElementById('ncm-start').value||new Date().toISOString().split('T')[0];
   const subType=document.getElementById('ncm-sub').value;
@@ -5091,7 +5100,7 @@ async function confirmBooking(){
   }
   if(_bmTab==='new'){
     const name=(document.getElementById('bm-new-name')?.value||'').trim();
-    const phone=(document.getElementById('bm-new-phone')?.value||'').trim();
+    const phone=normPhone((document.getElementById('bm-new-phone')?.value||'').trim());
     const lang=document.getElementById('bm-new-lang')?.value||'ru';
     const errEl=document.getElementById('bm-new-err');
     if(!name){errEl.textContent=L('Εισάγετε όνομα','Enter name','Введите имя');errEl.style.display='block';return;}
