@@ -3846,7 +3846,7 @@ async function addSchedSlot(){
   const time=(document.getElementById('sched-new-time')?.value||'').slice(0,5);
   const validFrom=document.getElementById('sched-new-from')?.value||localDateStr(new Date());
   if(!time){toast(L('Επιλέξτε ώρα','Enter a time','Введите время'));return;}
-  // Check duplicate in both GSCHED_ALL and scheduleSlotIds
+  // Check if active slot already exists
   if((GSCHED_ALL[day]||[]).includes(time)||scheduleSlotIds[day+'_'+time]){
     toast(L('Υπάρχει ήδη','Slot already exists','Такой слот уже есть'));return;
   }
@@ -3854,33 +3854,41 @@ async function addSchedSlot(){
   const [hh,mm]=time.split(':').map(Number);
   const endH=String(hh+1).padStart(2,'0');
   const endTime=endH+':'+String(mm).padStart(2,'0');
-  // Add to Supabase
   if(sb){
     try{
-      // Try insert with valid_from (requires migration_valid_from.sql)
-      // Falls back to insert without it if column doesn't exist
-      let insertData={studio_id:STUDIO_ID,day_of_week:day,start_time:time,end_time:endTime,is_active:true,capacity:CAP};
-      let r=await sb.from('schedule_slots').insert({...insertData,valid_from:validFrom}).select('id').single();
-      if(r.error&&r.error.message&&r.error.message.includes('valid_from')){
-        r=await sb.from('schedule_slots').insert(insertData).select('id').single();
+      // Check if slot exists but is inactive → re-activate instead of insert
+      const {data:existing}=await sb.from('schedule_slots')
+        .select('id,is_active')
+        .eq('studio_id',STUDIO_ID).eq('day_of_week',day).eq('start_time',time)
+        .maybeSingle();
+      let slotId;
+      if(existing&&!existing.is_active){
+        const {error:rErr}=await sb.from('schedule_slots')
+          .update({is_active:true,capacity:CAP}).eq('id',existing.id);
+        if(rErr) throw rErr;
+        slotId=existing.id;
+      } else if(!existing){
+        // New slot — try insert with valid_from, fallback without
+        let insertData={studio_id:STUDIO_ID,day_of_week:day,start_time:time,end_time:endTime,is_active:true,capacity:CAP};
+        let r=await sb.from('schedule_slots').insert({...insertData,valid_from:validFrom}).select('id').single();
+        if(r.error&&r.error.message&&r.error.message.includes('valid_from')){
+          r=await sb.from('schedule_slots').insert(insertData).select('id').single();
+        }
+        if(r.error) throw r.error;
+        slotId=r.data?.id;
       }
-      const {data:newSlot,error}=r;
-      if(error) throw error;
-      if(newSlot){
+      if(slotId){
         const today=localDateStr(new Date());
-        // Always add to GSCHED_ALL (all defined slots)
         if(!GSCHED_ALL[day]) GSCHED_ALL[day]=[];
         if(!GSCHED_ALL[day].includes(time)){GSCHED_ALL[day].push(time);GSCHED_ALL[day].sort();}
         if(validFrom<=today){
-          // Active now — add to GSCHED
           if(!GSCHED[day]) GSCHED[day]=[];
           if(!GSCHED[day].includes(time)){GSCHED[day].push(time);GSCHED[day].sort();}
         }
-        scheduleSlotIds[day+'_'+time]=newSlot.id;
+        scheduleSlotIds[day+'_'+time]=slotId;
       }
     }catch(e){console.error('addSchedSlot:',e);toast('Error: '+e.message);return;}
   } else {
-    // No Supabase — add locally only
     if(!GSCHED[day]) GSCHED[day]=[];
     if(!GSCHED[day].includes(time)){GSCHED[day].push(time);GSCHED[day].sort();}
   }
