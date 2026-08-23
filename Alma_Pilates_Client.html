@@ -1087,6 +1087,7 @@ async function doOtp(){
   btn.disabled=false;
   if(error){toast2('Λανθασμένος κωδικός / Wrong code / Неверный код');return;}
   sbUser=data.user;
+  if(data.session?.refresh_token) _saveRT(data.session.refresh_token);
   const {data:clientData,error:linkErr}=await sb.rpc('link_user_to_client',{
     p_phone:sbPhone,
     p_user_id:sbUser.id,
@@ -1877,10 +1878,37 @@ window.onOtpKey=function(e,idx){
 };
 
 // ═══════════════════════════════════════════════════════════════
+// Cookie-based session persistence (fallback when localStorage is cleared)
+// ═══════════════════════════════════════════════════════════════
+const ALMA_RT_KEY='alma_rt';
+function _saveRT(token){
+  const d=new Date(); d.setFullYear(d.getFullYear()+1);
+  const sec=location.protocol==='https:'?'; Secure':'';
+  document.cookie=ALMA_RT_KEY+'='+encodeURIComponent(token)+'; expires='+d.toUTCString()+'; path=/; SameSite=Strict'+sec;
+}
+function _loadRT(){
+  const m=document.cookie.match(/(?:^|; )alma_rt=([^;]*)/);
+  return m?decodeURIComponent(m[1]):null;
+}
+function _clearRT(){
+  document.cookie=ALMA_RT_KEY+'=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+}
+
+// ═══════════════════════════════════════════════════════════════
 // INIT — restore session on page load
 // ═══════════════════════════════════════════════════════════════
 if(sb){
   sb.auth.onAuthStateChange(async(event,session)=>{
+    if(event==='TOKEN_REFRESHED'&&session?.refresh_token){
+      sbUser=session.user;
+      _saveRT(session.refresh_token);
+      return;
+    }
+    if(event==='SIGNED_OUT'){
+      _clearRT(); sbUser=null; sbProfile=null;
+      applyLang(); go('welcome');
+      return;
+    }
     if(event==='INITIAL_SESSION'){
       // Resolve studio from URL before doing anything
       const studioOk = await resolveStudio();
@@ -1888,10 +1916,21 @@ if(sb){
         document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#888">Studio not found</div>';
         return;
       }
-      if(session){
+      let effectiveSession=session;
+      // If no localStorage session, try to restore via cookie refresh_token
+      if(!effectiveSession){
+        const rt=_loadRT();
+        if(rt){
+          const {data}=await sb.auth.refreshSession({refresh_token:rt});
+          if(data?.session) effectiveSession=data.session;
+          else _clearRT();
+        }
+      }
+      if(effectiveSession){
+        if(effectiveSession.refresh_token) _saveRT(effectiveSession.refresh_token);
         // Try to restore session: load client profile regardless of session.user.phone
         // (phone property is not always reliably set on the session user object)
-        sbUser=session.user;
+        sbUser=effectiveSession.user;
         await loadClasses();
         await loadProfile();
         if(sbProfile){
@@ -1912,6 +1951,7 @@ if(sb){
           // Only sign out if we got a clean null (not a network error)
           // maybeSingle() returns null data with no error when row doesn't exist
           sbUser=null;
+          _clearRT();
           await sb.auth.signOut();
           applyLang();
           go('welcome');
