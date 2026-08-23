@@ -1342,6 +1342,11 @@ function renderClientCard(c){
   </div>`:''}
 
   <div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
+    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">SMS</div>
+    <button class="btn" onclick="sendPaymentSMS(${c.id})" style="width:100%;justify-content:center;${isExpiringSoon?'background:var(--warn-bg);border-color:#D4B870;color:var(--warn)':''}">💬 SMS — ${L('υπενθύμιση οφειλής','payment overdue','просрочка оплаты')}</button>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px">
     ${c.isArchived
       ? `<button class="btn" onclick="archiveClient(${c.id},false)" style="width:100%;justify-content:center;color:var(--green)">↩ ${L('Επαναφορά από αρχείο','Restore from archive','Восстановить из архива')}</button>`
       : `<button class="btn" onclick="archiveClient(${c.id},true)" style="width:100%;justify-content:center;color:var(--text3)">📁 ${L('Μετακίνηση στο αρχείο','Move to archive','Переместить в архив')}</button>`
@@ -2204,6 +2209,27 @@ async function adminCancelBooking(bookingId, clientId){
   await loadClientHistory(clientId);
   const {data:sub}=await sb.from('subscriptions').select('total_classes,used_classes').eq('client_id',uuid).eq('is_active',true).order('created_at',{ascending:false}).limit(1).single();
   if(sub){ c.left=sub.total_classes-sub.used_classes; c.status=calcClientStatus(c); applyExpiredBurn(c); renderClientCard(c); renderClients(); }
+}
+
+async function sendPaymentSMS(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c) return;
+  const phone=(c.phone||'').replace(/[^\d+]/g,'');
+  if(!phone){toast(adminLang==='ru'?'Нет номера телефона':adminLang==='en'?'No phone number':'Δεν υπάρχει τηλέφωνο');return;}
+  const name=c.name.split(' ')[0];
+  const clientLang=(c.lang||'EL').toUpperCase();
+  let msg;
+  if(clientLang==='RU') msg=`${name}, напоминаем об оплате абонемента Alma Pilates. Свяжитесь с нами для продления. 💜`;
+  else if(clientLang==='EN') msg=`${name}, your Alma Pilates subscription is overdue. Please contact us to renew. 💜`;
+  else msg=`${name}, η συνδρομή σου στο Alma Pilates έχει λήξει. Επικοινώνησε μαζί μας για ανανέωση. 💜`;
+  const ok=confirm(adminLang==='ru'?`Отправить SMS клиенту ${c.name} (${phone})?`:adminLang==='en'?`Send SMS to ${c.name} (${phone})?`:`Αποστολή SMS στον/στην ${c.name} (${phone});`);
+  if(!ok) return;
+  try{
+    const {data,error}=await sb.functions.invoke('send-sms',{body:{phone,message:msg,studio_id:STUDIO_ID}});
+    if(error||!data?.success) throw new Error(error?.message||data?.error||'Error');
+    toast(adminLang==='ru'?'SMS отправлено ✓':adminLang==='en'?'SMS sent ✓':'SMS εστάλη ✓');
+  }catch(e){
+    toast('SMS error: '+e.message);
+  }
 }
 
 function sendWhatsApp(clientId,type){
