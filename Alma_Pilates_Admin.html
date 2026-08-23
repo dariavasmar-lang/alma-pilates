@@ -2218,9 +2218,7 @@ async function sendPaymentSMS(clientId){
   const name=c.name.split(' ')[0];
   const clientLang=(c.lang||'EL').toUpperCase();
   let msg;
-  if(clientLang==='RU') msg=`${name}, напоминаем об оплате абонемента Alma Pilates. Свяжитесь с нами для продления. 💜`;
-  else if(clientLang==='EN') msg=`${name}, your Alma Pilates subscription is overdue. Please contact us to renew. 💜`;
-  else msg=`${name}, η συνδρομή σου στο Alma Pilates έχει λήξει. Επικοινώνησε μαζί μας για ανανέωση. 💜`;
+  msg=`${name}, η συνδρομή σας έχει λήξει, παρακαλώ προχωρήστε στην πληρωμή και σας περιμένουμε στις προπονήσεις 💜\n\nYour subscription has expired, please make the payment! We look forward to seeing you at training 💜`;
   const ok=confirm(adminLang==='ru'?`Отправить SMS клиенту ${c.name} (${phone})?`:adminLang==='en'?`Send SMS to ${c.name} (${phone})?`:`Αποστολή SMS στον/στην ${c.name} (${phone});`);
   if(!ok) return;
   try{
