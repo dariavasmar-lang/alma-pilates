@@ -368,6 +368,11 @@
         <button class="btn primary" onclick="addSchedSlot()" id="sched-add-btn" style="justify-content:center;white-space:nowrap">+ Add</button>
       </div>
     </div>
+    <div id="sched-pending-hint" style="display:none;font-size:11px;color:var(--text3);margin-top:12px;text-align:center"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
+      <button class="btn" onclick="closeModal('sched-modal');schedPending={adds:[],deletes:new Set()}" style="flex:1" id="sched-cancel-btn">Cancel</button>
+      <button class="btn primary" onclick="saveSchedChanges()" style="flex:2" id="sched-save-btn">Save changes</button>
+    </div>
   </div>
 </div>
 
@@ -639,6 +644,7 @@ let GSCHED={
   5:['09:30','10:30']
 };
 let GSCHED_ALL={};
+let schedPending={adds:[],deletes:new Set()};
 
 // MAX_M/MAX_E defined in schedule section
 let clientFilter='all', payFilter='all', clientSort='default';
@@ -3756,12 +3762,14 @@ async function openSchedModal(){
   const DNAMES=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:
                adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:
                                 ['Пн','Вт','Ср','Чт','Пт','Сб'];
-  // Populate day dropdown with current language
+  // Reset pending state on open
+  schedPending={adds:[],deletes:new Set()};
+  // Populate day dropdown
   const daySelect=document.getElementById('sched-new-day');
   if(daySelect) daySelect.innerHTML=DNAMES.map((d,i)=>`<option value="${i}">${d}</option>`).join('');
   // Default valid_from = today
   const fromInput=document.getElementById('sched-new-from');
-  if(fromInput&&!fromInput.value) fromInput.value=localDateStr(new Date());
+  if(fromInput) fromInput.value=localDateStr(new Date());
   // Labels
   document.getElementById('sched-modal-title').textContent=L('Πρόγραμμα','Schedule','Расписание');
   document.getElementById('sched-add-title').textContent=L('Προσθήκη θέσης','Add slot','Добавить слот');
@@ -3770,7 +3778,9 @@ async function openSchedModal(){
   document.getElementById('sched-lbl-from').textContent=L('Πρόγραμμα ενεργό από','Schedule active from','Расписание действует с');
   document.getElementById('sched-from-hint').textContent=L('για νέες θέσεις','applies to new slots','для новых слотов');
   document.getElementById('sched-add-btn').textContent='+ '+L('Προσθήκη','Add','Добавить');
-  // Always fetch fresh slots from DB so future-dated slots are visible
+  document.getElementById('sched-save-btn').textContent=L('Αποθήκευση','Save changes','Сохранить');
+  document.getElementById('sched-cancel-btn').textContent=L('Ακύρωση','Cancel','Отмена');
+  // Fetch fresh slots from DB
   await refreshGschedAll();
   renderSchedSlotsList();
   document.getElementById('sched-modal').classList.add('open');
@@ -3803,17 +3813,29 @@ function renderSchedSlotsList(){
   const list=document.getElementById('sched-slots-list');
   if(!list) return;
   const rows=[];
+  const hasPending=schedPending.adds.length>0||schedPending.deletes.size>0;
+  const hint=document.getElementById('sched-pending-hint');
+  if(hint) hint.style.display=hasPending?'block':'none';
+  if(hint&&hasPending) hint.textContent=L('Αλλαγές δεν αποθηκεύτηκαν — πατήστε «Αποθήκευση»','Unsaved changes — click Save to apply','Есть несохранённые изменения — нажмите «Сохранить»');
   [0,1,2,3,4,5].forEach(d=>{
-    const times=GSCHED_ALL[d]||[];
-    if(!times.length) return;
+    // Merge existing + pending adds, remove pending deletes
+    const existing=(GSCHED_ALL[d]||[]).filter(t=>!schedPending.deletes.has(d+'_'+t));
+    const pendingForDay=schedPending.adds.filter(a=>a.day===d).map(a=>a.time);
+    const allTimes=[...new Set([...existing,...pendingForDay])].sort();
+    if(!allTimes.length) return;
     rows.push(`<div style="margin-bottom:10px">
       <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">${DNAMES[d]}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${times.map(t=>`
-          <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border:0.5px solid var(--border);border-radius:20px;background:var(--bg2)">
+        ${allTimes.map(t=>{
+          const isNew=pendingForDay.includes(t);
+          const style=isNew
+            ?'border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--bg2))'
+            :'border:0.5px solid var(--border);background:var(--bg2)';
+          return `<div style="display:flex;align-items:center;gap:5px;padding:4px 10px;${style};border-radius:20px">
             <span style="font-size:12px;color:var(--text)">${toAMPM(t)}</span>
             <button onclick="deleteSchedSlot(${d},'${t}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;line-height:1;padding:0" title="${L('Διαγραφή','Delete','Удалить')}">✕</button>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>
     </div>`);
   });
@@ -3821,80 +3843,89 @@ function renderSchedSlotsList(){
     `<div style="color:var(--text3);font-size:12px">${L('Κανένα μάθημα','No slots defined','Нет слотов')}</div>`;
 }
 
-async function deleteSchedSlot(day, time){
-  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  // Remove from GSCHED and GSCHED_ALL
-  if(GSCHED[day]) GSCHED[day]=GSCHED[day].filter(t=>t!==time);
-  if(GSCHED_ALL[day]) GSCHED_ALL[day]=GSCHED_ALL[day].filter(t=>t!==time);
-  // Remove from Supabase
-  const slotKey=day+'_'+time;
-  const slotId=scheduleSlotIds[slotKey];
-  if(sb && slotId){
-    try{
-      await sb.from('schedule_slots').update({is_active:false}).eq('id',slotId);
-      delete scheduleSlotIds[slotKey];
-    }catch(e){console.error('deleteSchedSlot:',e);}
-  }
+function deleteSchedSlot(day, time){
+  // If it's a pending add — just undo it locally
+  const addIdx=schedPending.adds.findIndex(a=>a.day===day&&a.time===time);
+  if(addIdx>=0){ schedPending.adds.splice(addIdx,1); renderSchedSlotsList(); return; }
+  // Otherwise mark as pending delete (no DB write yet)
+  schedPending.deletes.add(day+'_'+time);
   renderSchedSlotsList();
-  renderSettingsSummary();
-  toast(L('Αφαιρέθηκε','Slot removed','Слот удалён'));
 }
 
-async function addSchedSlot(){
+function addSchedSlot(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const day=parseInt(document.getElementById('sched-new-day')?.value||'0');
   const time=(document.getElementById('sched-new-time')?.value||'').slice(0,5);
   const validFrom=document.getElementById('sched-new-from')?.value||localDateStr(new Date());
   if(!time){toast(L('Επιλέξτε ώρα','Enter a time','Введите время'));return;}
-  // Check if active slot already exists
-  if((GSCHED_ALL[day]||[]).includes(time)||scheduleSlotIds[day+'_'+time]){
-    toast(L('Υπάρχει ήδη','Slot already exists','Такой слот уже есть'));return;
-  }
-  // Calculate end_time (+1 hour)
-  const [hh,mm]=time.split(':').map(Number);
-  const endH=String(hh+1).padStart(2,'0');
-  const endTime=endH+':'+String(mm).padStart(2,'0');
-  if(sb){
-    try{
-      // Check if slot exists but is inactive → re-activate instead of insert
-      const {data:existing}=await sb.from('schedule_slots')
-        .select('id,is_active')
-        .eq('studio_id',STUDIO_ID).eq('day_of_week',day).eq('start_time',time)
-        .maybeSingle();
-      let slotId;
-      if(existing&&!existing.is_active){
-        const {error:rErr}=await sb.from('schedule_slots')
-          .update({is_active:true,capacity:CAP}).eq('id',existing.id);
-        if(rErr) throw rErr;
-        slotId=existing.id;
-      } else if(!existing){
-        // New slot — try insert with valid_from, fallback without
-        let insertData={studio_id:STUDIO_ID,day_of_week:day,start_time:time,end_time:endTime,is_active:true,capacity:CAP};
-        let r=await sb.from('schedule_slots').insert({...insertData,valid_from:validFrom}).select('id').single();
-        if(r.error&&r.error.message&&r.error.message.includes('valid_from')){
-          r=await sb.from('schedule_slots').insert(insertData).select('id').single();
-        }
-        if(r.error) throw r.error;
-        slotId=r.data?.id;
-      }
-      if(slotId){
-        const today=localDateStr(new Date());
-        if(!GSCHED_ALL[day]) GSCHED_ALL[day]=[];
-        if(!GSCHED_ALL[day].includes(time)){GSCHED_ALL[day].push(time);GSCHED_ALL[day].sort();}
-        if(validFrom<=today){
-          if(!GSCHED[day]) GSCHED[day]=[];
-          if(!GSCHED[day].includes(time)){GSCHED[day].push(time);GSCHED[day].sort();}
-        }
-        scheduleSlotIds[day+'_'+time]=slotId;
-      }
-    }catch(e){console.error('addSchedSlot:',e);toast('Error: '+e.message);return;}
-  } else {
-    if(!GSCHED[day]) GSCHED[day]=[];
-    if(!GSCHED[day].includes(time)){GSCHED[day].push(time);GSCHED[day].sort();}
-  }
+  // Check for duplicates: existing active (minus pending deletes) + pending adds
+  const key=day+'_'+time;
+  const inExisting=(GSCHED_ALL[day]||[]).includes(time)&&!schedPending.deletes.has(key);
+  const inPending=schedPending.adds.some(a=>a.day===day&&a.time===time);
+  if(inExisting||inPending){toast(L('Υπάρχει ήδη','Slot already exists','Такой слот уже есть'));return;}
+  // Stage locally only
+  schedPending.adds.push({day,time,validFrom});
   renderSchedSlotsList();
-  renderSettingsSummary();
-  toast(L('Αποθηκεύτηκε','Slot added','Слот добавлен'));
+}
+
+async function saveSchedChanges(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(!sb){closeModal('sched-modal');return;}
+  const btn=document.getElementById('sched-save-btn');
+  if(btn) btn.disabled=true;
+  try{
+    // Apply deletes
+    for(const key of schedPending.deletes){
+      const slotId=scheduleSlotIds[key];
+      if(slotId) await sb.from('schedule_slots').update({is_active:false}).eq('id',slotId);
+    }
+    // Apply adds
+    for(const {day,time,validFrom} of schedPending.adds){
+      const [hh,mm]=time.split(':').map(Number);
+      const endTime=String(hh+1).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+      // Re-activate if inactive, else insert
+      const {data:existing}=await sb.from('schedule_slots')
+        .select('id,is_active').eq('studio_id',STUDIO_ID)
+        .eq('day_of_week',day).eq('start_time',time).maybeSingle();
+      if(existing&&!existing.is_active){
+        await sb.from('schedule_slots').update({is_active:true,capacity:CAP}).eq('id',existing.id);
+      } else if(!existing){
+        const ins={studio_id:STUDIO_ID,day_of_week:day,start_time:time,end_time:endTime,is_active:true,capacity:CAP};
+        let r=await sb.from('schedule_slots').insert({...ins,valid_from:validFrom}).select('id').single();
+        if(r.error&&r.error.message.includes('valid_from'))
+          r=await sb.from('schedule_slots').insert(ins).select('id').single();
+        if(r.error) throw r.error;
+      }
+    }
+    // Refresh in-memory state from DB
+    await refreshGschedAll();
+    // Rebuild GSCHED (active now) from GSCHED_ALL
+    const today=localDateStr(new Date());
+    const {data:slots}=await sb.from('schedule_slots')
+      .select('day_of_week,start_time,valid_from').eq('studio_id',STUDIO_ID).eq('is_active',true);
+    if(slots){
+      const newSCH={};
+      slots.forEach(s=>{
+        if(s.valid_from&&s.valid_from>today) return;
+        const d=s.day_of_week, t=s.start_time.slice(0,5);
+        if(!newSCH[d]) newSCH[d]=[];
+        if(!newSCH[d].includes(t)) newSCH[d].push(t);
+      });
+      Object.keys(newSCH).forEach(d=>newSCH[d].sort());
+      if(Object.keys(newSCH).length) GSCHED=newSCH;
+    }
+    schedPending={adds:[],deletes:new Set()};
+    logAction('studio_settings','Расписание обновлено');
+    closeModal('sched-modal');
+    renderSchedule();
+    renderSettingsSummary();
+    toast(L('Αποθηκεύτηκε','Schedule saved','Расписание сохранено'));
+  }catch(e){
+    console.error('saveSchedChanges:',e);
+    toast('Error: '+e.message);
+  }finally{
+    if(btn) btn.disabled=false;
+  }
 }
 
 function renderSettingsSummary(){
