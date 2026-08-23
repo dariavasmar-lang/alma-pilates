@@ -3751,7 +3751,7 @@ function addNewCat(){
 }
 
 // ── SCHEDULE SETTINGS ────────────────────────────────────────
-function openSchedModal(){
+async function openSchedModal(){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   const DNAMES=adminLang==='el'?['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ']:
                adminLang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat']:
@@ -3770,8 +3770,29 @@ function openSchedModal(){
   document.getElementById('sched-lbl-from').textContent=L('Πρόγραμμα ενεργό από','Schedule active from','Расписание действует с');
   document.getElementById('sched-from-hint').textContent=L('για νέες θέσεις','applies to new slots','для новых слотов');
   document.getElementById('sched-add-btn').textContent='+ '+L('Προσθήκη','Add','Добавить');
+  // Always fetch fresh slots from DB so future-dated slots are visible
+  await refreshGschedAll();
   renderSchedSlotsList();
   document.getElementById('sched-modal').classList.add('open');
+}
+
+async function refreshGschedAll(){
+  if(!sb) return;
+  const {data:slots}=await sb.from('schedule_slots')
+    .select('id,day_of_week,start_time')
+    .eq('studio_id',STUDIO_ID).eq('is_active',true)
+    .order('day_of_week').order('start_time');
+  if(!slots) return;
+  const newALL={};
+  slots.forEach(s=>{
+    const t=s.start_time.slice(0,5);
+    const d=s.day_of_week;
+    scheduleSlotIds[d+'_'+t]=s.id;
+    if(!newALL[d]) newALL[d]=[];
+    if(!newALL[d].includes(t)) newALL[d].push(t);
+  });
+  Object.keys(newALL).forEach(d=>newALL[d].sort());
+  GSCHED_ALL=newALL;
 }
 
 function renderSchedSlotsList(){
