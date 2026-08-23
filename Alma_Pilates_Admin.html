@@ -632,12 +632,13 @@ let manualCancelled = {};
 // Global schedule — loaded from Supabase on init, fallback to hardcoded
 let GSCHED={
   0:['16:30','17:30','18:30','19:30'],
-  1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+  1:['07:00','08:15','09:15','16:30','17:30','18:30','19:30'],
   2:['16:30','17:30','18:30','19:30'],
   3:['07:00','08:00','16:30','17:30','18:30','19:30'],
-  4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
+  4:['07:00','08:15','09:15','16:30','17:30','18:30','19:30'],
   5:['09:30','10:30']
 };
+let GSCHED_ALL={};
 
 // MAX_M/MAX_E defined in schedule section
 let clientFilter='all', payFilter='all', clientSort='default';
@@ -3782,7 +3783,7 @@ function renderSchedSlotsList(){
   if(!list) return;
   const rows=[];
   [0,1,2,3,4,5].forEach(d=>{
-    const times=GSCHED[d]||[];
+    const times=GSCHED_ALL[d]||[];
     if(!times.length) return;
     rows.push(`<div style="margin-bottom:10px">
       <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">${DNAMES[d]}</div>
@@ -3801,8 +3802,9 @@ function renderSchedSlotsList(){
 
 async function deleteSchedSlot(day, time){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  // Remove from GSCHED
+  // Remove from GSCHED and GSCHED_ALL
   if(GSCHED[day]) GSCHED[day]=GSCHED[day].filter(t=>t!==time);
+  if(GSCHED_ALL[day]) GSCHED_ALL[day]=GSCHED_ALL[day].filter(t=>t!==time);
   // Remove from Supabase
   const slotKey=day+'_'+time;
   const slotId=scheduleSlotIds[slotKey];
@@ -3823,8 +3825,8 @@ async function addSchedSlot(){
   const time=(document.getElementById('sched-new-time')?.value||'').slice(0,5);
   const validFrom=document.getElementById('sched-new-from')?.value||localDateStr(new Date());
   if(!time){toast(L('Επιλέξτε ώρα','Enter a time','Введите время'));return;}
-  // Check duplicate
-  if((GSCHED[day]||[]).includes(time)){
+  // Check duplicate in both GSCHED_ALL and scheduleSlotIds
+  if((GSCHED_ALL[day]||[]).includes(time)||scheduleSlotIds[day+'_'+time]){
     toast(L('Υπάρχει ήδη','Slot already exists','Такой слот уже есть'));return;
   }
   // Calculate end_time (+1 hour)
@@ -3845,6 +3847,9 @@ async function addSchedSlot(){
       if(error) throw error;
       if(newSlot){
         const today=localDateStr(new Date());
+        // Always add to GSCHED_ALL (all defined slots)
+        if(!GSCHED_ALL[day]) GSCHED_ALL[day]=[];
+        if(!GSCHED_ALL[day].includes(time)){GSCHED_ALL[day].push(time);GSCHED_ALL[day].sort();}
         if(validFrom<=today){
           // Active now — add to GSCHED
           if(!GSCHED[day]) GSCHED[day]=[];
@@ -4112,17 +4117,23 @@ async function dbLoad(){
     const slots = slotsRes.value?.data;
     if(slots?.length){
       const today=localDateStr(new Date());
-      const newSCH={};
+      const newSCH={}, newALL={};
       slots.forEach(s=>{
         const t=s.start_time.slice(0,5);
-        scheduleSlotIds[s.day_of_week+'_'+t]=s.id;
-        if(s.valid_from&&s.valid_from>today) return;
         const d=s.day_of_week;
+        scheduleSlotIds[d+'_'+t]=s.id;
+        // GSCHED_ALL — все активные слоты для управления расписанием
+        if(!newALL[d]) newALL[d]=[];
+        if(!newALL[d].includes(t)) newALL[d].push(t);
+        // GSCHED — только слоты, действующие сейчас (valid_from <= today)
+        if(s.valid_from&&s.valid_from>today) return;
         if(!newSCH[d]) newSCH[d]=[];
         if(!newSCH[d].includes(t)) newSCH[d].push(t);
       });
       Object.keys(newSCH).forEach(d=>newSCH[d].sort());
+      Object.keys(newALL).forEach(d=>newALL[d].sort());
       if(Object.keys(newSCH).length>0) GSCHED=newSCH;
+      if(Object.keys(newALL).length>0) GSCHED_ALL=newALL;
     }
 
     // ── Платежи ────────────────────────────────────────────────────
