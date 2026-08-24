@@ -2204,6 +2204,19 @@ async function adminCancelBooking(bookingId, clientId){
 
   toast(L('Ακυρώθηκε','Cancelled','Запись отменена'));
 
+  // Notify first person on waitlist that a spot opened up
+  if(bk?.slot_id&&bk?.class_date){
+    const {data:person}=await sb.rpc('get_next_waitlist_person',{p_slot_id:bk.slot_id,p_class_date:bk.class_date});
+    if(person?.phone){
+      const name=person.full_name.split(' ')[0];
+      const dateObj=new Date(bk.class_date+'T12:00:00');
+      const dateLabel=dateObj.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'});
+      const slotTime=bkForLog?.schedule_slots?.start_time?.slice(0,5)||'';
+      const msg=`${name}, освободилось место на тренировке ${dateLabel} в ${slotTime}. Запишитесь в приложении! 💜\n\nA spot has opened for the ${dateLabel} ${slotTime} class. Book your spot in the app! 💜`;
+      await sb.functions.invoke('send-sms',{body:{phone:person.phone,message:msg,studio_id:STUDIO_ID}});
+    }
+  }
+
   // Refresh client history and remaining count
   delete clientHistoryCache[uuid];
   await loadClientHistory(clientId);

@@ -1421,15 +1421,17 @@ async function confirmBook(){
     // Outside subscription period → unpaid_future (placeholder, no balance deducted)
     const bkStatus=isOutsideSub?'unpaid_future':'booked';
     const bkSubId=isOutsideSub?null:sbBal.subId;
-    const {error}=await sb.from('bookings').insert({client_id:clientId,slot_id:slot.id,studio_id:STUDIO_ID,subscription_id:bkSubId,class_date:dateStr,status:bkStatus});
+    const {data:bkResult,error}=await sb.rpc('book_class',{
+      p_client_id:clientId, p_slot_id:slot.id, p_studio_id:STUDIO_ID,
+      p_class_date:dateStr, p_subscription_id:bkSubId, p_status:bkStatus
+    });
     if(error){toast2('Error: '+error.message);return;}
-    // Increment used_classes if this booking consumes a subscription slot
-    if(bkSubId&&bkStatus==='booked'){
-      const {data:subData}=await sb.from('subscriptions').select('used_classes').eq('id',bkSubId).single();
-      if(subData!=null){
-        await sb.from('subscriptions').update({used_classes:(subData.used_classes||0)+1}).eq('id',bkSubId);
-      }
+    if(bkResult?.error==='class_full'){
+      toast2(tr().slFull||'Занятие уже заполнено');
+      await refreshSchedule();
+      return;
     }
+    if(bkResult?.error){toast2('Error: '+bkResult.error);return;}
     toast2(tr().bookOk);
     await refreshSchedule();
     await loadBalance();
@@ -1560,6 +1562,11 @@ async function confirmCancel(){
     console.log('[cancel] updated=',updated);
     if(!updated){ toast2('Запись не найдена'); return; }
     toast2(isPastDay?T.cancelOk:selSlot.late?T.cancelLateOk:T.cancelOk);
+    // Notify first person on waitlist that a spot opened up
+    if(newStatus==='cancelled'){
+      const cancelledSlot=SCH[selSlot.di]?.find(s=>s.t===selSlot.time);
+      if(cancelledSlot) notifyWaitlist(cancelledSlot.id, classDateStr, selSlot.time);
+    }
     await refreshSchedule();
     await loadBalance();
   } else {
@@ -1569,6 +1576,17 @@ async function confirmCancel(){
     toast2(selSlot.late?T.cancelLateOk:T.cancelOk);
     buildSchedule();
   }
+}
+
+async function notifyWaitlist(slotId, classDateStr, slotTime){
+  if(!sb||!slotId||!classDateStr) return;
+  const {data:person}=await sb.rpc('get_next_waitlist_person',{p_slot_id:slotId,p_class_date:classDateStr});
+  if(!person?.phone) return;
+  const name=person.full_name.split(' ')[0];
+  const dateObj=new Date(classDateStr+'T12:00:00');
+  const dateLabel=dateObj.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'});
+  const msg=`${name}, освободилось место на тренировке ${dateLabel} в ${slotTime}. Запишитесь в приложении! 💜\n\nA spot has opened for the ${dateLabel} ${slotTime} class. Book your spot in the app! 💜`;
+  await sb.functions.invoke('send-sms',{body:{phone:person.phone,message:msg,studio_id:STUDIO_ID}});
 }
 
 async function joinWaitlist(di,time){
