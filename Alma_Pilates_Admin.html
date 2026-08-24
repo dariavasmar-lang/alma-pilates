@@ -5502,6 +5502,19 @@ async function saveRecurringBookings(){
   for(const {dateStr,dow,time} of dates){
     const slotKey=dow+'_'+time;
     const slotId=scheduleSlotIds[slotKey];
+    const dKey=dateStr+'_'+slotKey;
+
+    // Check capacity for this specific date
+    const paidCount=(dateSlotMap[dKey]?.length||0);
+    const unpaidCount=(unpaidDateMap[dKey]?.length||0);
+    const isFull=paidCount+unpaidCount>=CAP;
+
+    if(isFull){
+      // Class is full → skip this date entirely
+      skipped++;
+      continue;
+    }
+
     // Add to in-memory map
     if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
     if(!slotBookingsMap[slotKey].includes(c.name)) slotBookingsMap[slotKey].push(c.name);
@@ -5516,6 +5529,9 @@ async function saveRecurringBookings(){
         }).select('id,subscription_id').single();
         if(!error){
           saved++;
+          // Update local unpaid map so subsequent loop iterations see correct count
+          if(!unpaidDateMap[dKey]) unpaidDateMap[dKey]=[];
+          if(!unpaidDateMap[dKey].includes(c.name)) unpaidDateMap[dKey].push(c.name);
           if(insertedRow?.id) insertedBookingIds.push(insertedRow.id);
           if(insertedRow?.subscription_id&&!insertedSubId) insertedSubId=insertedRow.subscription_id;
         }
@@ -5530,7 +5546,8 @@ async function saveRecurringBookings(){
 
   if(btn){btn.disabled=false;btn.textContent=L('Δημιουργία κρατήσεων','Create bookings','Создать записи');}
   closeModal('recurring-modal');
-  toast(L(`Κρατήθηκαν ${saved} μαθ.!`,`Booked ${saved} classes!`,`Записано ${saved} занятий!`));
+  const skipPart=skipped?(adminLang==='el'?`, ${skipped} παράλειψη (πλήρες)`:adminLang==='en'?`, ${skipped} skipped (full)`:`, ${skipped} пропущено (полный)`):'';
+  toast(L(`Κρατήθηκαν ${saved} μαθ.${skipPart}!`,`Booked ${saved} classes${skipPart}!`,`Записано ${saved} занятий${skipPart}!`));
 
   // Sync used_classes from actual booking count so balance is correct everywhere
   if(sb && c._uuid && c._subUuid){
