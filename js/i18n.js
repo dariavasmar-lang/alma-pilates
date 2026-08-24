@@ -98,6 +98,7 @@ const I18N = {
     shcKeep:'Κράτηση', shcConfirm:'Ακύρωση', cancelOk:'Κράτηση ακυρώθηκε', cancelLateOk:'Κράτηση ακυρώθηκε · μάθημα χάθηκε',
     slWait:'λίστα', waitlistBtn:'Λίστα αναμονής', waitlistOk:'Προστεθήκατε στη λίστα αναμονής!',
     shwTitle:'Λίστα αναμονής', shwInfo:'Θα λάβετε SMS αν ελευθερωθεί θέση.', shwConfirm:'Εγγραφή στη λίστα', shwCancel:'Ακύρωση',
+    shlTitle:'Λίστα αναμονής', shlInfo:'Είστε στη λίστα αναμονής για αυτό το μάθημα.', shlConfirm:'Αποχώρηση από τη λίστα', shlCancel:'Κλείσιμο', shlOk:'Αφαιρέθηκε από τη λίστα αναμονής',
     // Admin
     dashboard:'Πίνακας ελέγχου', clients:'Πελάτες', schedule:'Πρόγραμμα',
     payments:'Πληρωμές', expenses:'Έξοδα', taxes:'Φορολογία', settings:'Ρυθμίσεις',
@@ -244,6 +245,7 @@ const I18N = {
     shcKeep:'Keep booking', shcConfirm:'Cancel booking', cancelOk:'Booking cancelled', cancelLateOk:'Booking cancelled · class lost',
     slWait:'waitlist', waitlistBtn:'Join waitlist', waitlistOk:'Added to the waitlist!',
     shwTitle:'Waitlist', shwInfo:'You will receive an SMS if a spot opens up.', shwConfirm:'Join waitlist', shwCancel:'Cancel',
+    shlTitle:'Waitlist', shlInfo:'You are on the waitlist for this class.', shlConfirm:'Leave waitlist', shlCancel:'Close', shlOk:'Removed from waitlist',
     // Admin
     dashboard:'Dashboard', clients:'Clients', schedule:'Schedule',
     payments:'Payments', expenses:'Expenses', taxes:'Taxes', settings:'Settings',
@@ -390,6 +392,7 @@ const I18N = {
     shcKeep:'Оставить', shcConfirm:'Отменить запись', cancelOk:'Запись отменена', cancelLateOk:'Запись отменена · занятие сгорело',
     slWait:'очередь', waitlistBtn:'В список ожидания', waitlistOk:'Вы в списке ожидания!',
     shwTitle:'Список ожидания', shwInfo:'Вам придёт SMS, если освободится место.', shwConfirm:'Встать в очередь', shwCancel:'Отмена',
+    shlTitle:'Список ожидания', shlInfo:'Вы в списке ожидания на это занятие.', shlConfirm:'Выйти из очереди', shlCancel:'Закрыть', shlOk:'Удалено из списка ожидания',
     // Admin
     dashboard:'Дашборд', clients:'Клиенты', schedule:'Расписание',
     payments:'Платежи', expenses:'Расходы', taxes:'Налоги', settings:'Настройки',

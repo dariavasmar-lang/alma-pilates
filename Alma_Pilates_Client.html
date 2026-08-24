@@ -387,6 +387,21 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
     </div>
   </div>
 
+  <div class="ov" id="sh-leave-wait">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="shl-title"></div>
+      <div class="ssub" id="shl-info"></div>
+      <div class="card2" style="margin-bottom:14px">
+        <div style="font-size:12px;color:var(--text2);line-height:1.5" id="shl-desc"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn sm" style="flex:1" id="shl-cancel" onclick="closeSheet('sh-leave-wait')"></button>
+        <button class="btn sm" style="flex:1;background:#E53E3E;color:#fff;border-color:#E53E3E" id="shl-confirm" onclick="confirmLeaveWaitlist()"></button>
+      </div>
+    </div>
+  </div>
+
   <!-- pay confirm -->
   <div class="ov" id="sh-pay">
     <div class="sheet">
@@ -1303,7 +1318,7 @@ function openDaySlots(dow,date){
     const unpaid=!mine&&!!unpaidByDate[dayDateKey+'_'+s.t];
     const onWait=WAITLIST_SET.has(key);
     const bk=bkCounts[wkOff+'_'+key]||0;
-    const free=CAP-bk;
+    const free=s.capacity-bk;
     const full=free<=0&&!mine&&!unpaid;
     if(isPastDay&&!mine&&!unpaid){
       return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
@@ -1315,8 +1330,9 @@ function openDaySlots(dow,date){
     const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
     const lbl=mine?T.slMine:onWait?T.slWait:full?T.slFull:free+' '+T.slFree;
     const onclick=mine?`onclick="openCancelSheet(${dow},'${s.t}',${dateMs})"`:
-                  full&&!onWait?`onclick="closeSheet('sh-day');joinWaitlist(${dow},'${s.t}')"`
-                  :!full?`onclick="closeSheet('sh-day');openBookSheet(${dow},'${s.t}',${free},${dateMs})"`:'' ;
+                  onWait?`onclick="closeSheet('sh-day');leaveWaitlist(${dow},'${s.t}')"`
+                  :full?`onclick="closeSheet('sh-day');joinWaitlist(${dow},'${s.t}')"`
+                  :`onclick="closeSheet('sh-day');openBookSheet(${dow},'${s.t}',${free},${dateMs})"` ;
     return `<div class="slot ${cls}" ${onclick}><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
   }).join('');
   $('shd-slots').innerHTML=`<div class="slots" style="flex-wrap:wrap">${slotsHTML}</div>`;
@@ -1344,7 +1360,7 @@ function buildSchedule(){
       const unpaid=!mine&&UNPAID_SET.has(key);
       const onWait=WAITLIST_SET.has(key);
       const bk=bkCounts[wkOff+'_'+key]||0;
-      const free=CAP-bk;
+      const free=s.capacity-bk;
       const full=free<=0&&!mine&&!unpaid;
       if(isPast&&!mine&&!unpaid){
         return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
@@ -1356,7 +1372,8 @@ function buildSchedule(){
       const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
       const lbl=mine?T.slMine:onWait?T.slWait:full?T.slFull:free+' '+T.slFree;
       const onclick=mine?`onclick="openCancelSheet(${di},'${s.t}',null)"`:
-                    full&&!onWait?`onclick="joinWaitlist(${di},'${s.t}')"`:'';
+                    onWait?`onclick="leaveWaitlist(${di},'${s.t}')"`
+                    :full?`onclick="joinWaitlist(${di},'${s.t}')"`:'';
       if(!mine&&!full&&!onWait){
         const o=`onclick="openBookSheet(${di},'${s.t}',${free},null)"`;
         return `<div class="slot ${cls}" ${o}><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
@@ -1605,6 +1622,37 @@ async function notifyWaitlist(slotId, classDateStr, slotTime){
 }
 
 let selWait=null;
+let selLeaveWait=null;
+
+function leaveWaitlist(di,time){
+  const T=tr();
+  const date=getWeekDates()[di];
+  selLeaveWait={di,time,date};
+  tx('shl-title', T.shlTitle);
+  tx('shl-info', T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
+  tx('shl-desc', T.shlInfo);
+  tx('shl-cancel', T.shlCancel);
+  tx('shl-confirm', T.shlConfirm);
+  openSheet('sh-leave-wait');
+}
+
+async function confirmLeaveWaitlist(){
+  closeSheet('sh-leave-wait');
+  if(!selLeaveWait) return;
+  const {di,time,date}=selLeaveWait;
+  const key=di+'_'+time;
+  if(sbUser&&sbUser.id!=='demo'){
+    const dateStr=localDateStr(date);
+    const slot=SCH[di]?.find(s=>s.t===time);
+    const clientId=sbProfile?.id;
+    if(slot&&clientId){
+      await sb.from('waitlist').delete().eq('client_id',clientId).eq('slot_id',slot.id).eq('class_date',dateStr);
+    }
+  }
+  WAITLIST_SET.delete(key);
+  toast2(tr().shlOk);
+  if(schView==='month') buildMonthView(); else buildSchedule();
+}
 
 function joinWaitlist(di,time){
   const T=tr();
