@@ -97,6 +97,7 @@ const I18N = {
     shcWarnLate:'Ακύρωση λιγότερο από 4 ώρες πριν — το μάθημα χάνεται.',
     shcKeep:'Κράτηση', shcConfirm:'Ακύρωση', cancelOk:'Κράτηση ακυρώθηκε', cancelLateOk:'Κράτηση ακυρώθηκε · μάθημα χάθηκε',
     slWait:'λίστα', waitlistBtn:'Λίστα αναμονής', waitlistOk:'Προστεθήκατε στη λίστα αναμονής!',
+    shwTitle:'Λίστα αναμονής', shwInfo:'Θα λάβετε SMS αν ελευθερωθεί θέση.', shwConfirm:'Εγγραφή στη λίστα', shwCancel:'Ακύρωση',
     // Admin
     dashboard:'Πίνακας ελέγχου', clients:'Πελάτες', schedule:'Πρόγραμμα',
     payments:'Πληρωμές', expenses:'Έξοδα', taxes:'Φορολογία', settings:'Ρυθμίσεις',
@@ -242,6 +243,7 @@ const I18N = {
     shcWarnLate:'Cancelling less than 4 hours before class — this class will be lost.',
     shcKeep:'Keep booking', shcConfirm:'Cancel booking', cancelOk:'Booking cancelled', cancelLateOk:'Booking cancelled · class lost',
     slWait:'waitlist', waitlistBtn:'Join waitlist', waitlistOk:'Added to the waitlist!',
+    shwTitle:'Waitlist', shwInfo:'You will receive an SMS if a spot opens up.', shwConfirm:'Join waitlist', shwCancel:'Cancel',
     // Admin
     dashboard:'Dashboard', clients:'Clients', schedule:'Schedule',
     payments:'Payments', expenses:'Expenses', taxes:'Taxes', settings:'Settings',
@@ -387,6 +389,7 @@ const I18N = {
     shcWarnLate:'Отмена менее чем за 4 часа — занятие сгорит.',
     shcKeep:'Оставить', shcConfirm:'Отменить запись', cancelOk:'Запись отменена', cancelLateOk:'Запись отменена · занятие сгорело',
     slWait:'очередь', waitlistBtn:'В список ожидания', waitlistOk:'Вы в списке ожидания!',
+    shwTitle:'Список ожидания', shwInfo:'Вам придёт SMS, если освободится место.', shwConfirm:'Встать в очередь', shwCancel:'Отмена',
     // Admin
     dashboard:'Дашборд', clients:'Клиенты', schedule:'Расписание',
     payments:'Платежи', expenses:'Расходы', taxes:'Налоги', settings:'Настройки',

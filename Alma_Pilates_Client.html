@@ -372,6 +372,21 @@ window.addEventListener('orientationchange',()=>setTimeout(setAppH,100));
     </div>
   </div>
 
+  <div class="ov" id="sh-wait">
+    <div class="sheet">
+      <div class="shand"></div>
+      <div class="stitle" id="shw-title"></div>
+      <div class="ssub" id="shw-info"></div>
+      <div class="card2" style="margin-bottom:14px">
+        <div style="font-size:12px;color:var(--text2);line-height:1.5" id="shw-desc"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn sm" style="flex:1" id="shw-cancel" onclick="closeSheet('sh-wait')"></button>
+        <button class="btn pr sm" style="flex:1" id="shw-confirm" onclick="confirmWaitlist()"></button>
+      </div>
+    </div>
+  </div>
+
   <!-- pay confirm -->
   <div class="ov" id="sh-pay">
     <div class="sheet">
@@ -1589,10 +1604,26 @@ async function notifyWaitlist(slotId, classDateStr, slotTime){
   await sb.functions.invoke('send-sms',{body:{phone:person.phone,message:msg,studio_id:STUDIO_ID}});
 }
 
-async function joinWaitlist(di,time){
+let selWait=null;
+
+function joinWaitlist(di,time){
+  const T=tr();
+  const date=getWeekDates()[di];
+  selWait={di,time,date};
+  tx('shw-title', T.shwTitle);
+  tx('shw-info', T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
+  tx('shw-desc', T.shwInfo);
+  tx('shw-cancel', T.shwCancel);
+  tx('shw-confirm', T.shwConfirm);
+  openSheet('sh-wait');
+}
+
+async function confirmWaitlist(){
+  closeSheet('sh-wait');
+  if(!selWait) return;
+  const {di,time,date}=selWait;
   const key=di+'_'+time;
   if(sbUser&&sbUser.id!=='demo'){
-    const date=getWeekDates()[di];
     const dateStr=localDateStr(date);
     const slot=SCH[di]?.find(s=>s.t===time);
     const clientId=sbProfile?.id;
