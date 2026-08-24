@@ -725,9 +725,17 @@ async function loadMonthBookings(){
 async function loadProfile(){
   if(!sbUser||sbUser.id==='demo') return;
   const {data,error}=await sb.from('clients').select('*').eq('user_id',sbUser.id).maybeSingle();
-  if(data) sbProfile=data;
-  // if error (network/RLS) but not "row not found" — keep existing sbProfile, don't sign out
+  if(data){ sbProfile=data; return; }
   if(error) console.warn('[loadProfile] error:',error.message);
+  // Fallback: user_id not linked yet — try to re-link by phone from auth
+  const rawPhone=sbUser.phone||'';
+  if(!rawPhone) return;
+  const phone=rawPhone.startsWith('+')?rawPhone:'+'+rawPhone;
+  const {data:linked}=await sb.rpc('link_user_to_client',{
+    p_phone:phone, p_user_id:sbUser.id,
+    p_name:'', p_lang:lang, p_studio_id:STUDIO_ID
+  });
+  if(linked) sbProfile=linked;
 }
 
 function applyProfileUI(){
