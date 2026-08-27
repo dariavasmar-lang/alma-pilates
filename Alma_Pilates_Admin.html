@@ -1106,13 +1106,16 @@ async function selectClient(id){
         applyExpiredBurn(c); // classes burn on expiry
         // Sync used_classes so client app also sees the correct balance
         await sb.from('subscriptions').update({used_classes:used}).eq('id',c._subUuid);
-        // Auto-convert unpaid_future → booked if subscription has capacity
+        // Auto-convert unpaid_future → booked if subscription has capacity (only within period)
         const available=sub.total_classes-used;
         if(available>0){
-          const {data:unpaid}=await sb.from('bookings')
+          let unpaidQ=sb.from('bookings')
             .select('id').eq('client_id',c._uuid).eq('studio_id',STUDIO_ID)
             .eq('status','unpaid_future')
             .order('class_date',{ascending:true}).limit(available);
+          if(sub.starts_at) unpaidQ=unpaidQ.gte('class_date',sub.starts_at);
+          if(sub.expires_at) unpaidQ=unpaidQ.lte('class_date',sub.expires_at);
+          const {data:unpaid}=await unpaidQ;
           if(unpaid&&unpaid.length>0){
             const ids=unpaid.map(b=>b.id);
             await sb.from('bookings').update({status:'booked',subscription_id:c._subUuid}).in('id',ids);
@@ -3460,10 +3463,13 @@ async function submitPayModal(){
         clientRec._subUuid=subUuid; clientRec.type=subType;
         clientRec.total=totalClasses; clientRec.left=totalClasses; clientRec.status='ok';
       }
-      // Auto-convert unpaid_future bookings to booked (all, up to totalClasses limit)
+      // Auto-convert unpaid_future bookings to booked — only within subscription period
+      const subStartsAt=date;
+      const subExpiresAt=expDate.toISOString().split('T')[0];
       const {data:unpaidBks}=await sb.from('bookings')
         .select('id').eq('client_id',clientUuid).eq('studio_id',STUDIO_ID)
         .eq('status','unpaid_future')
+        .gte('class_date',subStartsAt).lte('class_date',subExpiresAt)
         .order('class_date',{ascending:true}).limit(totalClasses);
       if(unpaidBks&&unpaidBks.length>0){
         const ids=unpaidBks.map(b=>b.id);

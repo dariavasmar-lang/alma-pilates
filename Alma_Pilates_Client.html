@@ -754,7 +754,7 @@ async function loadMonthBookings(){
 
 async function loadProfile(){
   if(!sbUser||sbUser.id==='demo') return;
-  const {data,error}=await sb.from('clients').select('*').eq('user_id',sbUser.id).maybeSingle();
+  const {data,error}=await sb.from('clients').select('*').eq('user_id',sbUser.id).eq('is_archived',false).maybeSingle();
   if(data){ sbProfile=data; return; }
   if(error) console.warn('[loadProfile] error:',error.message);
   // Fallback: user_id not linked yet — try to re-link by phone from auth

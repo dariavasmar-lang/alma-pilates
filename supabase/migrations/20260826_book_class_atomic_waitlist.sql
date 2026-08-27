@@ -19,13 +19,15 @@ BEGIN
     RETURN json_build_object('error', 'slot_not_found');
   END IF;
 
-  -- Count active bookings (lock the rows to prevent race conditions)
-  SELECT COUNT(*) INTO v_count
-  FROM bookings
-  WHERE slot_id = p_slot_id
-    AND class_date = p_class_date
-    AND status IN ('booked', 'attended', 'unpaid_future')
-  FOR UPDATE;
+  -- Lock rows then count (FOR UPDATE cannot be used with aggregate functions)
+  WITH locked AS (
+    SELECT id FROM bookings
+    WHERE slot_id = p_slot_id
+      AND class_date = p_class_date
+      AND status IN ('booked', 'attended', 'unpaid_future')
+    FOR UPDATE
+  )
+  SELECT COUNT(*) INTO v_count FROM locked;
 
   IF v_count >= v_capacity THEN
     RETURN json_build_object('error', 'class_full', 'capacity', v_capacity, 'count', v_count);
