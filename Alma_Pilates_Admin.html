@@ -1243,6 +1243,7 @@ function renderClientCard(c){
       </div>
       <div style="display:flex;align-items:center;gap:7px;margin-top:5px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text2)">${c.phone||'—'}</span>
+        <button onclick="editClientPhone(${c.id})" title="${L('Επεξεργασία','Edit phone','Изменить номер')}" style="border:none;background:none;cursor:pointer;color:var(--text3);font-size:11px;padding:1px 3px;line-height:1;opacity:.6">✏️</button>
         <span style="font-size:10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--text2)">${langFlag} ${c.lang}</span>
         <span class="badge ${BADGE_CLS[c.status]}">${statusLabel}</span>
         ${c.isTrial?`<span style="font-size:10px;background:#F0E6FF;border:0.5px solid #9B59B6;border-radius:4px;padding:1px 7px;color:#6C3483;font-weight:500">${L('Δοκιμαστικό','Trial','Пробный')}</span>`:''}
@@ -2155,6 +2156,21 @@ async function editClientName(clientId){
   c.initials=c.initials.toUpperCase();
   logAction('client_renamed',`${trimmed}`,'client',c._uuid,{old_name:c.name,new_name:trimmed,client_uuid:c._uuid});
   toast(L('Αποθηκεύτηκε','Saved','Имя обновлено'));
+  renderClients();
+  renderClientCard(c);
+}
+
+async function editClientPhone(clientId){
+  const c=CLIENTS.find(x=>x.id===clientId); if(!c||!sb) return;
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const newPhone=prompt(L('Νέος αριθμός (π.χ. +35799123456):','New phone (e.g. +35799123456):','Новый номер (например +35799123456):'), c.phone||'');
+  if(newPhone===null||newPhone.trim()===(c.phone||'')) return;
+  const trimmed=newPhone.trim();
+  const {error}=await sb.from('clients').update({phone:trimmed}).eq('id',c._uuid);
+  if(error){ toast(L('Σφάλμα','Error','Ошибка')+': '+error.message); return; }
+  c.phone=trimmed;
+  logAction('client_updated',`${c.name} · phone → ${trimmed}`,'client',c._uuid,{client_uuid:c._uuid});
+  toast(L('Αποθηκεύτηκε','Saved','Номер обновлён'));
   renderClients();
   renderClientCard(c);
 }
