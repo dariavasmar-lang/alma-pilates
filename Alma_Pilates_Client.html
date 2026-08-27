@@ -1617,7 +1617,8 @@ async function notifyWaitlist(slotId, classDateStr, slotTime){
   const name=person.full_name.split(' ')[0];
   const dateObj=new Date(classDateStr+'T12:00:00');
   const dateLabel=dateObj.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'});
-  const msg=`${name}, μία θέση έχει ελευθερωθεί για το μάθημα ${dateLabel} στις ${slotTime} και μπορείς να κλείσεις το μάθημά σου από την εφαρμογή! 💜\n\nA spot has opened for the ${dateLabel} ${slotTime} class. Book your spot in the app! 💜`;
+  const dateLabelEn=dateObj.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  const msg=`${name}, μία θέση έχει ελευθερωθεί για το μάθημα ${dateLabel} στις ${slotTime} και μπορείς να κλείσεις το μάθημά σου από την εφαρμογή! 💜\n\nA spot has opened for the ${dateLabelEn} ${slotTime} class. Book your spot in the app! 💜`;
   await sb.functions.invoke('send-sms',{body:{phone:person.phone,message:msg,studio_id:STUDIO_ID}});
 }
 
