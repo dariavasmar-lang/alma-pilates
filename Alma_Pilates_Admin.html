@@ -2228,7 +2228,7 @@ async function adminCancelBooking(bookingId, clientId){
       const dateObj=new Date(bk.class_date+'T12:00:00');
       const dateLabel=dateObj.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'});
       const slotTime=bkForLog?.schedule_slots?.start_time?.slice(0,5)||'';
-      const msg=`${name}, ένα μέρος είναι διαθέσιμο για το μάθημα ${dateLabel} στις ${slotTime}. Κλείστε τη θέση σας στην εφαρμογή! 💜\n\nA spot has opened for the ${dateLabel} ${slotTime} class. Book your spot in the app! 💜`;
+      const msg=`${name}, μία θέση έχει ελευθερωθεί για το μάθημα ${dateLabel} στις ${slotTime} και μπορείς να κλείσεις το μάθημά σου από την εφαρμογή! 💜\n\nA spot has opened for the ${dateLabel} ${slotTime} class. Book your spot in the app! 💜`;
       await sb.functions.invoke('send-sms',{body:{phone:person.phone,message:msg,studio_id:STUDIO_ID}});
     }
   }
