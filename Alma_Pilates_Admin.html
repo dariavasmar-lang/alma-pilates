@@ -1408,7 +1408,7 @@ async function loadClientHistory(clientId){
       .select('id,class_date,status,slot_id,schedule_slots(start_time)')
       .eq('client_id',uuid)
       .order('class_date',{ascending:false})
-      .limit(200),
+      .limit(500),
     sb.from('subscriptions')
       .select('id,created_at,paid_at,starts_at,type,total_classes,price,payment_method,is_active')
       .eq('client_id',uuid)
@@ -2050,9 +2050,9 @@ async function cancelAllFutureBookings(clientId){
     const count=(futureBks||[]).length;
     if(count===0){ toast(L('Δεν υπάρχουν μελλοντικές κρατήσεις','No future bookings','Будущих записей нет')); return; }
 
-    // 2. Cancel them all in DB
+    // 2. Delete them from DB (don't leave cancelled clutter)
     const {error:delErr}=await sb.from('bookings')
-      .update({status:'cancelled'})
+      .delete()
       .eq('studio_id',STUDIO_ID)
       .eq('client_id',c._uuid)
       .in('status',['booked','unpaid_future'])
