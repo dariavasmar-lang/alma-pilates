@@ -5429,7 +5429,7 @@ function rmToggleDay(dow){
     :['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   const timesEl = document.getElementById('rm-times');
   const existing = document.getElementById('rm-time-row-'+dow);
-  const slots = SCH[dow]||[];
+  const slots = GSCHED[dow]||[];
   if(existing){ existing.remove(); }
   else if(slots.length>0){
     const row = document.createElement('div');
