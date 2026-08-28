@@ -5381,15 +5381,7 @@ async function bookClientByName(name, repeatCount){
 // ── RECURRING BOOKINGS ───────────────────────────────────────
 let _rmClientId = null;
 
-const RM_SCH = {
-  0:['16:30','17:30','18:30','19:30'],
-  1:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
-  2:['16:30','17:30','18:30','19:30'],
-  3:['07:00','08:00','16:30','17:30','18:30','19:30'],
-  4:['07:00','08:00','09:15','16:30','17:30','18:30','19:30'],
-  5:['09:30','10:30'],
-  6:[]
-};
+// RM_SCH is no longer hardcoded — recurring modal uses SCH (loaded from DB)
 
 function openRecurringModal(clientId){
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
@@ -5437,7 +5429,7 @@ function rmToggleDay(dow){
     :['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   const timesEl = document.getElementById('rm-times');
   const existing = document.getElementById('rm-time-row-'+dow);
-  const slots = RM_SCH[dow]||[];
+  const slots = SCH[dow]||[];
   if(existing){ existing.remove(); }
   else if(slots.length>0){
     const row = document.createElement('div');

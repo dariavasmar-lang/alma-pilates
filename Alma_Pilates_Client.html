@@ -630,8 +630,12 @@ function normPhone(p){
   if(p.startsWith('00')) p='+'+p.slice(2);
   // 357XXXXXXXX (no + but starts with country code) → +357...
   else if(/^357\d{8,}$/.test(p)) p='+'+p;
-  // No + and no country code → assume Cyprus +357, strip leading 0
-  else if(!p.startsWith('+')) p='+357'+p.replace(/^0/,'');
+  // No +: if >8 digits it already has a country code, just add +
+  // If ≤8 digits it's a local Cyprus number → add +357
+  else if(!p.startsWith('+')){
+    const digits=p.replace(/\D/g,'');
+    p=digits.length>8?'+'+digits:'+357'+digits.replace(/^0/,'');
+  }
   return p;
 }
 
