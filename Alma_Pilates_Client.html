@@ -818,7 +818,7 @@ async function loadBalance(){
   tx('h-sub-type',total+' '+(lang==='el'?'μαθήματα':lang==='en'?'classes':'занятий')+(since?' · '+since:''));
   tx('h-left',left+T.subLeft);
   const priceEl=$('h-price');
-  if(priceEl) priceEl.textContent=total===1?'€25':total===12?'€160':'€120';
+  if(priceEl) priceEl.textContent='€'+(sub.price||0);
   const burnEl=document.getElementById('h-burn');
   const burnTxt=document.getElementById('h-burn-txt');
   if(burnEl){
