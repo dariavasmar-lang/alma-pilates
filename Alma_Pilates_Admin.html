@@ -4137,11 +4137,11 @@ function showApp(){
   dbLoading = true; // mark loading before first render
   if(hash&&validPages.includes(hash)) showPage(hash);
   dbLoad();
-  // Auto-refresh bookings every 60s when schedule page is active
+  // Auto-refresh bookings every 15s when schedule page is active
   setInterval(()=>{
     const active=document.querySelector('.page.active')?.id;
     if(active==='page-schedule') dbLoadBookings();
-  },60000);
+  },15000);
 }
 
 function adminLogout(){
