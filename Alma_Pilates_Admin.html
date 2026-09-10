@@ -1366,7 +1366,10 @@ function renderClientCard(c){
 function fmtHistDate(isoDate){
   if(!isoDate) return '—';
   const d=new Date(isoDate+'T12:00:00');
-  const mo=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  const moRu=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  const moEn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const moEl=['Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+  const mo=adminLang==='el'?moEl:adminLang==='en'?moEn:moRu;
   return d.getDate()+' '+mo[d.getMonth()];
 }
 
