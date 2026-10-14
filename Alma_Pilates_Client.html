@@ -1556,7 +1556,7 @@ async function confirmCancel(){
       if(bk.subscription_id){
         const [{data:sub},{data:bkData}]=await Promise.all([
           sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',bk.subscription_id).single(),
-          sb.from('bookings').select('class_date').eq('client_id',clientId).in('status',['booked','attended','missed'])
+          sb.from('bookings').select('class_date').eq('client_id',clientId).eq('subscription_id',bk.subscription_id).in('status',['booked','attended','missed'])
         ]);
         if(sub){
           const used=(bkData||[]).filter(b=>
@@ -1586,7 +1586,7 @@ async function confirmCancel(){
             if(bks[0].subscription_id){
               const [{data:sub},{data:bkData}]=await Promise.all([
                 sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',bks[0].subscription_id).single(),
-                sb.from('bookings').select('class_date').eq('client_id',clientId).in('status',['booked','attended','missed'])
+                sb.from('bookings').select('class_date').eq('client_id',clientId).eq('subscription_id',bks[0].subscription_id).in('status',['booked','attended','missed'])
               ]);
               if(sub){
                 const used=(bkData||[]).filter(b=>
