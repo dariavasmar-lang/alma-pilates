@@ -672,7 +672,7 @@ async function rollbackAction(logId){
       if(!subId||!clientUuid) return;
       const [{data:sub},{data:bks}]=await Promise.all([
         sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',subId).single(),
-        sb.from('bookings').select('class_date').eq('client_id',clientUuid).in('status',['booked','attended','missed'])
+        sb.from('bookings').select('class_date').eq('client_id',clientUuid).eq('subscription_id',subId).in('status',['booked','attended','missed'])
       ]);
       if(sub){
         const used=(bks||[]).filter(b=>(!sub.starts_at||b.class_date>=sub.starts_at)&&(!sub.expires_at||b.class_date<=sub.expires_at)).length;
@@ -1093,7 +1093,7 @@ async function selectClient(id){
     try{
       const [{data:sub},{data:bkData}]=await Promise.all([
         sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',c._subUuid).single(),
-        sb.from('bookings').select('class_date').eq('client_id',c._uuid).in('status',['booked','attended','missed'])
+        sb.from('bookings').select('class_date').eq('client_id',c._uuid).eq('subscription_id',c._subUuid).in('status',['booked','attended','missed'])
       ]);
       if(sub){
         const used=(bkData||[]).filter(b=>
@@ -5572,7 +5572,7 @@ async function saveRecurringBookings(){
     try{
       const [{data:sub},{data:bkData}]=await Promise.all([
         sb.from('subscriptions').select('total_classes,starts_at,expires_at').eq('id',c._subUuid).single(),
-        sb.from('bookings').select('class_date').eq('client_id',c._uuid).in('status',['booked','attended','missed'])
+        sb.from('bookings').select('class_date').eq('client_id',c._uuid).eq('subscription_id',c._subUuid).in('status',['booked','attended','missed'])
       ]);
       if(sub){
         const used=(bkData||[]).filter(b=>
