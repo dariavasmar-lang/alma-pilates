@@ -1598,14 +1598,8 @@ async function confirmCancel(){
 
 async function notifyWaitlist(slotId, classDateStr, slotTime){
   if(!sb||!slotId||!classDateStr) return;
-  const {data:person}=await sb.rpc('get_next_waitlist_person',{p_slot_id:slotId,p_class_date:classDateStr});
-  if(!person?.phone) return;
-  const name=person.full_name.split(' ')[0];
-  const dateObj=new Date(classDateStr+'T12:00:00');
-  const dateLabel=dateObj.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'});
-  const dateLabelEn=dateObj.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
-  const msg=`${name}, μία θέση έχει ελευθερωθεί για το μάθημα ${dateLabel} στις ${slotTime} και μπορείς να κλείσεις το μάθημά σου από την εφαρμογή! 💜\n\nA spot has opened for the ${dateLabelEn} ${slotTime} class. Book your spot in the app! 💜`;
-  await sb.functions.invoke('send-sms',{body:{phone:person.phone,message:msg,studio_id:STUDIO_ID}});
+  // The server picks the next person on the waitlist and writes the SMS
+  await sb.functions.invoke('send-sms',{body:{type:'waitlist',slot_id:slotId,class_date:classDateStr,studio_id:STUDIO_ID}});
 }
 
 let selWait=null;
