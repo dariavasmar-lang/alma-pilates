@@ -1332,6 +1332,9 @@ function openDaySlots(dow,date){
     if(isPastDay&&!mine&&!unpaid){
       return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
     }
+    if(isPastCutoff(date,s.t)&&!mine&&!unpaid){
+      return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${T.slClosed}</span></div>`;
+    }
     if(unpaid){
       const lbl=T.slUnpaid||'не опл.';
       return `<div class="slot" style="background:#FEF3E2;border:0.5px solid #E8A84A;cursor:pointer" onclick="closeSheet('sh-day');openCancelSheet(${dow},'${s.t}',${dateMs})"><span style="font-weight:500;font-size:11px;color:#92400E">${s.t}</span><span style="font-size:9px;margin-top:1px;color:#C47A1A">${lbl}</span></div>`;
@@ -1374,6 +1377,9 @@ function buildSchedule(){
       if(isPast&&!mine&&!unpaid){
         return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
       }
+      if(isPastCutoff(date,s.t)&&!mine&&!unpaid){
+        return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${T.slClosed}</span></div>`;
+      }
       if(unpaid){
         const lbl=T.slUnpaid||'не опл.';
         return `<div class="slot" style="background:#FEF3E2;border:0.5px solid #E8A84A;cursor:pointer" onclick="openCancelSheet(${di},'${s.t}',null)"><span style="font-weight:500;font-size:11px;color:#92400E">${s.t}</span><span style="font-size:9px;margin-top:1px;color:#C47A1A">${lbl}</span></div>`;
@@ -1402,6 +1408,7 @@ function buildSchedule(){
 async function openBookSheet(di,time,free,dateMs){
   const date=dateMs?new Date(dateMs):getWeekDates()[di];
   if(localDateStr(date)<localDateStr(new Date())){return;}
+  if(isPastCutoff(date,time)){toast2(tr().cutoffMsg);return;}
   selSlot={di,time,free,dateMs};
   const T=tr();
   tx('shb-title',T.shbTitle);
@@ -1449,6 +1456,7 @@ async function confirmBook(){
   closeSheet('sh-book');
   if(sbUser&&sbUser.id!=='demo'){
     const date=selSlot.dateMs?new Date(selSlot.dateMs):getWeekDates()[selSlot.di];
+    if(isPastCutoff(date,selSlot.time)){toast2(tr().cutoffMsg);return;}
     const dateStr=localDateStr(date);
     const slot=SCH[selSlot.di]?.find(s=>s.t===selSlot.time);
     if(!slot){toast2('Error: slot not found');return;}
@@ -1486,6 +1494,14 @@ async function confirmBook(){
   }
 }
 
+// Same-day cut-off: classes from 12:00 onwards can't be booked or changed in the app after 12:00 that day
+const CUTOFF_HOUR=12;
+function isPastCutoff(date,time){
+  if(localDateStr(date)!==localDateStr(new Date())) return false;
+  if(Number(time.split(':')[0])<CUTOFF_HOUR) return false;
+  return new Date().getHours()>=CUTOFF_HOUR;
+}
+
 function isLateCancellation(date,time){
   const[h,m]=time.split(':').map(Number);
   const classTime=new Date(date);
@@ -1496,6 +1512,7 @@ function isLateCancellation(date,time){
 function openCancelSheet(di,time,dateMs){
   const date=dateMs?new Date(dateMs):getWeekDates()[di];
   if(localDateStr(date)<localDateStr(new Date())) return;
+  if(isPastCutoff(date,time)){toast2(tr().cutoffMsg);return;}
   const late=isLateCancellation(date,time);
   // Check if this is an unpaid (post-period) booking
   const dateKey=dateMs?localDateStr(new Date(dateMs)):localDateStr(getWeekDates()[di]);
@@ -1528,6 +1545,7 @@ async function confirmCancel(){
   if(sbUser&&sbUser.id!=='demo'){
     // Determine if class date is fully in the past (yesterday or earlier)
     const classDateMs=selSlot.dateMs||(getWeekDates()[selSlot.di]?.getTime());
+    if(classDateMs&&isPastCutoff(new Date(classDateMs),selSlot.time)){toast2(T.cutoffMsg);return;}
     const classDateStr=classDateMs?localDateStr(new Date(classDateMs)):null;
     const todayStr=localDateStr(new Date());
     const isPastDay=classDateStr&&classDateStr<todayStr;
@@ -1667,6 +1685,7 @@ async function confirmLeaveWaitlist(){
 function joinWaitlist(di,time){
   const T=tr();
   const date=getWeekDates()[di];
+  if(isPastCutoff(date,time)){toast2(T.cutoffMsg);return;}
   selWait={di,time,date};
   tx('shw-title', T.shwTitle);
   tx('shw-info', T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
