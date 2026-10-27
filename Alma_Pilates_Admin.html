@@ -4205,6 +4205,17 @@ async function testConnection(){
   if(btn){btn.textContent='🔌 Test DB';btn.disabled=false;}
 }
 
+// Supabase returns max 1000 rows per request — fetch all pages
+async function sbFetchAll(build){
+  const out=[];
+  for(let from=0;;from+=1000){
+    const {data,error}=await build().range(from,from+999);
+    if(error) return {data:out.length?out:null,error};
+    out.push(...data);
+    if(data.length<1000) return {data:out,error:null};
+  }
+}
+
 async function dbLoad(){
   if(!sb || !STUDIO_ID) return;
   dbLoading = true;
@@ -4228,7 +4239,7 @@ async function dbLoad(){
     ] = await Promise.allSettled([
       slotsPromise,
       sb.from('clients').select('*,subscriptions(*)').eq('studio_id',STUDIO_ID).order('created_at',{ascending:false}),
-      sb.from('payments').select('id,amount,method,status,paid_at,notes,created_at,subscription_id,clients(full_name)').eq('studio_id',STUDIO_ID).order('paid_at',{ascending:false,nullsFirst:false}).limit(300),
+      sbFetchAll(()=>sb.from('payments').select('id,amount,method,status,paid_at,notes,created_at,subscription_id,clients(full_name)').eq('studio_id',STUDIO_ID).order('paid_at',{ascending:false,nullsFirst:false}).order('id')),
       sb.from('studio_expenses').select('*').eq('studio_id',STUDIO_ID).order('date',{ascending:false}),
       sb.from('studios').select('expense_cats,price_8,price_12,price_single,capacity,config').eq('id',STUDIO_ID).single(),
       sb.from('extra_classes').select('class_date,start_time,name').eq('studio_id',STUDIO_ID).eq('is_active',true),
@@ -4354,37 +4365,23 @@ async function dbLoad(){
       });
       renderClients(); // первый рендер — имена видны сразу
 
-      // ── PHASE 2: букинги для расчёта баланса (нужны ID клиентов) ─
+      // ── PHASE 2: баланс берём из БД (used_classes считает триггер) ─
       const clientUuids=CLIENTS.filter(c=>c._uuid).map(c=>c._uuid);
-      const subStartMap={}, subExpiresMap={};
+      const subUsedMap={};
       data.forEach(c=>{
         const sub=c.subscriptions?.find(s=>s.is_active)||null;
-        if(sub?.starts_at) subStartMap[c.id]=sub.starts_at;
-        if(sub?.expires_at) subExpiresMap[c.id]=sub.expires_at;
+        if(sub) subUsedMap[c.id]=sub.used_classes||0;
       });
       if(clientUuids.length>0){
         const today2=localDateStr(new Date());
-        const [{data:bkData},{data:unpaidData}]=await Promise.all([
-          sb.from('bookings').select('client_id,class_date')
-            .in('client_id',clientUuids).in('status',['booked','attended','missed']),
-          sb.from('bookings').select('client_id')
-            .in('client_id',clientUuids).eq('status','unpaid_future').gte('class_date',today2)
-        ]);
+        const {data:unpaidData}=await sbFetchAll(()=>sb.from('bookings').select('id,client_id')
+          .eq('studio_id',STUDIO_ID).eq('status','unpaid_future').gte('class_date',today2).order('id'));
         const unpaidCounts={};
         (unpaidData||[]).forEach(b=>{ unpaidCounts[b.client_id]=(unpaidCounts[b.client_id]||0)+1; });
-        if(bkData){
-          const bkCounts={};
-          bkData.forEach(b=>{
-            const starts=subStartMap[b.client_id];
-            const expires=subExpiresMap[b.client_id];
-            if(!starts||b.class_date>=starts){
-              if(!expires||b.class_date<=expires)
-                bkCounts[b.client_id]=(bkCounts[b.client_id]||0)+1;
-            }
-          });
+        if(unpaidData){
           CLIENTS.forEach(c=>{
             if(c._subUuid){
-              c.left=c.total-(bkCounts[c._uuid]||0);
+              c.left=c.total-(subUsedMap[c._uuid]||0);
             } else if(unpaidCounts[c._uuid]){
               // No subscription but has unpaid future bookings → treat as debt
               c.left=-(unpaidCounts[c._uuid]);
