@@ -626,6 +626,24 @@ async function resolveStudio(){
 
 let sbUser=null, sbProfile=null, sbPhone='', isNewUser=false;
 let sbBal={used:0,total:8};
+let sbSubs=[];
+function pickCurrentSub(subs){
+  const t=localDateStr(new Date());
+  const act=(subs||[]).filter(s=>s&&s.is_active!==false);
+  if(!act.length) return null;
+  const covering=act.filter(s=>(!s.starts_at||s.starts_at<=t)&&(!s.expires_at||s.expires_at>=t))
+    .sort((a,b)=>(a.expires_at||'9999').localeCompare(b.expires_at||'9999'));
+  if(covering.length) return covering[0];
+  const upcoming=act.filter(s=>s.starts_at&&s.starts_at>t).sort((a,b)=>a.starts_at.localeCompare(b.starts_at));
+  if(upcoming.length) return upcoming[0];
+  return act.slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))[0];
+}
+// Membership a class on dateStr is charged to: covers that date and still has classes (ending first goes first)
+function subForDate(dateStr){
+  const covering=(sbSubs||[]).filter(s=>(!s.starts_at||s.starts_at<=dateStr)&&(!s.expires_at||s.expires_at>=dateStr))
+    .sort((a,b)=>(a.expires_at||'9999').localeCompare(b.expires_at||'9999'));
+  return {sub:covering.find(s=>(s.total_classes||0)-(s.used_classes||0)>0)||null, covered:covering.length>0};
+}
 let bookingByKey=new Map(); // "dow_time" → {id,class_id,date}
 
 function normPhone(p){
@@ -795,8 +813,10 @@ async function loadBalance(){
   if(!sbUser||sbUser.id==='demo') return;
   const clientId=sbProfile?.id;
   if(!clientId) return;
-  const {data:subs}=await sb.from('subscriptions').select('*').eq('client_id',clientId).eq('is_active',true).order('created_at',{ascending:false}).limit(1);
-  const sub=subs?.[0];
+  const {data:subs}=await sb.from('subscriptions').select('*').eq('client_id',clientId).eq('is_active',true).order('created_at',{ascending:false});
+  // Memberships run one after another: show the one covering today (or the next upcoming)
+  sbSubs=subs||[];
+  const sub=pickCurrentSub(sbSubs);
   // If no active subscription — balance is 0, nothing to show
   if(!sub){
     sbBal={used:0,total:0,subId:null,startsAt:null,expiresAt:null};
@@ -1462,14 +1482,12 @@ async function confirmBook(){
     if(!slot){toast2('Error: slot not found');return;}
     const clientId=sbProfile?.id;
     if(!clientId){toast2('Error: no client profile');return;}
-    const left=Math.max(0,sbBal.total-sbBal.used);
-    // Determine if this date falls within the active subscription period
-    const isWithinSub=sbBal.subId&&sbBal.expiresAt&&dateStr<=sbBal.expiresAt&&(!sbBal.startsAt||dateStr>=sbBal.startsAt);
-    const isOutsideSub=!isWithinSub;
-    if(left<=0&&isWithinSub){toast2(tr().noClassesLeft||'No classes left');return;}
-    // Outside subscription period → unpaid_future (placeholder, no balance deducted)
-    const bkStatus=isOutsideSub?'unpaid_future':'booked';
-    const bkSubId=isOutsideSub?null:sbBal.subId;
+    // Charge to the membership that covers this date (memberships can be queued one after another)
+    const {sub:dateSub,covered}=subForDate(dateStr);
+    if(covered&&!dateSub){toast2(tr().noClassesLeft||'No classes left');return;}
+    // Outside every membership period → unpaid_future (placeholder, no balance deducted)
+    const bkStatus=dateSub?'booked':'unpaid_future';
+    const bkSubId=dateSub?dateSub.id:null;
     const {data:bkResult,error}=await sb.rpc('book_class',{
       p_client_id:clientId, p_slot_id:slot.id, p_studio_id:STUDIO_ID,
       p_class_date:dateStr, p_subscription_id:bkSubId, p_status:bkStatus

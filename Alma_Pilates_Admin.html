@@ -1257,6 +1257,7 @@ function renderClientCard(c){
 
   <div>
     <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:10px">${typeLabel} <span style="font-weight:400;color:var(--text2)">${price}</span></div>
+    ${(c._subs||[]).filter(s=>s.id!==c._subUuid&&s.starts_at&&s.starts_at>localDateStr(new Date())).sort((a,b)=>a.starts_at.localeCompare(b.starts_at)).map(s=>`<div style="font-size:11px;color:var(--text2);margin:-6px 0 10px">${L('Επόμενη συνδρομή','Next membership','Следующий абонемент')}: ${s.total_classes} ${L('μαθ.','cl.','зан.')} · ${L('από','from','с')} ${isoFmt(s.starts_at)}</div>`).join('')}
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
       <div class="sub-box"><div class="sub-box-val" id="sub-attended-${c.id}">${attendedMonth}</div><div class="sub-box-lbl">${L('αυτόν τον μήνα','this month','этот месяц')}</div></div>
       <div class="sub-box" style="background:var(--green-bg)"><div class="sub-box-val" style="color:var(--green)" id="sub-upcoming-${c.id}">${upcoming}</div><div class="sub-box-lbl" style="color:var(--green)">${L('επερχόμενα','upcoming','предстоит')}</div></div>
@@ -2184,11 +2185,13 @@ async function editClientPhone(clientId){
 async function applyBalanceToBooking(bookingId, clientId){
   const c=CLIENTS.find(x=>x.id===clientId); if(!c||!sb) return;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
-  if(!c._subUuid||c.left<=0){ toast(L('Δεν υπάρχει διαθέσιμο υπόλοιπο','No balance available','Нет доступного баланса')); return; }
-  const {error}=await sb.from('bookings').update({status:'booked',subscription_id:c._subUuid}).eq('id',bookingId);
+  const {data:bkRow}=await sb.from('bookings').select('class_date').eq('id',bookingId).single();
+  const target=bkRow&&c._subs?subForDate(c,bkRow.class_date).sub:(c.left>0?{id:c._subUuid}:null);
+  if(!target){ toast(L('Δεν υπάρχει διαθέσιμο υπόλοιπο','No balance available','Нет доступного баланса')); return; }
+  const {error}=await sb.from('bookings').update({status:'booked',subscription_id:target.id}).eq('id',bookingId);
   if(error){ toast(L('Σφάλμα','Error','Ошибка')+': '+error.message); return; }
-  const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',c._subUuid).single();
-  if(sub) await sb.from('subscriptions').update({used_classes:sub.used_classes+1}).eq('id',c._subUuid);
+  const {data:sub}=await sb.from('subscriptions').select('used_classes').eq('id',target.id).single();
+  if(sub) await sb.from('subscriptions').update({used_classes:sub.used_classes+1}).eq('id',target.id);
   const bk=(clientHistoryCache[c._uuid]?.bookings||[]).find(b=>b.id===bookingId);
   logAction('unpaid_converted',`${c.name} · ${bk?.class_date||''} ${bk?.schedule_slots?.start_time?.slice(0,5)||''}`,'booking',bookingId,{client_name:c.name,client_uuid:c._uuid,subscription_id:c._subUuid});
   toast(L('Πληρώθηκε','Paid','Оплачено из баланса'));
@@ -2243,7 +2246,9 @@ async function adminCancelBooking(bookingId, clientId){
   // Refresh client history and remaining count
   delete clientHistoryCache[uuid];
   await loadClientHistory(clientId);
-  const {data:sub}=await sb.from('subscriptions').select('total_classes,used_classes').eq('client_id',uuid).eq('is_active',true).order('created_at',{ascending:false}).limit(1).single();
+  const {data:subRows}=await sb.from('subscriptions').select('id,total_classes,used_classes,starts_at,expires_at,created_at,is_active').eq('client_id',uuid).eq('is_active',true);
+  const sub=pickCurrentSub(subRows);
+  if(subRows) c._subs=subRows.map(s=>({id:s.id,starts_at:s.starts_at,expires_at:s.expires_at,total_classes:s.total_classes,used_classes:s.used_classes||0,created_at:s.created_at}));
   if(sub){ c.left=sub.total_classes-sub.used_classes; c.status=calcClientStatus(c); applyExpiredBurn(c); renderClientCard(c); renderClients(); }
 }
 
@@ -2989,19 +2994,49 @@ function bmFilter(q){
   const noEl=document.getElementById('bm-no-clients');
   if(noEl) noEl.style.display=any?'none':'block';
 }
+// ── SUBSCRIPTIONS IN A QUEUE ─────────────────────────────────
+// A client can hold several active subscriptions one after another (paid in advance).
+// Each subscription only covers its own period [starts_at, expires_at].
+// The "current" one is the one covering today; otherwise the next upcoming; otherwise the latest.
+function pickCurrentSub(subs, todayStr){
+  const act=(subs||[]).filter(s=>s&&s.is_active!==false);
+  if(!act.length) return null;
+  const t=todayStr||localDateStr(new Date());
+  const covering=act.filter(s=>(!s.starts_at||s.starts_at<=t)&&(!s.expires_at||s.expires_at>=t))
+    .sort((a,b)=>(a.expires_at||'9999').localeCompare(b.expires_at||'9999'));
+  if(covering.length) return covering[0];
+  const upcoming=act.filter(s=>s.starts_at&&s.starts_at>t).sort((a,b)=>a.starts_at.localeCompare(b.starts_at));
+  if(upcoming.length) return upcoming[0];
+  return act.slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))[0];
+}
+// Subscription a class on dateStr should be charged to: covers the date and still has classes.
+// If several cover the date, the one ending first is used up first.
+function subForDate(client, dateStr){
+  const covering=(client._subs||[]).filter(s=>(!s.starts_at||s.starts_at<=dateStr)&&(!s.expires_at||s.expires_at>=dateStr))
+    .sort((a,b)=>(a.expires_at||'9999').localeCompare(b.expires_at||'9999'));
+  const withBal=covering.find(s=>(s.total_classes||0)-(s.used_classes||0)>0)||null;
+  return {sub:withBal, covered:covering.length>0};
+}
+// Last day of the latest active subscription (for queueing a new one), or null.
+function lastActiveSubEnd(client){
+  const ends=(client._subs||[]).map(s=>s.expires_at).filter(Boolean).sort();
+  return ends.length?ends[ends.length-1]:null;
+}
+function addDaysStr(dateStr,n){ const d=new Date(dateStr+'T12:00:00'); d.setDate(d.getDate()+n); return localDateStr(d); }
+
 // Returns booking status and subscription_id for a given date and client.
-// If date is within the client's active subscription period AND client has balance → 'booked' + subUuid
-// If client is in debt (left<=0) → 'unpaid_future' (even within period)
-// Otherwise → 'unpaid_future' + null
+// Charged to the active subscription that covers that date and still has classes → 'booked'.
+// Otherwise → 'unpaid_future' (placeholder, nothing deducted).
 function resolveBookingStatus(client, dateStr){
-  const hasActiveSub=!!client._subUuid;
-  const withinPeriod=hasActiveSub&&client.expiresDate&&dateStr<=client.expiresDate;
-  const hasBal=client.left>0; // debt clients get unpaid_future even within period
-  return {
-    status: withinPeriod&&hasBal ? 'booked' : 'unpaid_future',
-    subscription_id: withinPeriod ? client._subUuid : null,
-    isPaid: withinPeriod&&hasBal
-  };
+  if(!client._subs){ // fallback: only the single current subscription is known
+    const within=!!client._subUuid&&client.expiresDate&&dateStr<=client.expiresDate;
+    const ok=within&&client.left>0;
+    return {status:ok?'booked':'unpaid_future', subscription_id:ok?client._subUuid:null, isPaid:ok};
+  }
+  const {sub}=subForDate(client,dateStr);
+  if(!sub) return {status:'unpaid_future', subscription_id:null, isPaid:false};
+  sub.used_classes=(sub.used_classes||0)+1; // reserve locally so batch bookings don't overdraw it
+  return {status:'booked', subscription_id:sub.id, isPaid:true};
 }
 
 function openBookModal(di, time){
@@ -3335,7 +3370,12 @@ function openPayModal(prefilledClient){
         <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Ημ/νία πληρωμής','Payment date','Дата платежа')}</label>
         <input type="date" id="pam-date" value="${today}" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
       </div>
+      <div class="ff">
+        <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Έναρξη συνδρομής','Membership starts','Начало абонемента')}</label>
+        <input type="date" id="pam-start" value="${today}" oninput="window._pamStartTouched=true;pamUpdateStartHint()" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
+      </div>
     </div>
+    <div id="pam-start-hint" style="display:none;margin-top:8px;padding:8px 10px;border-radius:9px;background:#FEF3E2;border:0.5px solid #E8A84A;color:#92400E;font-size:11px;line-height:1.4"></div>
     <div class="ff" style="margin-top:10px">
       <label style="font-size:11px;color:var(--text2);font-weight:500">${L('Σχόλιο','Note','Комментарий')}</label>
       <input type="text" id="pam-note" placeholder="${L('Προαιρετικό...','Optional...','Опционально...')}" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">
@@ -3347,6 +3387,7 @@ function openPayModal(prefilledClient){
   </div>`;
   m.classList.add('open');
   window._pamMethod=SHOW_REVOLUT?'revolut':'cash';
+  window._pamStartTouched=false;
   // Sync amount with first selected membership option
   pamUpdateAmt();
   // Pre-fill client if provided
@@ -3379,6 +3420,35 @@ function pamSelectClient(name, el){
   if(hidden) hidden.value=name;
   const list=document.getElementById('pam-client-list');
   if(list) list.style.display='none';
+  // Queue: if the client still has an active membership, the new one starts the day after it ends
+  const c=CLIENTS.find(x=>x.name===name);
+  const startEl=document.getElementById('pam-start');
+  const lastEnd=c?lastActiveSubEnd(c):null;
+  const today=localDateStr(new Date());
+  if(startEl&&!window._pamStartTouched){
+    startEl.value=(lastEnd&&lastEnd>=today)?addDaysStr(lastEnd,1):today;
+  }
+  pamUpdateStartHint();
+}
+
+function pamUpdateStartHint(){
+  const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  const hint=document.getElementById('pam-start-hint'); if(!hint) return;
+  const name=document.getElementById('pam-client')?.value||'';
+  const c=CLIENTS.find(x=>x.name===name);
+  const start=document.getElementById('pam-start')?.value||'';
+  const lastEnd=c?lastActiveSubEnd(c):null;
+  const today=localDateStr(new Date());
+  if(!c||!lastEnd||lastEnd<today||!start){hint.style.display='none';return;}
+  const endTxt=isoFmt(lastEnd), nextTxt=isoFmt(addDaysStr(lastEnd,1));
+  hint.style.display='block';
+  hint.textContent=start>lastEnd
+    ?L(`Η πελάτισσα έχει ενεργή συνδρομή έως ${endTxt}. Η νέα θα ξεκινήσει μετά από αυτήν.`,
+       `This client has an active membership until ${endTxt}. The new one will start after it.`,
+       `У клиентки действует абонемент до ${endTxt}. Новый начнётся после него.`)
+    :L(`⚠️ Επικαλύπτεται με ενεργή συνδρομή έως ${endTxt}. Συνήθως η νέα ξεκινά ${nextTxt}.`,
+       `⚠️ Overlaps the active membership until ${endTxt}. Normally the new one starts ${nextTxt}.`,
+       `⚠️ Пересекается с действующим абонементом до ${endTxt}. Обычно новый начинается с ${nextTxt}.`);
 }
 
 // Close dropdown when clicking outside
@@ -3415,8 +3485,21 @@ async function submitPayModal(){
   const amt=parseFloat(document.getElementById('pam-amt')?.value||'0');
   const date=document.getElementById('pam-date')?.value||localDateStr(new Date());
   const note=document.getElementById('pam-note')?.value.trim()||'';
+  const startDate=document.getElementById('pam-start')?.value||date;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
   if(!client||amt==null||isNaN(amt)) return toast(L('Συμπλήρωσε πελάτη και ποσό','Fill in client and amount','Заполни клиента и сумму'));
+  {
+    const cq=CLIENTS.find(x=>x.name===client);
+    const lastEnd=cq?lastActiveSubEnd(cq):null;
+    const isSub=['4','8','12','12s','1'].includes(typeVal.split('|')[0]);
+    if(isSub&&lastEnd&&startDate<=lastEnd){
+      const ok=confirm(L(
+        `Η ${client} έχει ενεργή συνδρομή έως ${isoFmt(lastEnd)}.\nΣίγουρα η νέα ξεκινά ${isoFmt(startDate)};\n\nΆκυρο = αλλαγή ημερομηνίας έναρξης.`,
+        `${client} has an active membership until ${isoFmt(lastEnd)}.\nStart the new one on ${isoFmt(startDate)} anyway?\n\nCancel = change the start date.`,
+        `У ${client} действует абонемент до ${isoFmt(lastEnd)}.\nТочно начать новый с ${isoFmt(startDate)}?\n\nОтмена — поменять дату начала.`));
+      if(!ok){ document.getElementById('pam-start')?.focus(); return; }
+    }
+  }
   const classes=typeVal.split('|')[0];
   const detailMap={'4':L('4 μαθ.','4-class membership','4 занятия'),'8':L('8 μαθ.','8-class membership','8 занятий'),'12':L('12 μαθ. προμό','12-class promo','12 занятий промо'),'12s':L('12 μαθ. τυπ.','12-class standard','12 занятий стандарт'),'1':L('Μεμονωμένο','Single class','Разовое'),'0':L('Άλλο','Custom','Другое')};
   const init=client.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -3445,15 +3528,16 @@ async function submitPayModal(){
     const totalClasses=totalMap[classes]||null;
     let subUuid=null;
     if(subType && totalClasses){
-      // Deactivate existing active subscriptions for this client
+      // Subscriptions run one after another: only memberships that already ended
+      // before the new one starts are closed; a current one keeps running until its end date.
       await sb.from('subscriptions').update({is_active:false})
-        .eq('client_id',clientUuid).eq('is_active',true);
-      const expDate=new Date(date); expDate.setDate(expDate.getDate()+(expDaysMap[classes]||60));
+        .eq('client_id',clientUuid).eq('is_active',true).lt('expires_at',startDate);
+      const expDate=new Date(startDate+'T12:00:00'); expDate.setDate(expDate.getDate()+(expDaysMap[classes]||60));
       const {data:sub,error:subErr}=await sb.from('subscriptions').insert({
         studio_id:STUDIO_ID, client_id:clientUuid, type:subType,
         total_classes:totalClasses, used_classes:0, price:amt,
-        paid_at:new Date(date+'T12:00:00').toISOString(), starts_at:date,
-        expires_at:expDate.toISOString().split('T')[0],
+        paid_at:new Date(date+'T12:00:00').toISOString(), starts_at:startDate,
+        expires_at:localDateStr(expDate),
         payment_method:method, is_active:true
       }).select().single();
       if(subErr) return fail(L('Σφάλμα συνδρ.','Subscription error: ','Ошибка подписки: ')+subErr.message);
@@ -3462,13 +3546,13 @@ async function submitPayModal(){
       // Force correct paid_at (DB trigger may override INSERT value)
       await sb.from('subscriptions').update({paid_at:new Date(date+'T12:00:00').toISOString()}).eq('id',subUuid);
       logAction('subscription_created',`${client} · ${totalClasses} занятий · €${amt}`,'subscription',sub.id,{subscription_id:sub.id,client_name:client,type:subType,amount:amt});
-      if(clientRec){
+      if(clientRec&&startDate<=localDateStr(new Date())){
         clientRec._subUuid=subUuid; clientRec.type=subType;
         clientRec.total=totalClasses; clientRec.left=totalClasses; clientRec.status='ok';
       }
       // Auto-convert unpaid_future bookings to booked — only within subscription period
-      const subStartsAt=date;
-      const subExpiresAt=expDate.toISOString().split('T')[0];
+      const subStartsAt=startDate;
+      const subExpiresAt=localDateStr(expDate);
       const {data:unpaidBks}=await sb.from('bookings')
         .select('id').eq('client_id',clientUuid).eq('studio_id',STUDIO_ID)
         .eq('status','unpaid_future')
@@ -4347,10 +4431,11 @@ async function dbLoad(){
     if(!clientsError && data && data.length){
       CLIENTS.length=0;
       data.forEach((c,i)=>{
-        const sub=c.subscriptions?.find(s=>s.is_active)||null;
+        const sub=pickCurrentSub(c.subscriptions);
         const total=sub?.total_classes||0;
         CLIENTS.push({
           id:i+1, _uuid:c.id, _subUuid:sub?.id||null,
+          _subs:(c.subscriptions||[]).filter(s=>s.is_active).map(s=>({id:s.id,starts_at:s.starts_at,expires_at:s.expires_at,total_classes:s.total_classes,used_classes:s.used_classes||0,created_at:s.created_at})),
           name:c.full_name||'',
           initials:(c.full_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
           phone:c.phone||'', lang:(c.language||'el').toUpperCase(),
@@ -4369,7 +4454,7 @@ async function dbLoad(){
       const clientUuids=CLIENTS.filter(c=>c._uuid).map(c=>c._uuid);
       const subUsedMap={};
       data.forEach(c=>{
-        const sub=c.subscriptions?.find(s=>s.is_active)||null;
+        const sub=pickCurrentSub(c.subscriptions);
         if(sub) subUsedMap[c.id]=sub.used_classes||0;
       });
       if(clientUuids.length>0){
@@ -4467,6 +4552,12 @@ async function adjustBalance(id,delta){
   const newTotal=Math.max(0, c.total+delta); // total_classes can't go below 0
   if(newTotal===c.total) return;
   const L=(el,en,ru)=>adminLang==='el'?el:adminLang==='en'?en:ru;
+  if(delta>0&&c.expiresDate&&c.expiresDate<localDateStr(new Date())){
+    toast(L(`Η συνδρομή έληξε ${isoFmt(c.expiresDate)} — τα μαθήματα καίγονται. Παρατείνετε την ημερομηνία ή προσθέστε νέα συνδρομή.`,
+            `Membership expired ${isoFmt(c.expiresDate)} — added classes would burn. Extend the end date or add a new membership.`,
+            `Абонемент истёк ${isoFmt(c.expiresDate)} — добавленные занятия сгорят. Продлите срок или внесите новый абонемент.`));
+    return;
+  }
   if(sb&&c._subUuid){
     const {error}=await sb.from('subscriptions').update({total_classes:newTotal}).eq('id',c._subUuid);
     if(error){toast('Error: '+error.message);return;}
