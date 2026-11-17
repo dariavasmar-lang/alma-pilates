@@ -715,7 +715,7 @@ async function loadClasses(){
     if(!SCH[dow]) SCH[dow]=[];
     const t=s.start_time.slice(0,5);
     const tp=t<'12:00'?'mo':'ev';
-    SCH[dow].push({id:s.id,t,tp,capacity:s.capacity||4});
+    SCH[dow].push({id:s.id,t,tp,capacity:s.capacity||4,level:s.level||''});
   });
   CANC=(canc||[]).filter(r=>r.type!=='add').map(r=>({type:r.type,date:r.date,endDate:r.end_date||r.date,slot:r.slot_time||''}));
 }
@@ -1350,14 +1350,14 @@ function openDaySlots(dow,date){
     const free=s.capacity-bk;
     const full=free<=0&&!mine&&!unpaid;
     if(isPastDay&&!mine&&!unpaid){
-      return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
+      return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span>${advTag(s)}<span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
     }
     if(isPastCutoff(date,s.t)&&!mine&&!unpaid){
-      return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${T.slClosed}</span></div>`;
+      return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span>${advTag(s)}<span style="font-size:9px;margin-top:1px;opacity:.85">${T.slClosed}</span></div>`;
     }
     if(unpaid){
       const lbl=T.slUnpaid||'не опл.';
-      return `<div class="slot" style="background:#FEF3E2;border:0.5px solid #E8A84A;cursor:pointer" onclick="closeSheet('sh-day');openCancelSheet(${dow},'${s.t}',${dateMs})"><span style="font-weight:500;font-size:11px;color:#92400E">${s.t}</span><span style="font-size:9px;margin-top:1px;color:#C47A1A">${lbl}</span></div>`;
+      return `<div class="slot" style="background:#FEF3E2;border:0.5px solid #E8A84A;cursor:pointer" onclick="closeSheet('sh-day');openCancelSheet(${dow},'${s.t}',${dateMs})"><span style="font-weight:500;font-size:11px;color:#92400E">${s.t}</span>${advTag(s)}<span style="font-size:9px;margin-top:1px;color:#C47A1A">${lbl}</span></div>`;
     }
     const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
     const lbl=mine?T.slMine:onWait?T.slWait:full?T.slFull:free+' '+T.slFree;
@@ -1365,7 +1365,7 @@ function openDaySlots(dow,date){
                   onWait?`onclick="closeSheet('sh-day');leaveWaitlist(${dow},'${s.t}')"`
                   :full?`onclick="closeSheet('sh-day');joinWaitlist(${dow},'${s.t}')"`
                   :`onclick="closeSheet('sh-day');openBookSheet(${dow},'${s.t}',${free},${dateMs})"` ;
-    return `<div class="slot ${cls}" ${onclick}><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
+    return `<div class="slot ${cls}" ${onclick}><span style="font-weight:500;font-size:11px">${s.t}</span>${advTag(s)}<span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
   }).join('');
   $('shd-slots').innerHTML=`<div class="slots" style="flex-wrap:wrap">${slotsHTML}</div>`;
   openSheet('sh-day');
@@ -1395,14 +1395,14 @@ function buildSchedule(){
       const free=s.capacity-bk;
       const full=free<=0&&!mine&&!unpaid;
       if(isPast&&!mine&&!unpaid){
-        return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
+        return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span>${advTag(s)}<span style="font-size:9px;margin-top:1px;opacity:.85">—</span></div>`;
       }
       if(isPastCutoff(date,s.t)&&!mine&&!unpaid){
-        return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${T.slClosed}</span></div>`;
+        return `<div class="slot" style="opacity:0.35;cursor:default"><span style="font-weight:500;font-size:11px">${s.t}</span>${advTag(s)}<span style="font-size:9px;margin-top:1px;opacity:.85">${T.slClosed}</span></div>`;
       }
       if(unpaid){
         const lbl=T.slUnpaid||'не опл.';
-        return `<div class="slot" style="background:#FEF3E2;border:0.5px solid #E8A84A;cursor:pointer" onclick="openCancelSheet(${di},'${s.t}',null)"><span style="font-weight:500;font-size:11px;color:#92400E">${s.t}</span><span style="font-size:9px;margin-top:1px;color:#C47A1A">${lbl}</span></div>`;
+        return `<div class="slot" style="background:#FEF3E2;border:0.5px solid #E8A84A;cursor:pointer" onclick="openCancelSheet(${di},'${s.t}',null)"><span style="font-weight:500;font-size:11px;color:#92400E">${s.t}</span>${advTag(s)}<span style="font-size:9px;margin-top:1px;color:#C47A1A">${lbl}</span></div>`;
       }
       const cls=mine?'mi':onWait?'wl':full?'fu':s.tp==='mo'?'mo':'ev';
       const lbl=mine?T.slMine:onWait?T.slWait:full?T.slFull:free+' '+T.slFree;
@@ -1411,9 +1411,9 @@ function buildSchedule(){
                     :full?`onclick="joinWaitlist(${di},'${s.t}')"`:'';
       if(!mine&&!full&&!onWait){
         const o=`onclick="openBookSheet(${di},'${s.t}',${free},null)"`;
-        return `<div class="slot ${cls}" ${o}><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
+        return `<div class="slot ${cls}" ${o}><span style="font-weight:500;font-size:11px">${s.t}</span>${advTag(s)}<span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
       }
-      return `<div class="slot ${cls}" ${onclick}><span style="font-weight:500;font-size:11px">${s.t}</span><span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
+      return `<div class="slot ${cls}" ${onclick}><span style="font-weight:500;font-size:11px">${s.t}</span>${advTag(s)}<span style="font-size:9px;margin-top:1px;opacity:.85">${lbl}</span></div>`;
     }).join('');
     return `<div class="dayb"${isToday?' id="sch-today"':''}><div class="daylbl" style="${isToday?'background:var(--accent);color:var(--bg)':''}">${T.days[di]} · ${date.getDate()} ${T.months[date.getMonth()]}</div><div class="slots">${slotsHTML}</div></div>`;
   }).join('');
@@ -1432,7 +1432,7 @@ async function openBookSheet(di,time,free,dateMs){
   selSlot={di,time,free,dateMs};
   const T=tr();
   tx('shb-title',T.shbTitle);
-  tx('shb-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time));
+  tx('shb-info',T.days[di]+', '+date.getDate()+' '+T.months[date.getMonth()]+' · '+time+'–'+nh(time)+(isAdvSlot(di,time)?' · '+T.advNote:''));
   openSheet('sh-book');
   await loadBalance();
   const left=Math.max(0,sbBal.total-sbBal.used);
@@ -1522,6 +1522,9 @@ function bookingErrMsg(code){
 
 // Same-day cut-off: classes from 15:00 onwards can't be booked or changed in the app after 15:00 that day
 const CUTOFF_HOUR=15;
+// Advanced-level classes (schedule_slots.level='advanced') get a small tag so beginners don't book them
+function advTag(s){return s&&s.level==='advanced'?`<span style="font-size:8px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;margin-top:1px;color:#B4462B">${tr().slAdv||'Advanced'}</span>`:'';}
+function isAdvSlot(di,time){return (SCH[di]||[]).some(s=>s.t===time&&s.level==='advanced');}
 function isPastCutoff(date,time){
   if(localDateStr(date)!==localDateStr(new Date())) return false;
   if(Number(time.split(':')[0])<CUTOFF_HOUR) return false;
