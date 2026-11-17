@@ -3528,10 +3528,11 @@ async function submitPayModal(){
     const totalClasses=totalMap[classes]||null;
     let subUuid=null;
     if(subType && totalClasses){
-      // Subscriptions run one after another: only memberships that already ended
-      // before the new one starts are closed; a current one keeps running until its end date.
+      // Subscriptions run one after another: only memberships that have already ended
+      // (before today) are closed; a current one keeps running until its end date,
+      // even when the new one is queued to start right after it.
       await sb.from('subscriptions').update({is_active:false})
-        .eq('client_id',clientUuid).eq('is_active',true).lt('expires_at',startDate);
+        .eq('client_id',clientUuid).eq('is_active',true).lt('expires_at',localDateStr(new Date()));
       const expDate=new Date(startDate+'T12:00:00'); expDate.setDate(expDate.getDate()+(expDaysMap[classes]||60));
       const {data:sub,error:subErr}=await sb.from('subscriptions').insert({
         studio_id:STUDIO_ID, client_id:clientUuid, type:subType,
