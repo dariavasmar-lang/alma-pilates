@@ -1520,8 +1520,8 @@ function bookingErrMsg(code){
   return m[code]||('Error: '+code);
 }
 
-// Same-day cut-off: classes from 12:00 onwards can't be booked or changed in the app after 12:00 that day
-const CUTOFF_HOUR=12;
+// Same-day cut-off: classes from 15:00 onwards can't be booked or changed in the app after 15:00 that day
+const CUTOFF_HOUR=15;
 function isPastCutoff(date,time){
   if(localDateStr(date)!==localDateStr(new Date())) return false;
   if(Number(time.split(':')[0])<CUTOFF_HOUR) return false;
