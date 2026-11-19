@@ -713,7 +713,7 @@ async function renderActivityLog(){
     el.innerHTML=`<div style="font-size:13px;color:var(--text3);padding:32px;text-align:center">${L('Δεν υπάρχουν ενέργειες','No actions yet','Действий пока нет')}</div>`;
     return;
   }
-  const typeIcon={booking_created:'📅',booking_cancelled:'❌',recurring_created:'🔁',subscription_created:'💳',payment_added:'💰',balance_adjusted:'✏️',client_created:'👤'};
+  const typeIcon={booking_created:'📅',booking_cancelled:'❌',recurring_created:'🔁',subscription_created:'💳',payment_added:'💰',balance_adjusted:'✏️',client_created:'👤',client_booked:'📲',client_cancelled:'🚫'};
   el.innerHTML=data.map(e=>{
     const dt=new Date(e.created_at);
     const dateStr=dt.toLocaleDateString(adminLang==='el'?'el-GR':adminLang==='en'?'en-GB':'ru-RU',{day:'numeric',month:'short'});
@@ -726,7 +726,7 @@ async function renderActivityLog(){
         <div style="font-size:12px;color:var(--text);line-height:1.4">${e.description||e.action_type}${rb?` <span style="font-size:10px;color:var(--text3)">(${L('αναιρέθηκε','undone','откатили')})</span>`:''}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px">${dateStr} · ${timeStr}</div>
       </div>
-      ${!rb?`<button onclick="rollbackAction('${e.id}')" style="font-size:10px;padding:3px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--text3);flex-shrink:0">${L('Αναίρεση','Undo','Откат')}</button>`:''}
+      ${!rb&&e.action_type!=='client_booked'&&e.action_type!=='client_cancelled'?`<button onclick="rollbackAction('${e.id}')" style="font-size:10px;padding:3px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--text3);flex-shrink:0">${L('Αναίρεση','Undo','Откат')}</button>`:''}
     </div>`;
   }).join('');
 }
@@ -1360,7 +1360,7 @@ function renderClientCard(c){
   </div>`;
 
   renderClientCalendar(c.id);
-  loadClientBookings(c.id).then(()=>renderClientCalendar(c.id));
+  Promise.all([loadClientBookings(c.id),loadClientCalCounts(c.id)]).then(()=>renderClientCalendar(c.id));
   loadClientHistory(c.id);
 }
 
@@ -1723,6 +1723,34 @@ async function loadClientBookings(clientId){
   }catch(e){console.error('loadClientBookings:',e.message);}
 }
 
+// Real per-date occupancy for the client calendar: every booking on that exact date
+// (paid and unpaid), keyed "YYYY-MM-DD_slotId".
+const clientCalCounts={};
+function clientCalMonthDates(clientId){
+  const offset=clientCalOffset[clientId]||0;
+  const today=todayCY();
+  const first=new Date(today.getFullYear(),today.getMonth()+offset,1);
+  const out=[];
+  for(let i=-7;i<=38;i++){const d=new Date(first);d.setDate(d.getDate()+i);out.push(localDateStr(d));}
+  return out;
+}
+async function fetchSlotCounts(dates){
+  const {data,error}=await sb.rpc('get_booking_counts',{p_dates:dates});
+  if(error) throw error;
+  const m={};
+  (data||[]).forEach(r=>{ m[r.class_date+'_'+r.slot_id]=Number(r.booking_count)||0; });
+  return m;
+}
+async function loadClientCalCounts(clientId){
+  if(!sb) return;
+  try{
+    const dates=clientCalMonthDates(clientId);
+    const m=await fetchSlotCounts(dates);
+    dates.forEach(d=>Object.values(scheduleSlotIds).forEach(id=>{ delete clientCalCounts[d+'_'+id]; }));
+    Object.assign(clientCalCounts,m);
+  }catch(e){console.error('loadClientCalCounts:',e.message);}
+}
+
 async function openClientCalModal(clientId){
   currentCalClientId=clientId;
   let modal=document.getElementById('client-cal-modal');
@@ -1735,7 +1763,7 @@ async function openClientCalModal(clientId){
     document.body.appendChild(modal);
   }
   modal.style.display='flex';
-  await loadClientBookings(clientId);
+  await Promise.all([loadClientBookings(clientId),loadClientCalCounts(clientId)]);
   renderClientCalendarModal(clientId);
 }
 
@@ -1748,6 +1776,7 @@ function closeClientCalModal(){
 function shiftClientCal(d,clientId){
   clientCalOffset[clientId]=(clientCalOffset[clientId]||0)+d;
   renderClientCalendarModal(clientId);
+  loadClientCalCounts(clientId).then(()=>{ renderClientCalendar(clientId); if(currentCalClientId===clientId) renderClientCalendarModal(clientId); });
 }
 
 function updateConfirmBar(clientId){
@@ -1814,7 +1843,7 @@ function renderClientCalendarModal(clientId){
     let slotsHtml='';
     slots.forEach(t=>{
       const key=dow+'_'+t;
-      const bk=(slotBookingsMap[key]||[]).length;
+      const bk=clientCalCounts[dateStr+'_'+scheduleSlotIds[key]]||0;
       const bookKey=clientId+'_'+dateStr+'_'+t;
       const pendKey=clientId+'_'+dateStr+'_'+dow+'_'+t;
       const isBooked=clientDateBookings[bookKey]===true;
@@ -1905,6 +1934,22 @@ async function confirmClientBookings(clientId){
       console.warn('[ccal] skipping: slotId=',slotId,'c._uuid=',c._uuid,'slotKey=',slotKey,'scheduleSlotIds keys=',Object.keys(scheduleSlotIds).slice(0,10));
     }
   });
+  // Re-check real occupancy right before saving: never book past capacity
+  if(sb && dbRows.length){
+    let fresh;
+    try{ fresh=await fetchSlotCounts([...new Set(dbRows.map(r=>r.class_date))]); }
+    catch(e){ toast((adminLang==='ru'?'Ошибка: ':adminLang==='en'?'Error: ':'Σφάλμα: ')+e.message); return; }
+    Object.assign(clientCalCounts,fresh);
+    const full=localUpdates.filter((u,i)=>dbRows[i].status!=='attended'&&(fresh[dbRows[i].class_date+'_'+dbRows[i].slot_id]||0)>=CAP);
+    if(full.length){
+      const list=full.map(u=>u.dateStr+' '+u.time).join(', ');
+      toast(adminLang==='ru'?`Нет мест: ${list}`:adminLang==='en'?`Class full: ${list}`:`Πλήρες: ${list}`);
+      full.forEach(u=>{ delete pendingSelections[u.key]; });
+      updateConfirmBar(clientId);
+      if(currentCalClientId===clientId) renderClientCalendarModal(clientId);
+      return;
+    }
+  }
   // Save to DB first, then update local state only on success
   if(sb && dbRows.length){
     const {error}=await sb.from('bookings').insert(dbRows);
@@ -1920,6 +1965,8 @@ async function confirmClientBookings(clientId){
       if(!slotBookingsMap[slotKey]) slotBookingsMap[slotKey]=[];
       if(!slotBookingsMap[slotKey].includes(c.name)) slotBookingsMap[slotKey].push(c.name);
       clientDateBookings[clientId+'_'+dateStr+'_'+time]=true;
+      const ck=dateStr+'_'+scheduleSlotIds[slotKey];
+      clientCalCounts[ck]=(clientCalCounts[ck]||0)+1;
       delete pendingSelections[key];
       c.history.unshift({d:dateStr,t:'Записан '+time});
     });
@@ -2003,7 +2050,7 @@ function renderClientCalendar(clientId){
     let slotsHtml='';
     slots.forEach(t=>{
       const key=dow+'_'+t;
-      const bk=(slotBookingsMap[key]||[]).length;
+      const bk=clientCalCounts[dateStr+'_'+scheduleSlotIds[key]]||0;
       const bookKey=clientId+'_'+dateStr+'_'+t;
       const pendKey=clientId+'_'+dateStr+'_'+dow+'_'+t;
       const isBooked=clientDateBookings[bookKey]===true;
